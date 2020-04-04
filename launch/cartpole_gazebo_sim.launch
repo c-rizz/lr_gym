@@ -5,7 +5,7 @@
      via ROS.
 -->
 <launch>
-
+    <env name="ROSCONSOLE_FORMAT" value="[${severity}] [${walltime}] [${node}]: ${message}" />
     <!-- launch the custom world -->
     <include file="$(find gazebo_ros)/launch/empty_world.launch" >
         <arg name="paused" value="True"/>
@@ -34,11 +34,5 @@
     </node>
 
 
-    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
-          output="screen" args="--namespace=/cartpole_v0
-                                joint_state_controller
-                                pole_joint_velocity_controller
-                                foot_joint_velocity_controller">
-    </node>
 
 </launch>

@@ -4,8 +4,6 @@ import rospy
 import gym
 import time
 import tqdm
-from stable_baselines.deepq.policies import MlpPolicy
-from stable_baselines import DQN
 from openai_ros.task_envs.cartpole_stay_up import stay_up
 from CartpoleGazeboEnv import CartpoleGazeboEnv
 
@@ -14,7 +12,7 @@ from CartpoleGazeboEnv import CartpoleGazeboEnv
 #  rosparam load src/openai_examples_projects/cartpole_openai_ros_examples/config/cartpole_n1try_params.yaml
 
 def main():
-    rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.FATAL)
+    rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.INFO)
     #env = gym.make('CartPoleStayUp-v0')
     env = CartpoleGazeboEnv()
     #setup seeds for reproducibility
@@ -23,15 +21,7 @@ def main():
     env.action_space.seed(RANDOM_SEED)
     env._max_episode_steps = 500 #limit episode length
 
-    model = DQN(MlpPolicy, env, verbose=1, seed=RANDOM_SEED, n_cpu_tf_sess=1) #seed=RANDOM_SEED, n_cpu_tf_sess=1 are needed to get deterministic results
-    print("Learning...")
-    t_preLearn = time.time()
-    model.learn(total_timesteps=25000)
-    duration_learn = time.time() - t_preLearn
-    print("Learned. Took "+str(duration_learn)+" seconds.")
-
-
-    print("Computing average reward...")
+    rospy.loginfo("Testing with hardcoded policy")
     t_preVal = time.time()
     rewards=[]
     totFrames=0
@@ -42,12 +32,21 @@ def main():
         frame = 0
         episodeReward = 0
         done = False
+        rospy.loginfo("resetting...")
         obs = env.reset()
+        rospy.loginfo("resetted")
         t0 = time.time()
         while not done:
+            rospy.loginfo("---------------------------------------")
+            time.sleep(1)
             #print("Episode "+str(episode)+" frame "+str(frame))
-            action, _states = model.predict(obs)
+            if obs[2]>0:
+                action = 1
+            else:
+                action = 1
+            rospy.loginfo("stepping...")
             obs, stepReward, done, info = env.step(action)
+            rospy.loginfo("stepped")
             #frames.append(env.render("rgb_array"))
             #time.sleep(0.016)
             frame+=1
@@ -58,7 +57,8 @@ def main():
         #print("Episode "+str(episode)+" lasted "+str(frame)+" frames, total reward = "+str(episodeReward))
     avgReward = sum(rewards)/len(rewards)
     duration_val = time.time() - t_preVal
-    print("Computed average reward. Took "+str(duration_val)+" seconds ("+str(totFrames/totDuration)+" fps).")
+
+    rospy.loginfo("Computed average reward. Took "+str(duration_val)+" seconds ("+str(totFrames/totDuration)+" fps).")
 
 
 if __name__ == "__main__":

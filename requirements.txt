@@ -3,5 +3,5 @@ rospkg==1.2.3
 catkin_pkg==0.4.16
 tensorflow-gpu==1.14.0
 defusedxml==0.6.0
--e git+https://github.com/openai/gym.git@c33cfd8b2cc8cac6c346bc2182cd568ef33b8821#egg=gym
+gym==0.17.1
 tqdm

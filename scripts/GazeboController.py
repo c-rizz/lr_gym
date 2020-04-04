@@ -27,14 +27,14 @@ class GazeboController():
 
         self._pauseGazeboServiceName = "/gazebo/pause_physics"
         self._unpauseGazeboServiceName = "/gazebo/unpause_physics"
-        self._resetGazeboWorldService = "/gazebo/reset_world"
+        self._resetGazeboService = "/gazebo/reset_simulation"
         self._setGazeboPhysics = "/gazebo/set_physics_properties"
 
         timeout_secs = 30.0
         try:
             rospy.wait_for_service(self._pauseGazeboServiceName,timeout_secs)
             rospy.wait_for_service(self._unpauseGazeboServiceName,timeout_secs)
-            rospy.wait_for_service(self._resetGazeboWorldService,timeout_secs)
+            rospy.wait_for_service(self._resetGazeboService,timeout_secs)
             rospy.wait_for_service(self._setGazeboPhysics,timeout_secs)
         except rospy.ROSException as e:
             rospy.logfatal("Failed to wait for Gazebo services. Timeout was "+str(timeout_secs)+"s")
@@ -45,11 +45,12 @@ class GazeboController():
 
         self._pauseGazeboService = rospy.ServiceProxy(self._pauseGazeboServiceName, Empty, persistent=usePersistentConnections)
         self._unpauseGazeboService = rospy.ServiceProxy(self._unpauseGazeboServiceName, Empty, persistent=usePersistentConnections)
-        self._resetGazeboWorldService = rospy.ServiceProxy(self._resetGazeboWorldService, Empty, persistent=usePersistentConnections)
+        self._resetGazeboService = rospy.ServiceProxy(self._resetGazeboService, Empty, persistent=usePersistentConnections)
         #self._setGazeboPhysics = rospy.ServiceProxy(self._setGazeboPhysics, SetPhysicsProperties, persistent=usePersistentConnections)
 
         self.pauseSimulation()
         self.resetWorld()
+        self._lastUnpausedTime = 0
 
     def _callService(self,serviceProxy : rospy.ServiceProxy) -> bool:
         """Call the provided service. It retries in case of failure and handles exceptions. Returns false if the call failed
@@ -95,7 +96,10 @@ class GazeboController():
             True if the simulation was paused, false in case of failure
 
         """
-        return self._callService(self._pauseGazeboService)
+        ret = self._callService(self._pauseGazeboService)
+        rospy.loginfo("paused sim")
+        self._lastUnpausedTime = rospy.get_time()
+        return ret
 
     def unpauseSimulation(self) -> bool:
         """Unpauses the simulation
@@ -106,7 +110,12 @@ class GazeboController():
             True if the simulation was paused, false in case of failure
 
         """
-        return self._callService(self._unpauseGazeboService)
+        t = rospy.get_time()
+        if self._lastUnpausedTime>t:
+            rospy.logwarn("Simulation time increased since last pause! (time diff = "+str(t-self._lastUnpausedTime)+"s)")
+        ret = self._callService(self._unpauseGazeboService)
+        rospy.loginfo("unpaused sim")
+        return ret
 
     def resetWorld(self) -> bool:
         """Resets the world to its initial state
@@ -117,7 +126,11 @@ class GazeboController():
             True if the simulation was paused, false in case of failure
 
         """
-        return self._callService(self._resetGazeboWorldService)
+        ret = self._callService(self._resetGazeboService)
+        rospy.loginfo("resetted sim")
+        self._lastUnpausedTime = 0
+        return ret
+
 
     def unpauseSimulationFor(self, runTime_secs : float) -> None:
         """Runs the simulation for the specified time. It unpauses and the simulation, sleeps and then pauses it back.
@@ -147,4 +160,5 @@ class GazeboController():
         t2 = rospy.get_time()
         self.pauseSimulation()
         t3 = rospy.get_time()
-        rospy.loginfo("Unpaused Gazebo for a duration between "+str(t2-t1)+"s and "+str(t3-t0)+"s")
+        rospy.loginfo("t0 = "+str(t0)+"   t3 = "+str(t3))
+        rospy.loginfo("Unpaused for a duration between "+str(t2-t1)+"s and "+str(t3-t0)+"s")

@@ -12,7 +12,7 @@ from CartpoleGazeboEnv import CartpoleGazeboEnv
 #  rosparam load src/openai_examples_projects/cartpole_openai_ros_examples/config/cartpole_n1try_params.yaml
 
 def main():
-    rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.INFO)
+    rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
     env = CartpoleGazeboEnv()
     #setup seeds for reproducibility
@@ -32,21 +32,21 @@ def main():
         frame = 0
         episodeReward = 0
         done = False
-        rospy.loginfo("resetting...")
+        #rospy.loginfo("resetting...")
         obs = env.reset()
-        rospy.loginfo("resetted")
+        #rospy.loginfo("resetted")
         t0 = time.time()
         while not done:
-            rospy.loginfo("---------------------------------------")
-            time.sleep(1)
+            #rospy.loginfo("---------------------------------------")
+            #time.sleep(1)
             #print("Episode "+str(episode)+" frame "+str(frame))
             if obs[2]>0:
                 action = 1
             else:
-                action = 1
-            rospy.loginfo("stepping...")
+                action = 0
+            #rospy.loginfo("stepping...")
             obs, stepReward, done, info = env.step(action)
-            rospy.loginfo("stepped")
+            #rospy.loginfo("stepped")
             #frames.append(env.render("rgb_array"))
             #time.sleep(0.016)
             frame+=1
@@ -58,7 +58,7 @@ def main():
     avgReward = sum(rewards)/len(rewards)
     duration_val = time.time() - t_preVal
 
-    rospy.loginfo("Computed average reward. Took "+str(duration_val)+" seconds ("+str(totFrames/totDuration)+" fps).")
+    print("Computed average reward. Took "+str(duration_val)+" seconds ("+str(totFrames/totDuration)+" fps).")
 
 
 if __name__ == "__main__":

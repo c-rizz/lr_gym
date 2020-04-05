@@ -9,14 +9,18 @@ class GazeboController():
     """This class allows to control the execution of the Gazebo simulation
     """
 
-    def __init__(self, usePersistentConnections : bool = True):
+    def __init__(self, usePersistentConnections : bool = False):
         """Initializes the Gazebo controller
 
         Parameters
         ----------
         usePersistentConnections : bool
             Controls wheter to use persistent connections for the gazebo services.
-            Should be fine as long as there are no connection problems and gazebo does not restart
+            IMPORTANT: enabling this seems to create problems with the synchronization
+            of the service calls. This breaks the pause/unpause/reset order and
+            leads to deadlocks
+            In theory it should have been fine as long as there are no connection
+            problems and gazebo does not restart.
 
         Raises
         -------

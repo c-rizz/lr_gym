@@ -6,6 +6,7 @@ import rospy.client
 import std_msgs.msg
 import sensor_msgs
 import gazebo_msgs
+import rosgraph_msgs
 from controller_manager_msgs.srv import LoadController, UnloadController
 
 import gym
@@ -13,6 +14,7 @@ import numpy as np
 from gym.utils import seeding
 import typing
 from typing import Tuple
+import time
 
 class CartpoleGazeboEnv(gym.Env):
 
@@ -25,27 +27,48 @@ class CartpoleGazeboEnv(gym.Env):
     observation_space = gym.spaces.Box(-high, high)
 
     def __init__(self, usePersistentConnections : bool = False):
+        """Short summary.
+
+        Parameters
+        ----------
+        usePersistentConnections : bool
+            Controls wheter to use persistent connections for the gazebo services.
+            IMPORTANT: enabling this seems to create problems with the synchronization
+            of the service calls. It may lead to deadlocks
+            In theory it should have been fine as long as there are no connection
+            problems and gazebo does not restart.
+
+        Raises
+        -------
+        rospy.ROSException
+            In cause it fails to find the required ROS services
+        ROSInterruptException
+            In case it gets interrupted while waiting for ROS servics
+
+        """
         self._gazeboController = GazeboController()
-        self._cartControlTopicName = "/cartpole_v0/foot_joint_velocity_controller/command"
-        self._cartCommandPublisher = rospy.Publisher(self._cartControlTopicName, std_msgs.msg.Float64, queue_size=1)
+        # self._cartControlTopicName = "/cartpole_v0/foot_joint_velocity_controller/command"
+        # self._cartCommandPublisher = rospy.Publisher(self._cartControlTopicName, std_msgs.msg.Float64, queue_size=1)
 
         # self._jointStateTopic = "/cartpole_v0/joint_states"
 
-        self._controllerNamespace = "cartpole_v0"
-        self._cartControllerName = "foot_joint_velocity_controller"
-        self._jointStateControllerName = "joint_state_controller"
+        # self._controllerNamespace = "cartpole_v0"
+        # self._cartControllerName = "foot_joint_velocity_controller"
+        # self._jointStateControllerName = "joint_state_controller"
 
-        self._serviceNames = {  "loadController": "/"+self._controllerNamespace+"/controller_manager/load_controller",
-                                "unloadController" : "/"+self._controllerNamespace+"/controller_manager/unload_controller",
+        self._serviceNames = {  #"loadController": "/"+self._controllerNamespace+"/controller_manager/load_controller",
+                                #"unloadController" : "/"+self._controllerNamespace+"/controller_manager/unload_controller",
                                 "getJointProperties" : "/gazebo/get_joint_properties",
-                                "applyJointEffort" : " /gazebo/apply_joint_effort",
-                                "clearJointEffort" : " /gazebo/clear_joint_effort"}
+                                "applyJointEffort" : "/gazebo/apply_joint_effort",
+                                "clearJointEffort" : "/gazebo/clear_joint_forces"}
 
 
         timeout_secs = 30.0
         for serviceName in self._serviceNames.values():
             try:
+                rospy.loginfo("waiting for service "+serviceName+" ...")
                 rospy.wait_for_service(serviceName)
+                rospy.loginfo("got service "+serviceName)
             except rospy.ROSException as e:
                 rospy.logfatal("Failed to wait for service "+serviceName+". Timeouts were "+str(timeout_secs)+"s")
                 raise
@@ -54,11 +77,13 @@ class CartpoleGazeboEnv(gym.Env):
                 raise
 
 
-        self._controllerLoadService     = rospy.ServiceProxy(self._serviceNames["loadController"], LoadController, persistent=usePersistentConnections)
-        self._controllerUnloadService   = rospy.ServiceProxy(self._serviceNames["unloadController"], UnloadController, persistent=usePersistentConnections)
+    #    self._controllerLoadService     = rospy.ServiceProxy(self._serviceNames["loadController"], LoadController, persistent=usePersistentConnections)
+    #    self._controllerUnloadService   = rospy.ServiceProxy(self._serviceNames["unloadController"], UnloadController, persistent=usePersistentConnections)
         self._getJointPropertiesService = rospy.ServiceProxy(self._serviceNames["getJointProperties"], gazebo_msgs.srv.GetJointProperties, persistent=usePersistentConnections)
         self._applyJointEffortService   = rospy.ServiceProxy(self._serviceNames["applyJointEffort"], gazebo_msgs.srv.ApplyJointEffort, persistent=usePersistentConnections)
         self._clearJointEffortService   = rospy.ServiceProxy(self._serviceNames["clearJointEffort"], gazebo_msgs.srv.JointRequest, persistent=usePersistentConnections)
+
+        self._clockPublisher = rospy.Publisher("/clock", rosgraph_msgs.msg.Clock, queue_size=1)
 
 
 
@@ -78,9 +103,9 @@ class CartpoleGazeboEnv(gym.Env):
         """
         rospy.loginfo("step()")
         if action == 0: #left
-            speed = -100
+            direction = -1
         elif action == 1:
-            speed = 100
+            direction = 1
         else:
             raise AttributeError("action can only be 1 or 0")
 
@@ -94,9 +119,21 @@ class CartpoleGazeboEnv(gym.Env):
         #   secs: 0
         #   nsecs: 1000000"
 
-        self._cartCommandPublisher.publish(speed)
+        # self._cartCommandPublisher.publish(speed)
 
-        self._gazeboController.unpauseSimulationFor(0.001)
+        # clear any residual effort
+        # self._clearJointEffortService.call("foot_joint")
+        # self._clearJointEffortService.call("cartpole_joint")
+
+        # set new effort
+        request = gazebo_msgs.srv.ApplyJointEffortRequest()
+        request.joint_name = "foot_joint"
+        request.effort = direction * 1000
+        request.duration.nsecs = 1000000 #0.5ms
+        self._applyJointEffortService.call(request)
+
+
+        self._gazeboController.unpauseSimulationFor(0.05)
 
         observation = self._getObservation()
 
@@ -128,29 +165,35 @@ class CartpoleGazeboEnv(gym.Env):
         self._gazeboController.pauseSimulation()
         self._gazeboController.resetWorld()
 
-        # Controller configuration services work only when gazebo is not paused :(
-        self._gazeboController.unpauseSimulation()
-        #reset velocity controller
-        unloaded = self._controllerUnloadService.call(self._cartControllerName)
-        if not unloaded:
-            raise RuntimeError("Failed to unload cart controller")
-        # unloaded = self._controllerUnloadService.call(self._jointStateControllerName)
+        # # Controller configuration services work only when gazebo is not paused :(
+        # self._gazeboController.unpauseSimulation()
+        # #reset velocity controller
+        # unloaded = self._controllerUnloadService.call(self._cartControllerName)
         # if not unloaded:
-        #     raise RuntimeError("Failed to unload joint state controller")
-        rospy.loginfo("unloaded")
-        loaded = self._controllerLoadService.call(self._cartControllerName)
-        if not unloaded:
-            raise RuntimeError("Failed to load cart controller")
-        # loaded = self._controllerLoadService.call(self._jointStateControllerName)
+        #     raise RuntimeError("Failed to unload cart controller")
+        # # unloaded = self._controllerUnloadService.call(self._jointStateControllerName)
+        # # if not unloaded:
+        # #     raise RuntimeError("Failed to unload joint state controller")
+        # rospy.loginfo("unloaded")
+        # loaded = self._controllerLoadService.call(self._cartControllerName)
         # if not unloaded:
-        #     raise RuntimeError("Failed to load joint state controller")
-        rospy.loginfo("loaded")
-
-        self.joints = None
+        #     raise RuntimeError("Failed to load cart controller")
+        # # loaded = self._controllerLoadService.call(self._jointStateControllerName)
+        # # if not unloaded:
+        # #     raise RuntimeError("Failed to load joint state controller")
+        # rospy.loginfo("loaded")
 
         # Reset again in case something moved
-        self._gazeboController.pauseSimulation()
-        self._gazeboController.resetWorld()
+        # self._gazeboController.pauseSimulation()
+        # self._gazeboController.resetWorld()
+
+        self._clearJointEffortService.call("foot_joint")
+        self._clearJointEffortService.call("cartpole_joint")
+        #time.sleep(1)
+
+        # Reset the time manually. Incredibly ugly, incredibly effective
+        t = rosgraph_msgs.msg.Clock()
+        self._clockPublisher.publish(t)
 
         rospy.loginfo("reset() return")
         return  self._getObservation()

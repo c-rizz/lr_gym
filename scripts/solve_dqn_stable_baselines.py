@@ -14,7 +14,7 @@ from CartpoleGazeboEnv import CartpoleGazeboEnv
 #  rosparam load src/openai_examples_projects/cartpole_openai_ros_examples/config/cartpole_n1try_params.yaml
 
 def main():
-    rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.FATAL)
+    rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
     env = CartpoleGazeboEnv()
     #setup seeds for reproducibility

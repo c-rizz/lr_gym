@@ -26,7 +26,7 @@ class CartpoleGazeboEnv(gym.Env):
                         np.finfo(np.float32).max])
     observation_space = gym.spaces.Box(-high, high)
 
-    def __init__(self, usePersistentConnections : bool = False):
+    def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500):
         """Short summary.
 
         Parameters
@@ -37,6 +37,9 @@ class CartpoleGazeboEnv(gym.Env):
             of the service calls. It may lead to deadlocks
             In theory it should have been fine as long as there are no connection
             problems and gazebo does not restart.
+        maxFramesPerEpisode : int
+            maximum number of frames per episode. The step() function will return
+            done=True after being called this number of times
 
         Raises
         -------
@@ -46,6 +49,8 @@ class CartpoleGazeboEnv(gym.Env):
             In case it gets interrupted while waiting for ROS servics
 
         """
+        self._maxFramesPerEpisode = maxFramesPerEpisode
+        self._framesCounter = 0
         self._gazeboController = GazeboController()
         # self._cartControlTopicName = "/cartpole_v0/foot_joint_velocity_controller/command"
         # self._cartCommandPublisher = rospy.Publisher(self._cartControlTopicName, std_msgs.msg.Float64, queue_size=1)
@@ -102,6 +107,16 @@ class CartpoleGazeboEnv(gym.Env):
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
         rospy.loginfo("step()")
+
+        if self._framesCounter>=self._maxFramesPerEpisode:
+            observation = self._getObservation()
+            reward = 0
+            done = True
+            return (observation, reward, done, {})
+
+
+
+
         if action == 0: #left
             direction = -1
         elif action == 1:
@@ -149,9 +164,10 @@ class CartpoleGazeboEnv(gym.Env):
             done = False
 
         reward = 1
+        self._framesCounter+=1
 
         rospy.loginfo("step() return")
-        return (observation, reward, done, None)
+        return (observation, reward, done, {})
 
 
     def reset(self) -> Tuple[float,float,float,float]:
@@ -186,6 +202,8 @@ class CartpoleGazeboEnv(gym.Env):
         # Reset again in case something moved
         # self._gazeboController.pauseSimulation()
         # self._gazeboController.resetWorld()
+
+        self._framesCounter = 0
 
         self._clearJointEffortService.call("foot_joint")
         self._clearJointEffortService.call("cartpole_joint")

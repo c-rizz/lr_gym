@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import traceback
 import typing
+import time
 
 import rospy
 from std_srvs.srv import Empty
@@ -29,6 +30,11 @@ class GazeboController():
 
         """
 
+        self._lastUnpausedTime = 0
+        self._episodeSimDuration = 0
+        self._episodeRealSimDuration = 0
+        self._episodeRealStartTime = 0
+
         self._pauseGazeboServiceName = "/gazebo/pause_physics"
         self._unpauseGazeboServiceName = "/gazebo/unpause_physics"
         self._resetGazeboService = "/gazebo/reset_simulation"
@@ -54,7 +60,6 @@ class GazeboController():
 
         self.pauseSimulation()
         self.resetWorld()
-        self._lastUnpausedTime = 0
 
     def _callService(self,serviceProxy : rospy.ServiceProxy) -> bool:
         """Call the provided service. It retries in case of failure and handles exceptions. Returns false if the call failed
@@ -130,9 +135,31 @@ class GazeboController():
             True if the simulation was paused, false in case of failure
 
         """
+        totalEpSimDuration = rospy.get_time()
+        totalEpRealDuration = time.time() - self._episodeRealStartTime
+
         ret = self._callService(self._resetGazeboService)
-        rospy.loginfo("resetted sim")
+
+
         self._lastUnpausedTime = 0
+
+        if self._episodeRealSimDuration!=0:
+            ratio = float(totalEpSimDuration)/self._episodeRealSimDuration
+        else:
+            ratio = -1
+        if totalEpRealDuration!=0:
+            totalRatio = float(totalEpSimDuration)/totalEpRealDuration
+        else:
+            totalRatio = -1
+        totalSimTimeError = totalEpSimDuration - self._episodeSimDuration
+        if totalSimTimeError!=0:
+            rospy.logwarn("Estimated error in simulation time keeping = "+str(totalSimTimeError)+"s")
+        rospy.loginfo("Duration: sim={:.3f}".format(totalEpSimDuration)+" real={:.3f}".format(totalEpRealDuration)+" sim/real={:.3f}".format(totalRatio)+" step-time-only ratio ={:.3f}".format(ratio))
+        self._episodeSimDuration = 0
+        self._episodeRealSimDuration = 0
+        self._episodeRealStartTime = time.time()
+
+        rospy.loginfo("resetted sim")
         return ret
 
 
@@ -157,6 +184,7 @@ class GazeboController():
 
         """
 
+        t0_real = time.time()
         t0 = rospy.get_time()
         self.unpauseSimulation()
         t1 = rospy.get_time()
@@ -164,5 +192,8 @@ class GazeboController():
         t2 = rospy.get_time()
         self.pauseSimulation()
         t3 = rospy.get_time()
+        tf_real = time.time()
+        self._episodeSimDuration += t3 - t0
+        self._episodeRealSimDuration = tf_real - t0_real
         rospy.loginfo("t0 = "+str(t0)+"   t3 = "+str(t3))
         rospy.loginfo("Unpaused for a duration between "+str(t2-t1)+"s and "+str(t3-t0)+"s")

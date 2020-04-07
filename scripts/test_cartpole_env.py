@@ -4,8 +4,9 @@ import rospy
 import gym
 import time
 import tqdm
-from openai_ros.task_envs.cartpole_stay_up import stay_up
+import cv2
 from CartpoleGazeboEnv import CartpoleGazeboEnv
+import os
 
 
 # for the environment to work some ros parameters are needed, set them with:
@@ -20,6 +21,10 @@ def main():
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
     env._max_episode_steps = 500 #limit episode length
+
+    imagesOutFolder = "./frames"
+
+    createFolders(imagesOutFolder)
 
     rospy.loginfo("Testing with hardcoded policy")
     t_preVal = time.time()
@@ -40,6 +45,15 @@ def main():
             #rospy.loginfo("---------------------------------------")
             #time.sleep(1)
             #print("Episode "+str(episode)+" frame "+str(frame))
+
+            img = env.render()
+            # r = cv2.imwrite(imagesOutFolder+"/frame-"+str(episode)+"-"+str(frame)+".png",img)
+            # if r:
+            #     print("saved image")
+            # else:
+            #     print("couldn't save image")
+
+
             if obs[2]>0:
                 action = 1
             else:
@@ -60,6 +74,14 @@ def main():
 
     print("Computed average reward. Took "+str(duration_val)+" seconds ("+str(totFrames/totDuration)+" fps).")
 
+
+def createFolders(folder):
+    if not os.path.exists(folder):
+        try:
+            os.makedirs(folder)
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
 
 if __name__ == "__main__":
     main()

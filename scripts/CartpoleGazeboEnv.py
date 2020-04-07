@@ -6,6 +6,7 @@ import rospy.client
 import std_msgs.msg
 import sensor_msgs
 import gazebo_msgs
+import gazebo_msgs.srv
 import rosgraph_msgs
 from controller_manager_msgs.srv import LoadController, UnloadController
 
@@ -14,7 +15,12 @@ import numpy as np
 from gym.utils import seeding
 import typing
 from typing import Tuple
+from typing import Dict
+from typing import Any
 import time
+import numpy as np
+
+import utils
 
 class CartpoleGazeboEnv(gym.Env):
 
@@ -25,6 +31,8 @@ class CartpoleGazeboEnv(gym.Env):
                         0.7 * 2,
                         np.finfo(np.float32).max])
     observation_space = gym.spaces.Box(-high, high)
+
+    metadata = {'render.modes': ['rgb_array']}
 
     def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500):
         """Short summary.
@@ -51,22 +59,16 @@ class CartpoleGazeboEnv(gym.Env):
         """
         self._maxFramesPerEpisode = maxFramesPerEpisode
         self._framesCounter = 0
+        self._lastCameraImage = None
         self._gazeboController = GazeboController()
-        # self._cartControlTopicName = "/cartpole_v0/foot_joint_velocity_controller/command"
-        # self._cartCommandPublisher = rospy.Publisher(self._cartControlTopicName, std_msgs.msg.Float64, queue_size=1)
+        self._lastStepStartSimTime = -1
+        self._lastStepEndSimTime = -1
+        self._cumulativeImagesAge = 0
 
-        # self._jointStateTopic = "/cartpole_v0/joint_states"
 
-        # self._controllerNamespace = "cartpole_v0"
-        # self._cartControllerName = "foot_joint_velocity_controller"
-        # self._jointStateControllerName = "joint_state_controller"
-
-        self._serviceNames = {  #"loadController": "/"+self._controllerNamespace+"/controller_manager/load_controller",
-                                #"unloadController" : "/"+self._controllerNamespace+"/controller_manager/unload_controller",
-                                "getJointProperties" : "/gazebo/get_joint_properties",
+        self._serviceNames = {  "getJointProperties" : "/gazebo/get_joint_properties",
                                 "applyJointEffort" : "/gazebo/apply_joint_effort",
                                 "clearJointEffort" : "/gazebo/clear_joint_forces"}
-
 
         timeout_secs = 30.0
         for serviceName in self._serviceNames.values():
@@ -82,29 +84,47 @@ class CartpoleGazeboEnv(gym.Env):
                 raise
 
 
-    #    self._controllerLoadService     = rospy.ServiceProxy(self._serviceNames["loadController"], LoadController, persistent=usePersistentConnections)
-    #    self._controllerUnloadService   = rospy.ServiceProxy(self._serviceNames["unloadController"], UnloadController, persistent=usePersistentConnections)
         self._getJointPropertiesService = rospy.ServiceProxy(self._serviceNames["getJointProperties"], gazebo_msgs.srv.GetJointProperties, persistent=usePersistentConnections)
         self._applyJointEffortService   = rospy.ServiceProxy(self._serviceNames["applyJointEffort"], gazebo_msgs.srv.ApplyJointEffort, persistent=usePersistentConnections)
         self._clearJointEffortService   = rospy.ServiceProxy(self._serviceNames["clearJointEffort"], gazebo_msgs.srv.JointRequest, persistent=usePersistentConnections)
 
         self._clockPublisher = rospy.Publisher("/clock", rosgraph_msgs.msg.Clock, queue_size=1)
 
+        self._cameraTopic = "/cartpole/camera/image_raw"
+        rospy.Subscriber(self._cameraTopic, sensor_msgs.msg.Image, self._cameraCallback,  queue_size=1)
 
 
 
-    def step(self, action : int) -> Tuple[Tuple[float,float,float,float], int, bool, None]:
-        """Run one timestep of the environment's dynamics. When end of
+
+
+
+
+
+    def step(self, action : int) -> Tuple[Tuple[float,float,float,float], int, bool, Dict[str,Any]]:
+        """Run one step of the environment's dynamics. When end of
         episode is reached, you are responsible for calling `reset()`
         to reset this environment's state.
         Accepts an action and returns a tuple (observation, reward, done, info).
-        Args:
-            action (object): an action provided by the agent
-        Returns:
-            observation (object): agent's observation of the current environment
-            reward (float) : amount of reward returned after previous action
-            done (bool): whether the episode has ended, in which case further step() calls will return undefined results
-            info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
+
+        Parameters
+        ----------
+        action : int
+            Either 0 or 1. 0 pushes the cart towards -x, 1 pushes it towards +x
+
+        Returns
+        -------
+        Tuple[Tuple[float,float,float,float], int, bool, Dict[str,Any]]
+            The first element is the observation Tuple, containing (cartPosition,cartSpeed,poleAngle,poleAngularSpeed)
+            The second element is the reward, it is always 1
+            The third is True if the episode finished, False if it isn't
+            The fourth is a dict containing auxiliary info. It contains the "simTime" element,
+             which indicates the time reached by the simulation
+
+        Raises
+        -------
+        AttributeError
+            If an invalid action is provided
+
         """
         rospy.loginfo("step()")
 
@@ -114,31 +134,12 @@ class CartpoleGazeboEnv(gym.Env):
             done = True
             return (observation, reward, done, {})
 
-
-
-
         if action == 0: #left
             direction = -1
         elif action == 1:
             direction = 1
         else:
             raise AttributeError("action can only be 1 or 0")
-
-        # Alternative to velociy controller:
-        # rosservice call /gazebo/apply_joint_effort "joint_name: 'foot_joint'
-        # effort: 100.0
-        # start_time:
-        #   secs: 0
-        #   nsecs: 0
-        # duration:
-        #   secs: 0
-        #   nsecs: 1000000"
-
-        # self._cartCommandPublisher.publish(speed)
-
-        # clear any residual effort
-        # self._clearJointEffortService.call("foot_joint")
-        # self._clearJointEffortService.call("cartpole_joint")
 
         # set new effort
         request = gazebo_msgs.srv.ApplyJointEffortRequest()
@@ -148,9 +149,13 @@ class CartpoleGazeboEnv(gym.Env):
         self._applyJointEffortService.call(request)
 
 
-        self._gazeboController.unpauseSimulationFor(0.05)
+        self._lastStepStartSimTime = rospy.get_time()
 
+        self._gazeboController.unpauseSimulationFor(0.05)
         observation = self._getObservation()
+
+        self._lastStepEndSimTime = rospy.get_time()
+
 
         cartPosition = observation[0]
         poleAngle = observation[2]
@@ -165,15 +170,27 @@ class CartpoleGazeboEnv(gym.Env):
 
         reward = 1
         self._framesCounter+=1
+        simTime = rospy.get_time()
 
         rospy.loginfo("step() return")
-        return (observation, reward, done, {})
+        return (observation, reward, done, {"simTime":simTime})
+
+
+
+
+
+
+
 
 
     def reset(self) -> Tuple[float,float,float,float]:
         """Resets the state of the environment and returns an initial observation.
-        Returns:
-            observation (object): the initial observation.
+
+        Returns
+        -------
+        Tuple[float,float,float,float]
+            the initial observation.
+
         """
         rospy.loginfo("reset()")
 
@@ -181,29 +198,10 @@ class CartpoleGazeboEnv(gym.Env):
         self._gazeboController.pauseSimulation()
         self._gazeboController.resetWorld()
 
-        # # Controller configuration services work only when gazebo is not paused :(
-        # self._gazeboController.unpauseSimulation()
-        # #reset velocity controller
-        # unloaded = self._controllerUnloadService.call(self._cartControllerName)
-        # if not unloaded:
-        #     raise RuntimeError("Failed to unload cart controller")
-        # # unloaded = self._controllerUnloadService.call(self._jointStateControllerName)
-        # # if not unloaded:
-        # #     raise RuntimeError("Failed to unload joint state controller")
-        # rospy.loginfo("unloaded")
-        # loaded = self._controllerLoadService.call(self._cartControllerName)
-        # if not unloaded:
-        #     raise RuntimeError("Failed to load cart controller")
-        # # loaded = self._controllerLoadService.call(self._jointStateControllerName)
-        # # if not unloaded:
-        # #     raise RuntimeError("Failed to load joint state controller")
-        # rospy.loginfo("loaded")
-
-        # Reset again in case something moved
-        # self._gazeboController.pauseSimulation()
-        # self._gazeboController.resetWorld()
-
+        if self._framesCounter!=0 and self._cumulativeImagesAge!=0:
+            rospy.logwarn("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
         self._framesCounter = 0
+        self._cumulativeImagesAge = 0
 
         self._clearJointEffortService.call("foot_joint")
         self._clearJointEffortService.call("cartpole_joint")
@@ -217,44 +215,76 @@ class CartpoleGazeboEnv(gym.Env):
         return  self._getObservation()
 
 
-    def render(self, mode='human'):
-        """Renders the environment.
-        The set of supported modes varies per environment. (And some
-        environments do not support rendering at all.) By convention,
-        if mode is:
-        - human: render to the current display or terminal and
-          return nothing. Usually for human consumption.
-        - rgb_array: Return an numpy.ndarray with shape (x, y, 3),
-          representing RGB values for an x-by-y pixel image, suitable
-          for turning into a video.
-        - ansi: Return a string (str) or StringIO.StringIO containing a
-          terminal-style text representation. The text can include newlines
-          and ANSI escape sequences (e.g. for colors).
-        Note:
-            Make sure that your class's metadata 'render.modes' key includes
-              the list of supported modes. It's recommended to call super()
-              in implementations to use the functionality of this method.
-        Args:
-            mode (str): the mode to render with
-        Example:
-        class MyEnv(Env):
-            metadata = {'render.modes': ['human', 'rgb_array']}
-            def render(self, mode='human'):
-                if mode == 'rgb_array':
-                    return np.array(...) # return RGB frame suitable for video
-                elif mode == 'human':
-                    ... # pop up a window and render
-                else:
-                    super(MyEnv, self).render(mode=mode) # just raise an exception
+
+
+
+
+
+
+
+    def render(self, mode : str = 'rgb_array') -> np.ndarray:
+        """Provides a rendering of the environment.
+        This rendering is not synchronized with the end of the step() function
+
+        Parameters
+        ----------
+        mode : string
+            type of rendering to generate. Only "rgb_array" is supported
+
+        Returns
+        -------
+        type
+            A rendering in the format of a numpy array of shape (width, height, 3), BGR channel order.
+            OpenCV-compatible
+
+        Raises
+        -------
+        NotImplementedError
+            If called with mode!="rgb_array"
+
         """
-        raise NotImplementedError
+        if mode!="rgb_array":
+            raise NotImplementedError("only rgb_array mode is supported")
+
+        cameraImage = self._lastCameraImage
+        if cameraImage == None:
+            rospy.logerr("No camera image received. render() will return and empty image.")
+            return np.empty([0,0,3])
+
+        imageTime = cameraImage.header.stamp.secs + cameraImage.header.stamp.nsecs/1000_000_000.0
+        if imageTime < self._lastStepStartSimTime:
+            rospy.logwarn("render(): The most recent camera image is older than the start of the last step! (by "+str(self._lastStepStartSimTime-imageTime)+"s)")
+
+        cameraImageAge = self._lastStepEndSimTime - imageTime
+        rospy.loginfo("Rendering image age = "+str(cameraImageAge)+"s")
+        self._cumulativeImagesAge += cameraImageAge
+
+        npArrImage = utils.image_to_numpy(self._lastCameraImage)
+
+        return npArrImage
+
+
+
+
+
+
+
+
 
     def close(self):
-        """Override close in your subclass to perform any necessary cleanup.
+        """Closes the environment
         Environments will automatically close() themselves when
         garbage collected or when the program exits.
         """
         pass
+
+
+
+
+
+
+
+
 
     def seed(self, seed=None):
         """Sets the seed for this env's random number generator(s).
@@ -272,6 +302,14 @@ class CartpoleGazeboEnv(gym.Env):
 
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
+
+
+
+
+
+
+
+
 
     def _getObservation(self) -> Tuple[float,float,float,float]:
         """Get the an observation of the environment.
@@ -291,3 +329,14 @@ class CartpoleGazeboEnv(gym.Env):
         #print(observation)
 
         return observation
+
+
+
+
+
+
+
+
+
+    def _cameraCallback(self, data):
+        self._lastCameraImage = data

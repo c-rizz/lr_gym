@@ -6,7 +6,6 @@ import time
 import tqdm
 from stable_baselines.deepq.policies import MlpPolicy
 from stable_baselines import DQN
-from openai_ros.task_envs.cartpole_stay_up import stay_up
 from CartpoleGazeboEnv import CartpoleGazeboEnv
 
 

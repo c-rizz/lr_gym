@@ -1,0 +1,8 @@
+
+# Number of iterations to be executed
+int32 iterations
+---
+# True if the requested iterations were executed, false otherwise
+bool success
+# Number of iterations that were executed
+int32 iterations_done

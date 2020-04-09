@@ -1,0 +1,11 @@
+<launch>
+    <env name="ROSCONSOLE_FORMAT" value="[${severity}] [${walltime}] [${node}]: ${message}" />
+    <!-- launch the custom world -->
+    <include file="$(find gazebo_gym_env_plugin)/launch/empty_world_gdb.launch" >
+        <arg name="paused" value="True"/>
+        <!--arg name="use_sim_time" value="False" /-->
+        <arg name="world_name" value="$(find gazebo_gym_env_plugin)/worlds/fallingCube.world"/>
+        <arg name="verbose" value="True"/>
+        <!-- <arg name="physics" value="bullet"/> -->
+    </include>
+</launch>

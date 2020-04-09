@@ -1,0 +1,10 @@
+
+# Names of the cameras to be rendered. If empty all cameras will be rendered
+string[] cameras
+---
+# True if all the requested rendering were done, false otherwise
+bool success
+# Rendered images. The order is the same as the one in the cameras field of the request
+sensor_msgs/Image[] images
+# Cameras information. The order is the same as the one in the cameras field of the request
+sensor_msgs/CameraInfo[] camera_infos

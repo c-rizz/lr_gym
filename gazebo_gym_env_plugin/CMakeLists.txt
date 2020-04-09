@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(gazebo_gym_env_plugin)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++11 -Wall)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   std_srvs
+  sensor_msgs
 )
 
 
@@ -55,6 +56,7 @@ find_package(gazebo REQUIRED)
 add_service_files(
   FILES
   StepSimulation.srv
+  RenderCameras.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -68,6 +70,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  sensor_msgs
 )
 
 ################################################
@@ -102,7 +105,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
   LIBRARIES gazebo_gym_env_plugin
-  CATKIN_DEPENDS roscpp rospy std_msgs
+  CATKIN_DEPENDS roscpp rospy std_msgs sensor_msgs
 )
 
 ###########

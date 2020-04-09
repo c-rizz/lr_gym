@@ -153,7 +153,7 @@ namespace gazebo
     /// \brief Destructor
     virtual ~GazeboGymEnvPlugin()
     {
-      std::cout<<"Destructor!!"<<std::endl;
+      //std::cout<<"Destructor!!"<<std::endl;
       keepServingCallbacks = false;
       callbacksThread->join();
     }
@@ -216,56 +216,74 @@ namespace gazebo
     }
 
   private:
+    class AverageKeeper
+    {
+    public:
+      std::vector<double> buffer;
+      unsigned int pos = 0;
+      unsigned int bufSize = 100;
+      double avg = 0;
 
-    bool fillImage(sensor_msgs::Image& image,
-                      const std::string& encoding_arg,
-                      uint32_t rows_arg,
-                      uint32_t cols_arg,
-                      uint32_t step_arg,
-                      const void* data_arg)
-       {
-         image.encoding = encoding_arg;
-         image.height   = rows_arg;
-         image.width    = cols_arg;
-         image.step     = step_arg;
-         size_t st0 = (step_arg * rows_arg);
-         ROS_INFO_STREAM("Resizing to "<<st0);
-         image.data.resize(st0);
-         ROS_INFO_STREAM("Resized");
-         //ROS_INFO_STREAM("copying from "<<data_arg<<" to "<<&image.data[0]);
-         memcpy(&image.data[0], data_arg, st0);
-         ROS_INFO_STREAM("Copied");
+      double addValue(double newVal)
+      {
+        if(buffer.size()<bufSize)
+          buffer.push_back(newVal);
+        else
+          buffer[pos%bufSize] = newVal;
+        pos++;
 
-         image.is_bigendian = 0;
-         return true;
-       }
+        double sum = 0;
+        for(double v : buffer)
+          sum+=v;
+        avg = sum/buffer.size();
+        return avg;
+      }
+    };
+    AverageKeeper avgDelay;
+    AverageKeeper avgRenderTime;
+    AverageKeeper avgTotalRenderTime;
 
     bool renderCameras(std::vector<std::shared_ptr<GymCamera>> cameras)
     {
-        return runOnRenderThreadSync([this,cameras](){
-          //Is this a good idea?
-          //An issue with this approach is that if things go bad this may be executed super late. And if
-          // that happens the cameras may not be usable anymore
-          //With other approaches we would probably have the same problems
-          for(std::shared_ptr<GymCamera> cam : cameras)
-          {
-            //Is there a way to check if this will not explode?
-            ROS_INFO_STREAM("### Rendering camera "<<cam->sensor->Camera()->Name());
-            cam->sensor->Camera()->Render(true);
-            cam->sensor->Camera()->PostRender();
-            ROS_INFO_STREAM("### Rendered camera "<<cam->sensor->Camera()->Name());
+      auto tSubmit = std::chrono::steady_clock::now();
+      bool ret = runOnRenderThreadSync([this,cameras, tSubmit](){
+        auto tStart = std::chrono::steady_clock::now();
+        std::chrono::duration<double, std::milli> delay = tStart-tSubmit;
+        avgDelay.addValue(delay.count());
+        ROS_INFO_STREAM("Render call delay: avg="<<avgDelay.avg<<"ms current="<<delay.count()<<"ms");
+        //Is this a good idea?
+        //An issue with this approach is that if things go bad this may be executed super late. And if
+        // that happens the cameras may not be usable anymore
+        //With other approaches we would probably have the same problems
+        for(std::shared_ptr<GymCamera> cam : cameras)
+        {
+          //Is there a way to check if this will not explode?
+          ROS_INFO_STREAM("### Rendering camera "<<cam->sensor->Camera()->Name());
+          auto t_beforeRender = std::chrono::steady_clock::now();
+          cam->sensor->Camera()->Render(true);
+          cam->sensor->Camera()->PostRender();
+          auto t_afterRender = std::chrono::steady_clock::now();
+          std::chrono::duration<double, std::milli> renderDuration = t_afterRender - t_beforeRender;
+          avgRenderTime.addValue(renderDuration.count());
+          ROS_INFO_STREAM("### Rendered camera "<<cam->sensor->Camera()->Name());
+          ROS_INFO_STREAM("Render duration: avg="<<avgRenderTime.avg<<"ms current="<<renderDuration.count()<<"ms");
 
 
-            ROS_INFO_STREAM("### Filling image for camera '"<<cam->sensor->Name()<<"'");
-            fillImage(cam->lastRender,
-                  getEncoding(cam->sensor),
-                  cam->sensor->ImageHeight(),
-                  cam->sensor->ImageWidth(),
-                  getSkip(cam->sensor)*cam->sensor->ImageWidth(),
-                  cam->sensor->ImageData());
-            ROS_INFO_STREAM("### Built message for camera '"<<cam->sensor->Name()<<"'");
-          }
-        });
+          ROS_INFO_STREAM("### Filling image for camera '"<<cam->sensor->Name()<<"'");
+          sensor_msgs::fillImage(cam->lastRender,
+                getEncoding(cam->sensor),
+                cam->sensor->ImageHeight(),
+                cam->sensor->ImageWidth(),
+                getSkip(cam->sensor)*cam->sensor->ImageWidth(),
+                cam->sensor->ImageData());
+          ROS_INFO_STREAM("### Built message for camera '"<<cam->sensor->Name()<<"'");
+        }
+      });
+      auto t_renderCompleted = std::chrono::steady_clock::now();
+      std::chrono::duration<double, std::milli> totalRenderTime = t_renderCompleted - tSubmit;
+      avgTotalRenderTime.addValue(totalRenderTime.count());
+      ROS_INFO_STREAM("Total Render duration: avg="<<avgTotalRenderTime.avg<<"ms current="<<totalRenderTime.count()<<"ms");
+      return ret;
     }
 
     bool runOnRenderThreadSync(std::function<void()> task)
@@ -496,7 +514,7 @@ namespace gazebo
         ret = sensor_msgs::image_encodings::BGR8;
       }
 
-      ROS_INFO_STREAM("Got encoding: "<<ret);
+      //ROS_INFO_STREAM("Got encoding: "<<ret);
       return ret;
     }
 
@@ -543,7 +561,7 @@ namespace gazebo
         ret = 3;
       }
 
-      ROS_INFO_STREAM("Got step: "<<ret);
+      //ROS_INFO_STREAM("Got step: "<<ret);
       return ret;
     }
 

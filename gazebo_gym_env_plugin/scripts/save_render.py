@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import gazebo_gym_env_plugin.srv
 import sensor_msgs
+import time
 
 
 name_to_dtypes = {
@@ -97,7 +98,10 @@ srvProxy = rospy.ServiceProxy(name, gazebo_gym_env_plugin.srv.RenderCameras)
 
 req = gazebo_gym_env_plugin.srv.RenderCamerasRequest()
 req.cameras=[]
+t0=time.time()
 res = srvProxy.call(req)
+tf=time.time()
+print("Got rendering in "+str(tf-t0)+"s")
 
 i = 0
 for img in res.images:

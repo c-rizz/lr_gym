@@ -341,18 +341,7 @@ namespace gazebo
       }
       ROS_DEBUG_STREAM("Selected "<<requestedCameras.size()<<" cameras");
 
-      //Render cameras that were not rendered since last step end
-      std::vector<std::shared_ptr<GymCamera>> camerasToRender;
-      for(std::shared_ptr<GymCamera> cam : requestedCameras)
-      {
-        //ROS_INFO_STREAM("camera '"<<cam->sensor->Name()<<"': lastRenderedStep="<<cam->lastRenderedStep<<", stepCounter ="<<stepCounter);
-        if(cam->lastRenderedStep<stepCounter)
-        {
-          camerasToRender.push_back(cam);
-          cam->lastRenderedStep = stepCounter;
-        }
-      }
-      bool ret = renderCameras(camerasToRender);//renders the cameras on the rendering thread
+      bool ret = renderCameras(requestedCameras);//renders the cameras on the rendering thread
       if(!ret)
       {
         ROS_WARN("GazeboGymEnvPlugin: Failed to render cameras");
@@ -360,6 +349,9 @@ namespace gazebo
         renderedCameras.error_message="Renderer task timed out";
         return;
       }
+
+      for(std::shared_ptr<GymCamera> cam : requestedCameras)
+          cam->lastRenderedStep = stepCounter;
       //Fill up the response with the images
       gazebo::common::Time simTime = world->SimTime();
       for(std::shared_ptr<GymCamera> cam  : requestedCameras)

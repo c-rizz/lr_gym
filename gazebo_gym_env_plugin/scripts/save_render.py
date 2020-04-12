@@ -104,5 +104,5 @@ tf=time.time()
 print("Got rendering in "+str(tf-t0)+"s")
 
 i = 0
-for img in res.images:
+for img in res.render_result.images:
     cv2.imwrite("out"+str(i)+".png",image_to_numpy(img))

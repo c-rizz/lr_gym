@@ -6,7 +6,7 @@ import time
 import rospy
 from std_srvs.srv import Empty
 
-class GazeboController():
+class GazeboControllerNoPlugin():
     """This class allows to control the execution of the Gazebo simulation
     """
 
@@ -34,17 +34,23 @@ class GazeboController():
         self._episodeSimDuration = 0
         self._episodeRealSimDuration = 0
         self._episodeRealStartTime = 0
+        self._totalRenderTime = 0
+        self._stepsTaken = 0
+
+        self._lastStepRendered = None
+        self._lastRenderResult = None
+
 
         self._pauseGazeboServiceName = "/gazebo/pause_physics"
         self._unpauseGazeboServiceName = "/gazebo/unpause_physics"
-        self._resetGazeboService = "/gazebo/reset_simulation"
+        self._resetGazeboServiceName = "/gazebo/reset_simulation"
         #self._setGazeboPhysics = "/gazebo/set_physics_properties"
 
         timeout_secs = 30.0
         try:
             rospy.wait_for_service(self._pauseGazeboServiceName,timeout_secs)
             rospy.wait_for_service(self._unpauseGazeboServiceName,timeout_secs)
-            rospy.wait_for_service(self._resetGazeboService,timeout_secs)
+            rospy.wait_for_service(self._resetGazeboServiceName,timeout_secs)
             #rospy.wait_for_service(self._setGazeboPhysics,timeout_secs)
         except rospy.ROSException as e:
             rospy.logfatal("Failed to wait for Gazebo services. Timeout was "+str(timeout_secs)+"s")
@@ -55,7 +61,7 @@ class GazeboController():
 
         self._pauseGazeboService = rospy.ServiceProxy(self._pauseGazeboServiceName, Empty, persistent=usePersistentConnections)
         self._unpauseGazeboService = rospy.ServiceProxy(self._unpauseGazeboServiceName, Empty, persistent=usePersistentConnections)
-        self._resetGazeboService = rospy.ServiceProxy(self._resetGazeboService, Empty, persistent=usePersistentConnections)
+        self._resetGazeboService = rospy.ServiceProxy(self._resetGazeboServiceName, Empty, persistent=usePersistentConnections)
         #self._setGazeboPhysics = rospy.ServiceProxy(self._setGazeboPhysics, SetPhysicsProperties, persistent=usePersistentConnections)
 
         self.pauseSimulation()
@@ -154,16 +160,25 @@ class GazeboController():
         totalSimTimeError = totalEpSimDuration - self._episodeSimDuration
         if totalSimTimeError!=0:
             rospy.logwarn("Estimated error in simulation time keeping = "+str(totalSimTimeError)+"s")
-        rospy.loginfo("Duration: sim={:.3f}".format(totalEpSimDuration)+" real={:.3f}".format(totalEpRealDuration)+" sim/real={:.3f}".format(totalRatio)+" step-time-only ratio ={:.3f}".format(ratio))
+        if totalEpSimDuration!=0:
+            rospy.loginfo("Duration: sim={:.3f}".format(totalEpSimDuration)+
+                " real={:.3f}".format(totalEpRealDuration)+
+                " sim/real={:.3f}".format(totalRatio)+
+                " step-time-only ratio ={:.3f}".format(ratio)+
+                " totalRenderTime={:.4f}".format(self._totalRenderTime)+
+                " realFps="+str(self._stepsTaken/totalEpRealDuration)+
+                " simFps="+str(self._stepsTaken/totalEpSimDuration))
         self._episodeSimDuration = 0
         self._episodeRealSimDuration = 0
         self._episodeRealStartTime = time.time()
+        self._totalRenderTime = 0
+        self._stepsTaken = 0
 
         rospy.loginfo("resetted sim")
         return ret
 
 
-    def unpauseSimulationFor(self, runTime_secs : float) -> None:
+    def step(self, runTime_secs : float) -> None:
         """Runs the simulation for the specified time. It unpauses and the simulation, sleeps and then pauses it back.
         It may not be precise
 
@@ -197,3 +212,5 @@ class GazeboController():
         self._episodeRealSimDuration = tf_real - t0_real
         rospy.loginfo("t0 = "+str(t0)+"   t3 = "+str(t3))
         rospy.loginfo("Unpaused for a duration between "+str(t2-t1)+"s and "+str(t3-t0)+"s")
+
+        self._stepsTaken+=1

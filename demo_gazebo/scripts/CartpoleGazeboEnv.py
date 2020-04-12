@@ -34,7 +34,7 @@ class CartpoleGazeboEnv(gym.Env):
 
     metadata = {'render.modes': ['rgb_array']}
 
-    def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500):
+    def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500, renderInStep : bool = True):
         """Short summary.
 
         Parameters
@@ -48,6 +48,9 @@ class CartpoleGazeboEnv(gym.Env):
         maxFramesPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
+        renderInStep : bool
+            Performs the rendering within the step call to reduce overhead
+            Disable this if you don't need the rendering
 
         Raises
         -------
@@ -59,11 +62,9 @@ class CartpoleGazeboEnv(gym.Env):
         """
         self._maxFramesPerEpisode = maxFramesPerEpisode
         self._framesCounter = 0
-        self._gazeboController = GazeboController()
         self._lastStepStartSimTime = -1
         self._lastStepEndSimTime = -1
         self._cumulativeImagesAge = 0
-
 
         self._serviceNames = {  "getJointProperties" : "/gazebo/get_joint_properties",
                                 "applyJointEffort" : "/gazebo/apply_joint_effort",
@@ -90,6 +91,8 @@ class CartpoleGazeboEnv(gym.Env):
         self._clockPublisher = rospy.Publisher("/clock", rosgraph_msgs.msg.Clock, queue_size=1)
 
 
+        self._renderInStep = renderInStep
+        self._gazeboController = GazeboController()
 
 
 
@@ -146,11 +149,12 @@ class CartpoleGazeboEnv(gym.Env):
         t0 = time.time()
         self._lastStepStartSimTime = rospy.get_time()
 
-        self._gazeboController.unpauseSimulationFor(0.05,performRendering=True)
+        self._gazeboController.step(0.05,performRendering=self._renderInStep)
         observation = self._getObservation()
 
         self._lastStepEndSimTime = rospy.get_time()
         t1 = time.time()
+
 
         cartPosition = observation[0]
         poleAngle = observation[2]
@@ -263,7 +267,6 @@ class CartpoleGazeboEnv(gym.Env):
         cameraImageAge = self._lastStepEndSimTime - imageTime
         #rospy.loginfo("Rendering image age = "+str(cameraImageAge)+"s")
         self._cumulativeImagesAge += cameraImageAge
-
 
 
         return npArrImage

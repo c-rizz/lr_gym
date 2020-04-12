@@ -11,7 +11,9 @@ import sensor_msgs
 
 import utils
 
-class GazeboController():
+from GazeboControllerNoPlugin import GazeboControllerNoPlugin
+
+class GazeboController(GazeboControllerNoPlugin):
     """This class allows to control the execution of the Gazebo simulation
     """
 
@@ -40,33 +42,18 @@ class GazeboController():
 
         """
 
-        self._lastUnpausedTime = 0
-        self._episodeSimDuration = 0
-        self._episodeRealSimDuration = 0
-        self._episodeRealStartTime = 0
-        self._totalRenderTime = 0
-        self._stepsTaken = 0
+        super().__init__(usePersistentConnections=usePersistentConnections)
 
-        self._lastStepRendered = None
-        self._lastRenderResult = None
-
-        self._pauseGazeboServiceName = "/gazebo/pause_physics"
-        self._unpauseGazeboServiceName = "/gazebo/unpause_physics"
-        self._resetGazeboServiceName = "/gazebo/reset_simulation"
         self._stepGazeboServiceName = "/gazebo/gym_env_interface/step"
         self._renderGazeboServiceName = "/gazebo/gym_env_interface/render"
 
 
 
-        #self._setGazeboPhysics = "/gazebo/set_physics_properties"
 
         timeout_secs = 30.0
         try:
-            rospy.wait_for_service(self._pauseGazeboServiceName,timeout_secs)
-            rospy.wait_for_service(self._unpauseGazeboServiceName,timeout_secs)
-            rospy.wait_for_service(self._resetGazeboServiceName,timeout_secs)
             rospy.wait_for_service(self._renderGazeboServiceName,timeout_secs)
-            #rospy.wait_for_service(self._setGazeboPhysics,timeout_secs)
+            rospy.wait_for_service(self._stepGazeboServiceName,timeout_secs)
         except rospy.ROSException as e:
             rospy.logfatal("Failed to wait for Gazebo services. Timeout was "+str(timeout_secs)+"s")
             raise
@@ -74,9 +61,6 @@ class GazeboController():
             rospy.logfatal("Interrupeted while waiting for Gazebo services.")
             raise
 
-        self._pauseGazeboService = rospy.ServiceProxy(self._pauseGazeboServiceName, Empty, persistent=usePersistentConnections)
-        self._unpauseGazeboService = rospy.ServiceProxy(self._unpauseGazeboServiceName, Empty, persistent=usePersistentConnections)
-        self._resetGazeboService = rospy.ServiceProxy(self._resetGazeboServiceName, Empty, persistent=usePersistentConnections)
         self._stepGazeboService = rospy.ServiceProxy(self._stepGazeboServiceName, gazebo_gym_env_plugin.srv.StepSimulation, persistent=usePersistentConnections)
         self._renderGazeboService = rospy.ServiceProxy(self._renderGazeboServiceName, gazebo_gym_env_plugin.srv.RenderCameras, persistent=usePersistentConnections)
         #self._setGazeboPhysics = rospy.ServiceProxy(self._setGazeboPhysics, SetPhysicsProperties, persistent=usePersistentConnections)
@@ -84,120 +68,9 @@ class GazeboController():
         self.pauseSimulation()
         self.resetWorld()
 
-    def _callService(self,serviceProxy : rospy.ServiceProxy) -> bool:
-        """Call the provided service. It retries in case of failure and handles exceptions. Returns false if the call failed
 
-        Parameters
-        ----------
-        serviceProxy : rospy.ServiceProxy
-            ServiceProxy for the service to be called
-
-        Returns
-        -------
-        bool
-            True if the service was called, false otherwise
-
-        """
-        done = False
-        counter = 0
-        maxRetry = 10
-        while not done and not rospy.is_shutdown():
-            if counter < maxRetry:
-                try:
-                    serviceProxy.call()
-                    done = True
-                except rospy.ServiceException as e:
-                    rospy.logerr("Service "+serviceProxy.resolved_name+", call failed: "+traceback.format_exc(e))
-                except rospy.ROSInterruptException as e:
-                    rospy.logerr("Service "+serviceProxy.resolved_name+", call interrupted: "+traceback.format_exc(e))
-                    counter+=maxRetry #don't retry
-                except rospy.ROSSerializationException as e:
-                    rospy.logerr("Service "+serviceProxy.resolved_name+", call failed to serialize: "+traceback.format_exc(e))
-                counter += 1
-            else:
-                rospy.logerr("Failed to pause gazebo simulation")
-                break
-        return done
-
-    def pauseSimulation(self) -> bool:
-        """Pauses the simulation
-
-        Returns
-        -------
-        bool
-            True if the simulation was paused, false in case of failure
-
-        """
-        ret = self._callService(self._pauseGazeboService)
-        rospy.loginfo("paused sim")
-        self._lastUnpausedTime = rospy.get_time()
-        return ret
-
-    def unpauseSimulation(self) -> bool:
-        """Unpauses the simulation
-
-        Returns
-        -------
-        bool
-            True if the simulation was paused, false in case of failure
-
-        """
-        t = rospy.get_time()
-        if self._lastUnpausedTime>t:
-            rospy.logwarn("Simulation time increased since last pause! (time diff = "+str(t-self._lastUnpausedTime)+"s)")
-        ret = self._callService(self._unpauseGazeboService)
-        rospy.loginfo("unpaused sim")
-        return ret
-
-    def resetWorld(self) -> bool:
-        """Resets the world to its initial state
-
-        Returns
-        -------
-        bool
-            True if the simulation was paused, false in case of failure
-
-        """
-        totalEpSimDuration = rospy.get_time()
-        totalEpRealDuration = time.time() - self._episodeRealStartTime
-
-        ret = self._callService(self._resetGazeboService)
-
-
-        self._lastUnpausedTime = 0
-
-        if self._episodeRealSimDuration!=0:
-            ratio = float(totalEpSimDuration)/self._episodeRealSimDuration
-        else:
-            ratio = -1
-        if totalEpRealDuration!=0:
-            totalRatio = float(totalEpSimDuration)/totalEpRealDuration
-        else:
-            totalRatio = -1
-        totalSimTimeError = totalEpSimDuration - self._episodeSimDuration
-        if totalSimTimeError!=0:
-            rospy.logwarn("Estimated error in simulation time keeping = "+str(totalSimTimeError)+"s")
-        if totalEpSimDuration!=0:
-            rospy.loginfo("Duration: sim={:.3f}".format(totalEpSimDuration)+
-                " real={:.3f}".format(totalEpRealDuration)+
-                " sim/real={:.3f}".format(totalRatio)+
-                " step-time-only ratio ={:.3f}".format(ratio)+
-                " totalRenderTime={:.4f}".format(self._totalRenderTime)+
-                " realFps="+str(self._stepsTaken/totalEpRealDuration)+
-                " simFps="+str(self._stepsTaken/totalEpSimDuration))
-        self._episodeSimDuration = 0
-        self._episodeRealSimDuration = 0
-        self._episodeRealStartTime = time.time()
-        self._totalRenderTime = 0
-        self._stepsTaken = 0
-
-        rospy.loginfo("resetted sim")
-        return ret
 
     def step(self, runTime_secs : float, performRendering : bool = False, camerasToRender : List[str] = []) -> None:
-        return unpauseSimulationFor(self, runTime_secs, performRendering, camerasToRender)
-
-    def unpauseSimulationFor(self, runTime_secs : float, performRendering : bool = False, camerasToRender : List[str] = []) -> None:
         """Runs the simulation for the specified time. It unpauses and the simulation, sleeps and then pauses it back.
         It may not be precise
 
@@ -227,7 +100,7 @@ class GazeboController():
         request.step_duration_secs = runTime_secs
         request.request_time = time.time()
         if performRendering:
-            rospy.loginfo("Performing rendering within step")
+            #rospy.loginfo("Performing rendering within step")
             request.render = True
             request.cameras = camerasToRender
         response = self._stepGazeboService.call(request)
@@ -261,7 +134,7 @@ class GazeboController():
                         images.append(self._lastRenderResult.images[i])
                         #rospy.loginfo("Found camera '"+str(c)+"' in cache")
             if len(images)==len(requestedCameras): #if all the requested images have been found
-                rospy.loginfo("Using cached rendering")
+                #rospy.loginfo("Using cached rendering")
                 return images
             #else:
             #    rospy.loginfo("Required cameras not available in cache")

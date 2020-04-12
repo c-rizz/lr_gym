@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-from GazeboControllerNoPlugin import GazeboController
+from GazeboControllerNoPlugin import GazeboControllerNoPlugin
 import rospy.client
 import std_msgs.msg
 import sensor_msgs
@@ -22,7 +22,7 @@ import numpy as np
 
 import utils
 
-class CartpoleGazeboEnv(gym.Env):
+class CartpoleGazeboEnvNoPlugin(gym.Env):
 
 
     action_space = gym.spaces.Discrete(2)
@@ -59,12 +59,9 @@ class CartpoleGazeboEnv(gym.Env):
         """
         self._maxFramesPerEpisode = maxFramesPerEpisode
         self._framesCounter = 0
-        self._lastCameraImage = None
-        self._gazeboController = GazeboController()
         self._lastStepStartSimTime = -1
         self._lastStepEndSimTime = -1
         self._cumulativeImagesAge = 0
-
 
         self._serviceNames = {  "getJointProperties" : "/gazebo/get_joint_properties",
                                 "applyJointEffort" : "/gazebo/apply_joint_effort",
@@ -90,11 +87,11 @@ class CartpoleGazeboEnv(gym.Env):
 
         self._clockPublisher = rospy.Publisher("/clock", rosgraph_msgs.msg.Clock, queue_size=1)
 
+
+        self._lastCameraImage = None
+        self._gazeboController = GazeboControllerNoPlugin()
         self._cameraTopic = "/cartpole/camera/image_raw"
         rospy.Subscriber(self._cameraTopic, sensor_msgs.msg.Image, self._cameraCallback,  queue_size=1)
-
-
-
 
 
 
@@ -126,7 +123,7 @@ class CartpoleGazeboEnv(gym.Env):
             If an invalid action is provided
 
         """
-        rospy.loginfo("step()")
+        #rospy.loginfo("step()")
 
         if self._framesCounter>=self._maxFramesPerEpisode:
             observation = self._getObservation()
@@ -148,13 +145,14 @@ class CartpoleGazeboEnv(gym.Env):
         request.duration.nsecs = 1000000 #0.5ms
         self._applyJointEffortService.call(request)
 
-
+        t0 = time.time()
         self._lastStepStartSimTime = rospy.get_time()
 
-        self._gazeboController.unpauseSimulationFor(0.05)
+        self._gazeboController.step(0.05)
         observation = self._getObservation()
 
         self._lastStepEndSimTime = rospy.get_time()
+        t1 = time.time()
 
 
         cartPosition = observation[0]
@@ -172,7 +170,8 @@ class CartpoleGazeboEnv(gym.Env):
         self._framesCounter+=1
         simTime = rospy.get_time()
 
-        rospy.loginfo("step() return")
+
+        #rospy.loginfo("step() return")
         return (observation, reward, done, {"simTime":simTime})
 
 
@@ -192,7 +191,7 @@ class CartpoleGazeboEnv(gym.Env):
             the initial observation.
 
         """
-        rospy.loginfo("reset()")
+        #rospy.loginfo("reset()")
 
         #reset simulation state
         self._gazeboController.pauseSimulation()
@@ -202,6 +201,8 @@ class CartpoleGazeboEnv(gym.Env):
             rospy.logwarn("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
         self._framesCounter = 0
         self._cumulativeImagesAge = 0
+        self._lastStepStartSimTime = -1
+        self._lastStepEndSimTime = 0
 
         self._clearJointEffortService.call("foot_joint")
         self._clearJointEffortService.call("cartpole_joint")
@@ -211,7 +212,7 @@ class CartpoleGazeboEnv(gym.Env):
         t = rosgraph_msgs.msg.Clock()
         self._clockPublisher.publish(t)
 
-        rospy.loginfo("reset() return")
+        #rospy.loginfo("reset() return")
         return  self._getObservation()
 
 
@@ -246,10 +247,17 @@ class CartpoleGazeboEnv(gym.Env):
         if mode!="rgb_array":
             raise NotImplementedError("only rgb_array mode is supported")
 
+        t0 = time.time()
         cameraImage = self._lastCameraImage
         if cameraImage == None:
             rospy.logerr("No camera image received. render() will return and empty image.")
             return np.empty([0,0,3])
+
+        t1 = time.time()
+        npArrImage = utils.image_to_numpy(self._lastCameraImage)
+        t2 = time.time()
+
+        #rospy.loginfo("render time = {:.4f}s".format(t1-t0)+"  conversion time = {:.4f}s".format(t2-t1))
 
         imageTime = cameraImage.header.stamp.secs + cameraImage.header.stamp.nsecs/1000_000_000.0
         if imageTime < self._lastStepStartSimTime:
@@ -259,7 +267,6 @@ class CartpoleGazeboEnv(gym.Env):
         rospy.loginfo("Rendering image age = "+str(cameraImageAge)+"s")
         self._cumulativeImagesAge += cameraImageAge
 
-        npArrImage = utils.image_to_numpy(self._lastCameraImage)
 
         return npArrImage
 
@@ -307,10 +314,6 @@ class CartpoleGazeboEnv(gym.Env):
 
 
 
-
-
-
-
     def _getObservation(self) -> Tuple[float,float,float,float]:
         """Get the an observation of the environment.
 
@@ -321,8 +324,11 @@ class CartpoleGazeboEnv(gym.Env):
 
         """
 
+        t0 = time.time()
         cartInfo = self._getJointPropertiesService.call("foot_joint")
         poleInfo = self._getJointPropertiesService.call("cartpole_joint")
+        t1 = time.time()
+        rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
 
         observation = (cartInfo.position[0], cartInfo.rate[0], poleInfo.position[0], poleInfo.rate[0])
 

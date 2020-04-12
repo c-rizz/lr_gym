@@ -5,7 +5,7 @@ import gym
 import time
 import tqdm
 import cv2
-from CartpoleGazeboEnv import CartpoleGazeboEnv
+from CartpoleGazeboEnvNoPlugin import CartpoleGazeboEnv
 import os
 
 
@@ -13,7 +13,7 @@ import os
 #  rosparam load src/openai_examples_projects/cartpole_openai_ros_examples/config/cartpole_n1try_params.yaml
 
 def main():
-    rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.INFO)
+    rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
     env = CartpoleGazeboEnv()
     #setup seeds for reproducibility
@@ -33,7 +33,7 @@ def main():
     totDuration=0
     frames = []
     #do an average over a bunch of episodes
-    for episode in tqdm.tqdm(range(0,10)):
+    for episode in tqdm.tqdm(range(0,50)):
         frame = 0
         episodeReward = 0
         done = False
@@ -46,7 +46,7 @@ def main():
             #time.sleep(1)
             #print("Episode "+str(episode)+" frame "+str(frame))
 
-            img = env.render()
+            #img = env.render()
             # r = cv2.imwrite(imagesOutFolder+"/frame-"+str(episode)+"-"+str(frame)+".png",img)
             # if r:
             #     print("saved image")

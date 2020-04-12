@@ -15,6 +15,7 @@
 #include <mutex>
 #include <chrono>
 #include <functional>
+#include "utils.hpp"
 
 namespace gazebo
 {
@@ -45,8 +46,8 @@ namespace gazebo
         unsigned int width  = sensor->ImageWidth();
         unsigned int height = sensor->ImageHeight();
 
-        unsigned int cx = (static_cast<double>(height) + 1.0) /2.0;
-        unsigned int cy = (static_cast<double>(width)  + 1.0) /2.0;
+        double cx = (static_cast<double>(height) + 1.0) /2.0;
+        double cy = (static_cast<double>(width)  + 1.0) /2.0;
 
 
         double fx = width  / (2.0 * tan(sensor->Camera()->HFOV().Radian() / 2.0));
@@ -84,44 +85,19 @@ namespace gazebo
         // D = {k1, k2, t1, t2, k3}, as specified in:
         // - sensor_msgs/CameraInfo: http://docs.ros.org/api/sensor_msgs/html/msg/CameraInfo.html
         // - OpenCV: http://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html
-        camera_info_msg.D[0] = k1;
-        camera_info_msg.D[1] = k2;
-        camera_info_msg.D[2] = t1;
-        camera_info_msg.D[3] = t2;
-        camera_info_msg.D[4] = k3;
+        camera_info_msg.D = {k1,k2,t1,t2,k3};
         // original camera_ matrix
-        camera_info_msg.K[0] = fx;
-        camera_info_msg.K[1] = 0.0;
-        camera_info_msg.K[2] = cx;
-        camera_info_msg.K[3] = 0.0;
-        camera_info_msg.K[4] = fy;
-        camera_info_msg.K[5] = cy;
-        camera_info_msg.K[6] = 0.0;
-        camera_info_msg.K[7] = 0.0;
-        camera_info_msg.K[8] = 1.0;
+        camera_info_msg.K = {fx,  0.0, cx,
+                             0.0, fy,  cy,
+                             0.0, 0.0, 1.0};
         // rectification
-        camera_info_msg.R[0] = 1.0;
-        camera_info_msg.R[1] = 0.0;
-        camera_info_msg.R[2] = 0.0;
-        camera_info_msg.R[3] = 0.0;
-        camera_info_msg.R[4] = 1.0;
-        camera_info_msg.R[5] = 0.0;
-        camera_info_msg.R[6] = 0.0;
-        camera_info_msg.R[7] = 0.0;
-        camera_info_msg.R[8] = 1.0;
+        camera_info_msg.R = {1.0, 0.0, 0.0,
+                             0.0, 1.0, 0.0,
+                             0.0, 0.0, 1.0};
         //This is a monocular camera and there is no rectification, consequently the first 3 columns of P are equal to K, and the last column is (0,0,0)
-        camera_info_msg.P[0] = fx;
-        camera_info_msg.P[1] = 0.0;
-        camera_info_msg.P[2] = cx;
-        camera_info_msg.P[3] = 0.0;
-        camera_info_msg.P[4] = 0.0;
-        camera_info_msg.P[5] = fy;
-        camera_info_msg.P[6] = cy;
-        camera_info_msg.P[7] = 0.0;
-        camera_info_msg.P[8] = 0.0;
-        camera_info_msg.P[9] = 0.0;
-        camera_info_msg.P[10] = 1.0;
-        camera_info_msg.P[11] = 0.0;
+        camera_info_msg.P = {fx,  0.0, cx,  0.0,
+                             0.0, fy,  cy,  0.0,
+                             0.0, 0.0, 1.0, 0.0};
 
         return camera_info_msg;
       }
@@ -147,6 +123,16 @@ namespace gazebo
 
     bool keepServingCallbacks = true;
 
+
+
+
+    AverageKeeper avgRenderThreadDelay;
+    AverageKeeper avgRenderTime;
+    AverageKeeper avgTotalRenderTime;
+    AverageKeeper avgFillTime;
+    AverageKeeper avgRenderRequestDelay;
+    AverageKeeper avgStepRequestDelay;
+    AverageKeeper avgSteppingTime;
 
   public:
     /////////////////////////////////////////////
@@ -216,73 +202,44 @@ namespace gazebo
     }
 
   private:
-    class AverageKeeper
-    {
-    public:
-      std::vector<double> buffer;
-      unsigned int pos = 0;
-      unsigned int bufSize = 100;
-      double avg = 0;
 
-      double addValue(double newVal)
-      {
-        if(buffer.size()<bufSize)
-          buffer.push_back(newVal);
-        else
-          buffer[pos%bufSize] = newVal;
-        pos++;
-
-        double sum = 0;
-        for(double v : buffer)
-          sum+=v;
-        avg = sum/buffer.size();
-        return avg;
-      }
-    };
-    AverageKeeper avgDelay;
-    AverageKeeper avgRenderTime;
-    AverageKeeper avgTotalRenderTime;
 
     bool renderCameras(std::vector<std::shared_ptr<GymCamera>> cameras)
     {
-      auto tSubmit = std::chrono::steady_clock::now();
-      bool ret = runOnRenderThreadSync([this,cameras, tSubmit](){
-        auto tStart = std::chrono::steady_clock::now();
-        std::chrono::duration<double, std::milli> delay = tStart-tSubmit;
-        avgDelay.addValue(delay.count());
-        ROS_INFO_STREAM("Render call delay: avg="<<avgDelay.avg<<"ms current="<<delay.count()<<"ms");
+      avgRenderThreadDelay.onTaskStart();
+      avgTotalRenderTime.onTaskStart();
+
+      bool ret = runOnRenderThreadSync([this,cameras](){
+        avgRenderThreadDelay.onTaskEnd();
         //Is this a good idea?
         //An issue with this approach is that if things go bad this may be executed super late. And if
         // that happens the cameras may not be usable anymore
         //With other approaches we would probably have the same problems
         for(std::shared_ptr<GymCamera> cam : cameras)
         {
-          //Is there a way to check if this will not explode?
-          ROS_INFO_STREAM("### Rendering camera "<<cam->sensor->Camera()->Name());
-          auto t_beforeRender = std::chrono::steady_clock::now();
+          //Is there a way to check that this will not explode?
+          //ROS_INFO_STREAM("### Rendering camera "<<cam->sensor->Camera()->Name());
+          avgRenderTime.onTaskStart();
           cam->sensor->Camera()->Render(true);
           cam->sensor->Camera()->PostRender();
-          auto t_afterRender = std::chrono::steady_clock::now();
-          std::chrono::duration<double, std::milli> renderDuration = t_afterRender - t_beforeRender;
-          avgRenderTime.addValue(renderDuration.count());
-          ROS_INFO_STREAM("### Rendered camera "<<cam->sensor->Camera()->Name());
-          ROS_INFO_STREAM("Render duration: avg="<<avgRenderTime.avg<<"ms current="<<renderDuration.count()<<"ms");
+          avgRenderTime.onTaskEnd();
+          //ROS_INFO_STREAM("### Rendered camera "<<cam->sensor->Camera()->Name());
 
 
-          ROS_INFO_STREAM("### Filling image for camera '"<<cam->sensor->Name()<<"'");
+          //ROS_INFO_STREAM("### Filling image for camera '"<<cam->sensor->Name()<<"'");
+          avgFillTime.onTaskStart();
           sensor_msgs::fillImage(cam->lastRender,
-                getEncoding(cam->sensor),
+                getCameraRosEncoding(cam->sensor),
                 cam->sensor->ImageHeight(),
                 cam->sensor->ImageWidth(),
-                getSkip(cam->sensor)*cam->sensor->ImageWidth(),
+                getCameraRosSkip(cam->sensor)*cam->sensor->ImageWidth(),
                 cam->sensor->ImageData());
-          ROS_INFO_STREAM("### Built message for camera '"<<cam->sensor->Name()<<"'");
+          avgFillTime.onTaskEnd();
+          //ROS_INFO_STREAM("### Built message for camera '"<<cam->sensor->Name()<<"'");
         }
       });
-      auto t_renderCompleted = std::chrono::steady_clock::now();
-      std::chrono::duration<double, std::milli> totalRenderTime = t_renderCompleted - tSubmit;
-      avgTotalRenderTime.addValue(totalRenderTime.count());
-      ROS_INFO_STREAM("Total Render duration: avg="<<avgTotalRenderTime.avg<<"ms current="<<totalRenderTime.count()<<"ms");
+
+      avgTotalRenderTime.onTaskEnd();
       return ret;
     }
 
@@ -292,7 +249,7 @@ namespace gazebo
       std::shared_ptr<std::mutex> taskDoneMutex = std::make_shared<std::mutex>();
       std::shared_ptr<std::condition_variable> cv = std::make_shared<std::condition_variable>();
 
-      ROS_INFO_STREAM("Defining task");
+      //ROS_INFO_STREAM("Defining task");
       //define task
       auto taskWrapper = [taskDone,taskDoneMutex,cv,task]() {
         task();
@@ -301,20 +258,20 @@ namespace gazebo
         lk.unlock();
         cv->notify_one();
        };
-      ROS_INFO_STREAM("Defined task");
+      //ROS_INFO_STREAM("Defined task");
 
       //submit task
       {
         std::lock_guard<std::mutex> lock(renderTasksQueueMutex);
         renderTasksQueue.push(taskWrapper);
       }
-      ROS_INFO_STREAM("submitted task");
+      //ROS_INFO_STREAM("submitted task");
 
       //wait completion
       std::unique_lock<std::mutex> lk(*taskDoneMutex);
       bool didCompleteTask = cv->wait_for(lk, waitTimeout, [taskDone]{return *taskDone;});
       lk.unlock();
-      ROS_INFO_STREAM("waited task");
+      //ROS_INFO_STREAM("waited task");
 
       if(!didCompleteTask)
         ROS_WARN("Failed to run render task. Timed out.");
@@ -337,26 +294,114 @@ namespace gazebo
           }
           else
           {
-            ROS_INFO_STREAM("## there are tasks to do");
+            //ROS_INFO_STREAM("## there are tasks to do");
             done = false;
             taskToRun = renderTasksQueue.front();
             renderTasksQueue.pop();
-            ROS_INFO_STREAM("## got 1 task");
+            //ROS_INFO_STREAM("## got 1 task");
           }
         }
         if(!done)
         {
-          ROS_INFO_STREAM("## running task");
+          //ROS_INFO_STREAM("## running task");
           taskToRun();
-          ROS_INFO_STREAM("## ran task");
+          //ROS_INFO_STREAM("## ran task");
         }
       }while(done);
     }
 
+    void renderCameras(std::vector<std::string> cameras, gazebo_gym_env_plugin::RenderedCameras& renderedCameras)
+    {
+      ROS_DEBUG("Available Cameras:");
+      for(std::shared_ptr<GymCamera> cam : gymCameras)
+        ROS_DEBUG_STREAM("  "<<cam->sensor->Name());
+
+
+      ROS_DEBUG("Selecting requested cameras...");
+      //Get the cameras we need to use
+      std::vector<std::shared_ptr<GymCamera>> requestedCameras;
+      if(cameras.empty())
+      {
+        requestedCameras = gymCameras;
+      }
+      else
+      {
+        for(std::string reqName : cameras)
+        {
+          for(std::shared_ptr<GymCamera> cam : gymCameras)
+          {
+            if(reqName.compare(cam->sensor->Name())==0)
+            {
+              requestedCameras.push_back(cam);
+              ROS_DEBUG_STREAM("Selecting camera '"<<cam->sensor->Name()<<"'");
+              break;
+            }
+          }
+        }
+      }
+      ROS_DEBUG_STREAM("Selected "<<requestedCameras.size()<<" cameras");
+
+      //Render cameras that were not rendered since last step end
+      std::vector<std::shared_ptr<GymCamera>> camerasToRender;
+      for(std::shared_ptr<GymCamera> cam : requestedCameras)
+      {
+        //ROS_INFO_STREAM("camera '"<<cam->sensor->Name()<<"': lastRenderedStep="<<cam->lastRenderedStep<<", stepCounter ="<<stepCounter);
+        if(cam->lastRenderedStep<stepCounter)
+        {
+          camerasToRender.push_back(cam);
+          cam->lastRenderedStep = stepCounter;
+        }
+      }
+      bool ret = renderCameras(camerasToRender);//renders the cameras on the rendering thread
+      if(!ret)
+      {
+        ROS_WARN("GazeboGymEnvPlugin: Failed to render cameras");
+        renderedCameras.success=false;
+        renderedCameras.error_message="Renderer task timed out";
+        return;
+      }
+      //Fill up the response with the images
+      gazebo::common::Time simTime = world->SimTime();
+      for(std::shared_ptr<GymCamera> cam  : requestedCameras)
+      {
+        //ROS_INFO_STREAM("Building message for camera '"<<cam->sensor->Name()<<"'");
+        renderedCameras.images.push_back(cam->lastRender);
+
+        renderedCameras.images.back().header.stamp.sec = simTime.sec;
+        renderedCameras.images.back().header.stamp.nsec = simTime.nsec;
+        renderedCameras.images.back().header.frame_id = cam->rosTfFrame_id;
+        //ROS_INFO_STREAM("Built message for camera '"<<cam->sensor->Name()<<"'");
+      }
+
+
+      //ROS_INFO_STREAM("Setting camera infos...");
+      //Fill up camera infos
+      for(std::shared_ptr<GymCamera> cam : requestedCameras)
+        renderedCameras.camera_infos.push_back(cam->camera_info);
+      //ROS_INFO_STREAM("Done");
+
+      for(std::shared_ptr<GymCamera> cam : requestedCameras)
+        renderedCameras.camera_names.push_back(cam->sensor->Name());
+
+      renderedCameras.success=true;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
     void callbacksThreadMain()
     {
       //Initialize rendering engine in this thread (necessary for rendeing the camera)
-      rendering::load();
+      //rendering::load();
       //rendering::init();
       static const double timeout = 0.001;
       while(keepServingCallbacks)
@@ -383,186 +428,81 @@ namespace gazebo
         also stops the sensor updates, which prevents us from using the cameras, we cannot render them ourselves
         because even the Render event gets stopped.
       */
+      if(req.iterations !=0 && req.step_duration_secs!=0)
+      {
+        res.success = false;
+        res.error_message = "GazeboGymEnvPlugin: step was requested specifying both iterations and step_duration. Only one can be set at a time. No action taken.";
+        ROS_WARN_STREAM(res.error_message.c_str());
+        return true;
+      }
+
       if(!world->IsPaused())
       {
-        ROS_WARN("Called step_simulation while the simulation was running! This is probably a mistake. I will stop the simulation and then do a step. Still, it doesn't make much sense");
+        res.success = false;
+        res.error_message = "Called step_simulation while the simulation was running. Simulation must be paused. No action taken.";
+        ROS_WARN_STREAM(res.error_message.c_str());
+        return true;
       }
-      //ensure the simulation is paused
-      world->SetPaused(true);
 
-      int requestedIterations = req.iterations;
+      double delay_secs = ros::WallTime::now().toSec() - req.request_time;
+      avgStepRequestDelay.addValue(delay_secs);
+      //ROS_INFO_STREAM("Stepping simulation. Service request delay = "<<delay_secs);
 
-      ROS_INFO("Stepping simulation...");
+      int requestedIterations = -1;
+      if(req.step_duration_secs!=0)
+        requestedIterations = req.step_duration_secs/world->Physics()->GetMaxStepSize();
+      else
+        requestedIterations = req.iterations;
+
+      common::Time startTime = world->SimTime();
+
+      int iterationsBefore = world->Iterations();
+      //ROS_INFO("Stepping simulation...");
+      avgSteppingTime.onTaskStart();
       world->Step(requestedIterations);
+      avgSteppingTime.onTaskEnd();
 
-      int iterations_done = world->Iterations();
+      common::Time endTime = world->SimTime();
+
+      int iterations_done = world->Iterations() - iterationsBefore;
       res.success = iterations_done == requestedIterations;
+      res.error_message = "No error";
       res.iterations_done = iterations_done;
+      res.step_duration_done_secs = (endTime-startTime).Double();
+      res.response_time = ros::WallTime::now().toSec();
+
       stepCounter++;
+
+      if(req.render)
+      {
+        renderCameras(req.cameras,res.render_result);
+      }
+
+      //Print timing info
+      ROS_INFO_STREAM("-------------------------------------------------");
+      ROS_INFO_STREAM("Render request delay:         avg="<<avgRenderRequestDelay.getAverage()*1000<<"ms");
+      ROS_INFO_STREAM("Render thread call delay:     avg="<<avgRenderThreadDelay.getAverage()*1000<<"ms");
+      ROS_INFO_STREAM("Render duration:              avg="<<avgRenderTime.getAverage()*1000<<"ms");
+      ROS_INFO_STREAM("Image fill duration:          avg="<<avgFillTime.getAverage()*1000<<"ms");
+      ROS_INFO_STREAM("Total Render duration:        avg="<<avgTotalRenderTime.getAverage()*1000<<"ms");
+      ROS_INFO_STREAM("Step request delay:           avg="<<avgStepRequestDelay.getAverage()*1000<<"ms");
+      ROS_INFO_STREAM("Step wall duration:           avg="<<avgSteppingTime.getAverage()*1000<<"ms");
 
       return true;//Must be false only in case we cannot send a response
     }
+
+
 
     bool renderServiceCallback(gazebo_gym_env_plugin::RenderCameras::Request &req, gazebo_gym_env_plugin::RenderCameras::Response &res)
     {
-      ROS_INFO("Rendering cameras...");
+      double delay_secs = ros::WallTime::now().toSec() - req.request_time;
+      avgRenderRequestDelay.addValue(delay_secs);
+      //ROS_INFO_STREAM("Rendering cameras. Service request delay = "<<delay_secs);
 
-      ROS_INFO("Available Cameras:");
-      for(std::shared_ptr<GymCamera> cam : gymCameras)
-        ROS_INFO_STREAM("  "<<cam->sensor->Name());
+      renderCameras(req.cameras,res.render_result);
 
-
-      ROS_INFO("Selecting requested cameras...");
-      //Get the cameras we need to use
-      std::vector<std::shared_ptr<GymCamera>> requestedCameras;
-      if(req.cameras.empty())
-        requestedCameras = gymCameras;
-      for(std::string reqName : req.cameras)
-      {
-        for(std::shared_ptr<GymCamera> cam : gymCameras)
-        {
-          if(reqName.compare(cam->sensor->Name())==0)
-          {
-            requestedCameras.push_back(cam);
-            ROS_INFO_STREAM("Selecting camera '"<<cam->sensor->Name()<<"'");
-            break;
-          }
-        }
-      }
-      ROS_INFO_STREAM("Selected "<<requestedCameras.size()<<" cameras");
-
-      //Render cameras that were not rendered since last step end
-      std::vector<std::shared_ptr<GymCamera>> camerasToRender;
-      for(std::shared_ptr<GymCamera> cam : requestedCameras)
-      {
-        ROS_INFO_STREAM("camera '"<<cam->sensor->Name()<<"': lastRenderedStep="<<cam->lastRenderedStep<<", stepCounter ="<<stepCounter);
-        if(cam->lastRenderedStep<stepCounter)
-        {
-          camerasToRender.push_back(cam);
-          cam->lastRenderedStep = stepCounter;
-        }
-      }
-      bool ret = renderCameras(camerasToRender);//renders the cameras on the rendering thread
-      if(!ret)
-      {
-        ROS_WARN("GazeboGymEnvPlugin: Failed to render cameras");
-        res.success=false;
-        return true;
-      }
-      //Fill up the response with the images
-      gazebo::common::Time simTime = world->SimTime();
-      for(std::shared_ptr<GymCamera> cam  : requestedCameras)
-      {
-        ROS_INFO_STREAM("Building message for camera '"<<cam->sensor->Name()<<"'");
-        res.images.push_back(cam->lastRender);
-
-        res.images.back().header.stamp.sec = simTime.sec;
-        res.images.back().header.stamp.nsec = simTime.nsec;
-        res.images.back().header.frame_id = cam->rosTfFrame_id;
-        ROS_INFO_STREAM("Built message for camera '"<<cam->sensor->Name()<<"'");
-      }
-
-
-      ROS_INFO_STREAM("Setting camera infos...");
-      //Fill up camera infos
-      for(std::shared_ptr<GymCamera> cam : requestedCameras)
-        res.camera_infos.push_back(cam->camera_info);
-      ROS_INFO_STREAM("Done");
-
-      res.success=true;
+      res.response_time = ros::WallTime::now().toSec();
       return true;//Must be false only in case we cannot send a response
-    }
-
-    static std::string getEncoding(std::shared_ptr<sensors::CameraSensor> sensor)
-    {
-      std::string sensorFormat = sensor->Camera()->ImageFormat();
-      std::string ret;
-      //Thanks to gazebo_ros_pkgs/gazebo_plugins/src/gazebo_ros_camera_utils.cpp
-      if (sensorFormat == "L8" || sensorFormat == "L_INT8")
-        ret = sensor_msgs::image_encodings::MONO8;
-      else if (sensorFormat == "L16" || sensorFormat == "L_INT16")
-        ret = sensor_msgs::image_encodings::MONO16;
-      else if (sensorFormat == "R8G8B8" || sensorFormat == "RGB_INT8")
-        ret = sensor_msgs::image_encodings::RGB8;
-      else if (sensorFormat == "B8G8R8" || sensorFormat == "BGR_INT8")
-        ret = sensor_msgs::image_encodings::BGR8;
-      else if (sensorFormat == "R16G16B16" ||  sensorFormat == "RGB_INT16")
-        ret = sensor_msgs::image_encodings::RGB16;
-      else if (sensorFormat == "BAYER_RGGB8")
-      {
-        ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
-        ret = sensor_msgs::image_encodings::BAYER_RGGB8;
-      }
-      else if (sensorFormat == "BAYER_BGGR8")
-      {
-        ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
-        ret = sensor_msgs::image_encodings::BAYER_BGGR8;
-      }
-      else if (sensorFormat == "BAYER_GBRG8")
-      {
-        ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
-        ret = sensor_msgs::image_encodings::BAYER_GBRG8;
-      }
-      else if (sensorFormat == "BAYER_GRBG8")
-      {
-        ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
-        ret = sensor_msgs::image_encodings::BAYER_GRBG8;
-      }
-      else
-      {
-        ROS_ERROR_STREAM("gazebo_gym_env: Unsupported Gazebo ImageFormat "<<sensorFormat<<" on sensor "<<sensor->Name());
-        ret = sensor_msgs::image_encodings::BGR8;
-      }
-
-      //ROS_INFO_STREAM("Got encoding: "<<ret);
-      return ret;
-    }
-
-
-    static unsigned int getSkip(std::shared_ptr<sensors::CameraSensor> sensor)
-    {
-      std::string sensorFormat = sensor->Camera()->ImageFormat();
-      unsigned int ret;
-
-      //Thanks to gazebo_ros_pkgs/gazebo_plugins/src/gazebo_ros_camera_utils.cpp
-      if (sensorFormat == "L8" || sensorFormat == "L_INT8")
-        ret = 1;
-      else if (sensorFormat == "L16" || sensorFormat == "L_INT16")
-        ret = 2;
-      else if (sensorFormat == "R8G8B8" || sensorFormat == "RGB_INT8")
-        ret = 3;
-      else if (sensorFormat == "B8G8R8" || sensorFormat == "BGR_INT8")
-        ret = 3;
-      else if (sensorFormat == "R16G16B16" ||  sensorFormat == "RGB_INT16")
-        ret = 6;
-      else if (sensorFormat == "BAYER_RGGB8")
-      {
-        ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
-        ret = 1;
-      }
-      else if (sensorFormat == "BAYER_BGGR8")
-      {
-        ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
-        ret = 1;
-      }
-      else if (sensorFormat == "BAYER_GBRG8")
-      {
-        ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
-        ret = 1;
-      }
-      else if (sensorFormat == "BAYER_GRBG8")
-      {
-        ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
-        ret = 1;
-      }
-      else
-      {
-        ROS_ERROR_STREAM("gazebo_gym_env: Unsupported Gazebo ImageFormat "<<sensorFormat<<" on sensor "<<sensor->Name());
-        ret = 3;
-      }
-
-      //ROS_INFO_STREAM("Got step: "<<ret);
-      return ret;
     }
 
   };

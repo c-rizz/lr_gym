@@ -46,11 +46,10 @@ find_package(gazebo REQUIRED)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+ FILES
+ RenderedCameras.msg
+)
 
 ## Generate services in the 'srv' folder
 add_service_files(
@@ -121,7 +120,7 @@ include_directories(
 )
 
 ## Declare a C++ library
-add_library(gazebo_gym_env_plugin SHARED src/gazeboGymEnvPlugin.cpp)
+add_library(gazebo_gym_env_plugin SHARED src/gazeboGymEnvPlugin.cpp src/utils.cpp)
 add_dependencies(gazebo_gym_env_plugin ${PROJECT_NAME}_generate_messages_cpp )
 
 ## Add cmake target dependencies of the library

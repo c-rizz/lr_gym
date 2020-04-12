@@ -1,8 +1,34 @@
 
-# Number of iterations to be executed
+# Number of iterations to be executed (if this is set, step_duration must be zero)
 int32 iterations
+
+# Duration, in sim time, to step for, in seconds (if this is set, iterations must be zero)
+float64 step_duration_secs
+
+# Set to true to also receive a rendering in the response
+bool render
+
+# cameras to be rendered (only used if render==true)
+string[] cameras
+
+# Wall time at which the request was made
+float64 request_time
 ---
+
 # True if the requested iterations were executed, false otherwise
 bool success
+
 # Number of iterations that were executed
 int32 iterations_done
+
+# Duration, in sim time, of the step
+float64 step_duration_done_secs
+
+# Error message in case of error
+string error_message
+
+# Wall time at which the response was completed
+float64 response_time
+
+# Rendering of the cameras (if requested with request.render)
+RenderedCameras render_result

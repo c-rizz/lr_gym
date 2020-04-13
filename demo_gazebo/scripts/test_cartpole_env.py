@@ -72,10 +72,10 @@ def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = F
                 img = env.render()
                 if saveFrames and img.size!=0:
                     r = cv2.imwrite(imagesOutFolder+"/frame-"+str(episode)+"-"+str(frame)+".png",img)
-                    if r:
-                        print("saved image")
-                    else:
+                    if not r:
                         print("couldn't save image")
+                    #else:
+                    #    print("saved image")
 
 
             if obs[2]>0:

@@ -11,16 +11,31 @@ import os
 import argparse
 
 
-# for the environment to work some ros parameters are needed, set them with:
-#  rosparam load src/openai_examples_projects/cartpole_openai_ros_examples/config/cartpole_n1try_params.yaml
+def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = False, stepLength_sec : float = 0.05) -> None:
+    """Runs the gazebo cartpole environment with a simple hard-coded policy
 
-def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = False):
-    rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.INFO)
+    Parameters
+    ----------
+    doRender : bool
+        Set to True to enable the rendering of each simulation step
+    noPlugin : bool
+        set to True to disable the use of the gazebo gazebo_gym_env plugin
+    saveFrames : bool
+        Set to true to save every computed frame rendering to file. (will save to ./frames/)
+    stepLength_sec : float
+        Here you can set the duration in seconds of each simulation step
+
+    Returns
+    -------
+    None
+
+    """
+    rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
     if noPlugin:
         env = CartpoleGazeboEnvNoPlugin()
     else:
-        env = CartpoleGazeboEnv(renderInStep = doRender)
+        env = CartpoleGazeboEnv(renderInStep = doRender, stepLength_sec=stepLength_sec)
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
@@ -69,7 +84,7 @@ def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = F
                 action = 0
             #rospy.loginfo("stepping...")
             obs, stepReward, done, info = env.step(action)
-            #rospy.loginfo("stepped")
+            #print("stepped")
             #frames.append(env.render("rgb_array"))
             #time.sleep(0.016)
             frame+=1
@@ -83,7 +98,7 @@ def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = F
     avgReward = sum(rewards)/len(rewards)
     totalWallTime = time.time() - wallTimeStart
 
-    print("Computed average reward. Took "+str(totalWallTime)+" seconds ({:.3f}".format(totFrames/totDuration)+" fps). simTime/wallTime={:.3f}".format(totalSimTime/totalWallTime))
+    print("Computed average reward. Took "+str(totalWallTime)+" seconds ({:.3f}".format(totFrames/totDuration)+" fps). simTime/wallTime={:.3f}".format(totalSimTime/totalWallTime)+" total frames count = "+str(totFrames))
 
 
 def createFolders(folder):
@@ -99,6 +114,7 @@ if __name__ == "__main__":
     ap.add_argument("--render", default=False, action='store_true', help="Enable camera rendering")
     ap.add_argument("--noplugin", default=False, action='store_true', help="Don't use the gazebo gazebo_gym_env plugin")
     ap.add_argument("--saveframes", default=False, action='store_true', help="Saves each frame of each episode in ./frames")
+    ap.add_argument("--steplength", required=False, default=0.05, type=float, help="Duration of each simulation step")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
-    main(doRender = args["render"], noPlugin=args["noplugin"], saveFrames=args["saveframes"])
+    main(doRender = args["render"], noPlugin=args["noplugin"], saveFrames=args["saveframes"], stepLength_sec=args["steplength"])

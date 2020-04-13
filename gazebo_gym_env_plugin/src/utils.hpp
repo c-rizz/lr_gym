@@ -28,4 +28,4 @@ public:
 
 std::string getCameraRosEncoding(std::shared_ptr<gazebo::sensors::CameraSensor> sensor);
 
-unsigned int getCameraRosSkip(std::shared_ptr<gazebo::sensors::CameraSensor> sensor);
+unsigned int getCameraPixelBytes(std::shared_ptr<gazebo::sensors::CameraSensor> sensor);

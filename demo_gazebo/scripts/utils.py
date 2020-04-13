@@ -62,6 +62,24 @@ name_to_dtypes = {
 
 
 def image_to_numpy(rosMsg : sensor_msgs.msg.Image) -> np.ndarray:
+    """Extracts an numpy/opencv image from a ros sensor_msgs image
+
+    Parameters
+    ----------
+    rosMsg : sensor_msgs.msg.Image
+        The ros image message
+
+    Returns
+    -------
+    np.ndarray
+        The numpy array contaning the image. Compatible with opencv
+
+    Raises
+    -------
+    TypeError
+        If the input image encoding is not supported
+
+    """
     if not rosMsg.encoding in name_to_dtypes:
         raise TypeError('Unrecognized encoding {}'.format(rosMsg.encoding))
 

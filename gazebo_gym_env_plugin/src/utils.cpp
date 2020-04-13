@@ -8,7 +8,11 @@
 using namespace gazebo;
 
 
-
+/**
+ * Provides a new value to use for computing the average
+ * @param  newVal New value to be used
+ * @return        The current average value
+ */
 double AverageKeeper::addValue(double newVal)
 {
   if(buffer.size()<bufSize)
@@ -24,11 +28,18 @@ double AverageKeeper::addValue(double newVal)
   return avg;
 }
 
+/**
+ * Start keeping the time for a task
+ */
 void AverageKeeper::onTaskStart()
 {
   taskStartTime = std::chrono::steady_clock::now();
 }
 
+/**
+ * Finish keeping the time for a task and use the recorded time for the average
+ * computation
+ */
 void AverageKeeper::onTaskEnd()
 {
   auto taskEndTime = std::chrono::steady_clock::now();
@@ -36,6 +47,10 @@ void AverageKeeper::onTaskEnd()
   addValue(duration.count());
 }
 
+/**
+ * Get the average value
+ * @return The average value
+ */
 double AverageKeeper::getAverage()
 {
   return avg;
@@ -45,7 +60,12 @@ double AverageKeeper::getAverage()
 
 
 
-
+/**
+ * Returns the ROS sensor_msgs encoding for the images produced by the provided Gazebo
+ * camera sensor
+ * @param  sensor Pointer to the sensor to be used
+ * @return        The sensor_msgs image encoding
+ */
 std::string getCameraRosEncoding(std::shared_ptr<sensors::CameraSensor> sensor)
 {
   std::string sensorFormat = sensor->Camera()->ImageFormat();
@@ -91,8 +111,13 @@ std::string getCameraRosEncoding(std::shared_ptr<sensors::CameraSensor> sensor)
   return ret;
 }
 
-
-unsigned int getCameraRosSkip(std::shared_ptr<sensors::CameraSensor> sensor)
+/**
+ * Gets the size in bytes of one pixel for the images produced by the provided Gazebo
+ * camera sensor
+ * @param  sensor Pointer to the sensor to be used
+ * @return        The size in bytes of one pixel
+ */
+unsigned int getCameraPixelBytes(std::shared_ptr<sensors::CameraSensor> sensor)
 {
   std::string sensorFormat = sensor->Camera()->ImageFormat();
   unsigned int ret;

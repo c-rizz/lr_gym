@@ -1,3 +1,10 @@
+# This service allows to get a rendering camera sensors in Gazebo
+# You must specify which cameras you want to render using the cameras field
+# The name of the cameras are those specified in the SDF, for example as:
+# <sensor name='camera' type='camera'>
+# ...
+# </sensor>
+
 
 # Names of the cameras to be rendered. If empty all cameras will be rendered
 string[] cameras

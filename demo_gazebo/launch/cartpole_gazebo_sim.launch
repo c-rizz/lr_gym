@@ -6,17 +6,34 @@
 -->
 <launch>
     <env name="ROSCONSOLE_FORMAT" value="[${severity}] [${walltime}] [${node}]: ${message}" />
-    <!-- launch the custom world -->
-    <include file="$(find gazebo_ros)/launch/empty_world.launch" >
-        <arg name="paused" value="True"/>
-        <!--arg name="use_sim_time" value="False" /-->
-        <arg name="world_name" value="$(find demo_gazebo)/worlds/cartpole_world.world"/>
-        <arg name="verbose" value="True"/>
-        <arg name="physics" value="bullet"/>
 
-        <env name="GAZEBO_MODEL_PATH" value="$(find demo_gazebo)/models:$(optenv GAZEBO_MODEL_PATH)"/>
-    </include>
+    <arg name="gui" default="true"/>
+    <arg name="noplugin" default="false"/>
 
+    <group if="$(arg noplugin)">
+      <include file="$(find gazebo_ros)/launch/empty_world.launch" >
+          <arg name="paused" value="True"/>
+          <arg name="world_name" value="$(find demo_gazebo)/worlds/cartpole_world.world"/>
+          <arg name="verbose" value="True"/>
+          <arg name="physics" value="bullet"/>
+          <arg name="gui" value="$(arg gui)"/>
+          <arg name="extre_gazebo_args" value="--seed 20200413"/>
+
+          <env name="GAZEBO_MODEL_PATH" value="$(find demo_gazebo)/models:$(optenv GAZEBO_MODEL_PATH)"/>
+      </include>
+    </group>
+    <group unless="$(arg noplugin)">
+      <!-- launch the custom world -->
+      <include file="$(find gazebo_ros)/launch/empty_world.launch" >
+          <arg name="paused" value="True"/>
+          <arg name="world_name" value="$(find demo_gazebo)/worlds/cartpole_world_plugin.world"/>
+          <arg name="verbose" value="True"/>
+          <arg name="physics" value="bullet"/>
+          <arg name="gui" value="$(arg gui)"/>
+
+          <env name="GAZEBO_MODEL_PATH" value="$(find demo_gazebo)/models:$(optenv GAZEBO_MODEL_PATH)"/>
+      </include>
+    </group>
 
 
     <!-- spawn the Cartpole_v0 URDF -->

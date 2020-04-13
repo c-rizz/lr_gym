@@ -23,6 +23,10 @@ import numpy as np
 import utils
 
 class CartpoleGazeboEnv(gym.Env):
+    """The class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
+    It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
+
+    """
 
 
     action_space = gym.spaces.Discrete(2)
@@ -34,7 +38,7 @@ class CartpoleGazeboEnv(gym.Env):
 
     metadata = {'render.modes': ['rgb_array']}
 
-    def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500, renderInStep : bool = True):
+    def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500, renderInStep : bool = True, stepLength_sec : float = 0.05):
         """Short summary.
 
         Parameters
@@ -51,6 +55,10 @@ class CartpoleGazeboEnv(gym.Env):
         renderInStep : bool
             Performs the rendering within the step call to reduce overhead
             Disable this if you don't need the rendering
+        stepLength_sec : float
+            Duration in seconds of each simulation step. Lower values will lead to
+            slower simulation. This value should be kept higher than the gazebo
+            max_step_size parameter.
 
         Raises
         -------
@@ -65,6 +73,7 @@ class CartpoleGazeboEnv(gym.Env):
         self._lastStepStartSimTime = -1
         self._lastStepEndSimTime = -1
         self._cumulativeImagesAge = 0
+        self._stepLength_sec = stepLength_sec
 
         self._serviceNames = {  "getJointProperties" : "/gazebo/get_joint_properties",
                                 "applyJointEffort" : "/gazebo/apply_joint_effort",
@@ -93,7 +102,7 @@ class CartpoleGazeboEnv(gym.Env):
 
         self._renderInStep = renderInStep
         self._gazeboController = GazeboController()
-
+        self._simTime = 0
 
 
 
@@ -130,7 +139,7 @@ class CartpoleGazeboEnv(gym.Env):
             observation = self._getObservation()
             reward = 0
             done = True
-            return (observation, reward, done, {})
+            return (observation, reward, done, {"simTime":self._simTime})
 
         if action == 0: #left
             direction = -1
@@ -149,7 +158,7 @@ class CartpoleGazeboEnv(gym.Env):
         t0 = time.time()
         self._lastStepStartSimTime = rospy.get_time()
 
-        self._gazeboController.step(0.05,performRendering=self._renderInStep)
+        self._gazeboController.step(self._stepLength_sec,performRendering=self._renderInStep)
         observation = self._getObservation()
 
         self._lastStepEndSimTime = rospy.get_time()
@@ -169,11 +178,13 @@ class CartpoleGazeboEnv(gym.Env):
 
         reward = 1
         self._framesCounter+=1
-        simTime = rospy.get_time()
+        self._simTime += self._stepLength_sec
 
 
         #rospy.loginfo("step() return")
-        return (observation, reward, done, {"simTime":simTime})
+        ret = (observation, reward, done, {"simTime":self._simTime})
+        #rospy.logwarn("returning "+str(ret))
+        return ret
 
 
 
@@ -212,6 +223,8 @@ class CartpoleGazeboEnv(gym.Env):
         # Reset the time manually. Incredibly ugly, incredibly effective
         t = rosgraph_msgs.msg.Clock()
         self._clockPublisher.publish(t)
+
+        self._simTime = 0
 
         #rospy.loginfo("reset() return")
         return  self._getObservation()

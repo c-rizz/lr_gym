@@ -1,3 +1,9 @@
+# This service allows to perform a simulation step within the Gazebo simulator
+# You cam either specify the number of iterations or the duration of the step in
+# simulated seconds
+# Optionally, you can also render the scene cameras (rendering happens after the
+# stepping)
+
 
 # Number of iterations to be executed (if this is set, step_duration must be zero)
 int32 iterations

@@ -14,7 +14,8 @@ import utils
 from GazeboControllerNoPlugin import GazeboControllerNoPlugin
 
 class GazeboController(GazeboControllerNoPlugin):
-    """This class allows to control the execution of the Gazebo simulation
+    """This class allows to control the execution of the Gazebo simulation. It makes
+    use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
     """
 
     def __init__(self, usePersistentConnections : bool = False):
@@ -107,7 +108,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
         t3 = rospy.get_time()
         tf_real = time.time()
-        self._episodeSimDuration += t3 - t0
+        self._episodeSimDuration += runTime_secs
         self._episodeRealSimDuration += tf_real - t0_real
         #rospy.loginfo("t0 = "+str(t0)+"   t3 = "+str(t3))
         #rospy.loginfo("Unpaused for a duration of about  "+str(t3-t0)+"s")

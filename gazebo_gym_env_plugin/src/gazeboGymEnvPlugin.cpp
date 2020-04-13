@@ -19,11 +19,18 @@
 
 namespace gazebo
 {
+  /**
+   * Gazebo plugin that provides methods necessary for correctly implementing an
+   * OpenAI-gym environment.
+   */
   class GazeboGymEnvPlugin : public WorldPlugin
   {
 
   private:
 
+    /**
+     * Helper class that wraps a Gazebo camera
+     */
     class GymCamera
     {
     public:
@@ -112,7 +119,6 @@ namespace gazebo
     std::vector<std::shared_ptr<GymCamera>> gymCameras;
     std::queue<std::function<void()>> renderTasksQueue;
     std::mutex renderTasksQueueMutex;
-    std::chrono::milliseconds waitTimeout = std::chrono::milliseconds(10000) ;
 
 
     ros::ServiceServer stepService;
@@ -135,8 +141,7 @@ namespace gazebo
     AverageKeeper avgSteppingTime;
 
   public:
-    /////////////////////////////////////////////
-    /// \brief Destructor
+
     virtual ~GazeboGymEnvPlugin()
     {
       //std::cout<<"Destructor!!"<<std::endl;
@@ -144,8 +149,11 @@ namespace gazebo
       callbacksThread->join();
     }
 
-    /////////////////////////////////////////////
-    /// \brief Called after the plugin has been constructed.
+    /**
+     * Loads the plugin setting up the necessary things
+     * @param _parent         [description]
+     * @param sdf::ElementPtr [description]
+     */
     void Load(physics::WorldPtr _parent, sdf::ElementPtr /*_sdf*/)
     {
       if (!ros::isInitialized())
@@ -179,10 +187,11 @@ namespace gazebo
 
 
       this->nodeHandle = std::make_shared<ros::NodeHandle>("~/gym_env_interface");
-      ROS_INFO("Got node handle");
+      //ROS_INFO("Got node handle");
 
 
 
+      //Start thread that will handle the service calls
       callbacksThread = std::make_shared<std::thread>(&GazeboGymEnvPlugin::callbacksThreadMain, this);
 
       ros::AdvertiseServiceOptions step_service_aso = ros::AdvertiseServiceOptions::create<gazebo_gym_env_plugin::StepSimulation>(
@@ -190,26 +199,31 @@ namespace gazebo
                                                                     boost::bind(&GazeboGymEnvPlugin::stepServiceCallback,this,_1,_2),
                                                                     ros::VoidPtr(), &callbacksQueue);
       stepService = nodeHandle->advertiseService(step_service_aso);
-
+      ROS_INFO_STREAM("Advertised service "<<stepServiceName);
 
       ros::AdvertiseServiceOptions render_service_aso = ros::AdvertiseServiceOptions::create<gazebo_gym_env_plugin::RenderCameras>(
                                                                     renderServiceName,
                                                                     boost::bind(&GazeboGymEnvPlugin::renderServiceCallback,this,_1,_2),
                                                                     ros::VoidPtr(), &callbacksQueue);
       renderService = nodeHandle->advertiseService(render_service_aso);
+      ROS_INFO_STREAM("Advertised service "<<renderServiceName);
 
-      ROS_INFO("Advertised service ");
+      //world->Physics()->SetSeed(20200413);
     }
 
   private:
 
-
+    /**
+     * Renders the required cameras by submitting a task to the main Gazebo thread
+     * @param  cameras Cameras to be rendered
+     * @return         True if the task was executed correctly, false if it timed out
+     */
     bool renderCameras(std::vector<std::shared_ptr<GymCamera>> cameras)
     {
       avgRenderThreadDelay.onTaskStart();
       avgTotalRenderTime.onTaskStart();
 
-      bool ret = runOnRenderThreadSync([this,cameras](){
+      bool ret = runOnRenderThreadSync(10000, [this,cameras](){
         avgRenderThreadDelay.onTaskEnd();
         //Is this a good idea?
         //An issue with this approach is that if things go bad this may be executed super late. And if
@@ -232,7 +246,7 @@ namespace gazebo
                 getCameraRosEncoding(cam->sensor),
                 cam->sensor->ImageHeight(),
                 cam->sensor->ImageWidth(),
-                getCameraRosSkip(cam->sensor)*cam->sensor->ImageWidth(),
+                getCameraPixelBytes(cam->sensor)*cam->sensor->ImageWidth(),
                 cam->sensor->ImageData());
           avgFillTime.onTaskEnd();
           //ROS_INFO_STREAM("### Built message for camera '"<<cam->sensor->Name()<<"'");
@@ -243,8 +257,15 @@ namespace gazebo
       return ret;
     }
 
-    bool runOnRenderThreadSync(std::function<void()> task)
+    /**
+     * Run the provided task on the main Gazebo thread and wait for its completion
+     * @param  timeoutMillis Timeout for the wait of the task completion
+     * @param  task          The task to be executed
+     * @return               True if the task completed, false if the timeout expired
+     */
+    bool runOnRenderThreadSync(unsigned int timeoutMillis, std::function<void()> task)
     {
+      std::chrono::milliseconds waitTimeout = std::chrono::milliseconds(timeoutMillis) ;
       std::shared_ptr<bool> taskDone = std::make_shared<bool>(false);
       std::shared_ptr<std::mutex> taskDoneMutex = std::make_shared<std::mutex>();
       std::shared_ptr<std::condition_variable> cv = std::make_shared<std::condition_variable>();
@@ -278,6 +299,10 @@ namespace gazebo
       return didCompleteTask;
     }
 
+    /**
+     * Periodically called by Gazebo on the main thread. Used to process tasks that
+     * require rendering.
+     */
     void renderThreadCallback()
     {
       bool done = false;
@@ -310,6 +335,11 @@ namespace gazebo
       }while(done);
     }
 
+    /**
+     * Renders the requested cameras
+     * @param cameras         Names of the cameras to be rendered
+     * @param renderedCameras The renderings are returned in this variable
+     */
     void renderCameras(std::vector<std::string> cameras, gazebo_gym_env_plugin::RenderedCameras& renderedCameras)
     {
       ROS_DEBUG("Available Cameras:");
@@ -389,7 +419,9 @@ namespace gazebo
 
 
 
-
+    /**
+     * Executed as a thread to handle the ROS service calls
+     */
     void callbacksThreadMain()
     {
       //Initialize rendering engine in this thread (necessary for rendeing the camera)
@@ -405,6 +437,12 @@ namespace gazebo
       //rendering::fini();
     }
 
+    /**
+     * Handles a call from the step ROS service
+     * @param  req [description]
+     * @param  res [description]
+     * @return     [description]
+     */
     bool stepServiceCallback(gazebo_gym_env_plugin::StepSimulation::Request &req, gazebo_gym_env_plugin::StepSimulation::Response &res)
     {
       /*
@@ -484,7 +522,12 @@ namespace gazebo
     }
 
 
-
+    /**
+     * Handles a ROS render service call
+     * @param  req [description]
+     * @param  res [description]
+     * @return     [description]
+     */
     bool renderServiceCallback(gazebo_gym_env_plugin::RenderCameras::Request &req, gazebo_gym_env_plugin::RenderCameras::Response &res)
     {
       double delay_secs = ros::WallTime::now().toSec() - req.request_time;

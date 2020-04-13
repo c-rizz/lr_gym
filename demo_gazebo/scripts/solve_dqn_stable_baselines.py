@@ -9,13 +9,19 @@ from stable_baselines import DQN
 from CartpoleGazeboEnv import CartpoleGazeboEnv
 
 
-# for the environment to work some ros parameters are needed, set them with:
-#  rosparam load src/openai_examples_projects/cartpole_openai_ros_examples/config/cartpole_n1try_params.yaml
+def main() -> None:
+    """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
+    It does not use the rendering at all, it learns from the joint states.
+    The DQN hyperparameters have not been tuned to make this efficient.
 
-def main():
+    Returns
+    -------
+    None
+
+    """
     rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
-    env = CartpoleGazeboEnv()
+    env = CartpoleGazeboEnv(renderInStep=False)
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)

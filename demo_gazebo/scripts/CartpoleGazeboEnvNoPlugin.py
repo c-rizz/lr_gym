@@ -23,6 +23,11 @@ import numpy as np
 import utils
 
 class CartpoleGazeboEnvNoPlugin(gym.Env):
+    """The class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
+    This environment only uses the only the default gazebo plugins which are usually
+    included in the Gazebo installation.
+
+    """
 
 
     action_space = gym.spaces.Discrete(2)
@@ -34,7 +39,7 @@ class CartpoleGazeboEnvNoPlugin(gym.Env):
 
     metadata = {'render.modes': ['rgb_array']}
 
-    def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500):
+    def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500, stepLength_sec : float = 0.05):
         """Short summary.
 
         Parameters
@@ -48,6 +53,10 @@ class CartpoleGazeboEnvNoPlugin(gym.Env):
         maxFramesPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
+        stepLength_sec : float
+            Duration in seconds of each simulation step. Lower values will lead to
+            slower simulation. This value should be kept higher than the gazebo
+            max_step_size parameter.
 
         Raises
         -------
@@ -62,6 +71,7 @@ class CartpoleGazeboEnvNoPlugin(gym.Env):
         self._lastStepStartSimTime = -1
         self._lastStepEndSimTime = -1
         self._cumulativeImagesAge = 0
+        self._stepLength_sec = stepLength_sec
 
         self._serviceNames = {  "getJointProperties" : "/gazebo/get_joint_properties",
                                 "applyJointEffort" : "/gazebo/apply_joint_effort",
@@ -148,7 +158,7 @@ class CartpoleGazeboEnvNoPlugin(gym.Env):
         t0 = time.time()
         self._lastStepStartSimTime = rospy.get_time()
 
-        self._gazeboController.step(0.05)
+        self._gazeboController.step(self._stepLength_sec)
         observation = self._getObservation()
 
         self._lastStepEndSimTime = rospy.get_time()

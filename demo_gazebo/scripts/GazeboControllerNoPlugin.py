@@ -7,7 +7,9 @@ import rospy
 from std_srvs.srv import Empty
 
 class GazeboControllerNoPlugin():
-    """This class allows to control the execution of the Gazebo simulation
+    """This class allows to control the execution of the Gazebo simulation. It only uses
+    the default gazebo plugins which are usually included in the installation.
+    Because of this the duration of the simulation steps may not be accurate.
     """
 
     def __init__(self, usePersistentConnections : bool = False):
@@ -158,7 +160,7 @@ class GazeboControllerNoPlugin():
         else:
             totalRatio = -1
         totalSimTimeError = totalEpSimDuration - self._episodeSimDuration
-        if totalSimTimeError!=0:
+        if abs(totalSimTimeError)>0.000001:
             rospy.logwarn("Estimated error in simulation time keeping = "+str(totalSimTimeError)+"s")
         if totalEpSimDuration!=0:
             rospy.loginfo("Duration: sim={:.3f}".format(totalEpSimDuration)+

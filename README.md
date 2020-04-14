@@ -1,6 +1,6 @@
 # Gazebo Gym Environment
 
-This repository provides a demo of Gazebo used to simulate a cart-pole task that
+This repository provides a demo setup which uses Gazebo and ROS to simulate a cart-pole task that
 implements the python OpenAI gym environment interface.
 
 ## Setup
@@ -42,7 +42,7 @@ rosrun demo_gazebo test_cartpole_env.py --render
 ```
 
 The rendered frames can be saved to file by specifying the --saveframes option.
-The step length can be changed using the --steplength option (the default is 0.05s)
+The simulation step length can be changed using the --steplength option (the default is 0.05s)
 
 
 
@@ -57,11 +57,11 @@ rosrun demo_gazebo solve_dqn_stable_baselines.py
 ## Gazebo Plugin
 To correctly implement OpenAI gym environment interface, it is necessary to execute
 simulation steps of precise length and to obtain renderings synchronized with these
-simulation steps. This is needed to accurately implement a Markov process, which
+simulation steps. This is needed to accurately implement a Markov Decision Process, which
 is the basic abstraction of the environment used in reinforcement learning.
 
 
-This has been implemented by creating a Gazebo plugin. The plugin is implemented as
+This has been implemented by creating a C++ Gazebo plugin. The plugin is implemented as
 a ROS package in the gazebo_gym_env_plugin folder.
 The plugin provides two new services:
 
@@ -92,11 +92,11 @@ The performance on the two computers is as follows:
 
 The simulation step was kept at 0.05s for all the tests.
 
-The Alienware was also used for determining were most of the time is spent. A simulation
-speed of 23fps means each step requires about 43ms. The rendering requires about
-10ms, the physics simulation takes about 15ms. The remaining 18ms are consumed by
-the ROS messaging overhead: about 10ms for the rendered image transfer and the rest for
-gathering the joint states and for sending the joint effort commands.
-So in the case of the alienware laptop 25% of the time is spent in the rendering,
-35% is spent in the pysics simulation, the remaining 40% is spent in joint state
-readyn, control, and messaging overhead.
+The Alienware laptop was also used for determining were most of the computation time
+is spent. A simulation speed of 23fps means each step requires about 43ms. The rendering
+requires about 10ms, the physics simulation takes about 15ms. The remaining 18ms are
+consumed by the ROS messaging overhead: about 10ms for the rendered image transfer
+and the rest for gathering the joint states and for sending the joint effort commands.
+So, in the case of the Alienware laptop, 25% of the time is spent in the rendering,
+35% is spent in the physics simulation, the remaining 40% is spent in joint state
+reading, joint effort control, and messaging overhead.

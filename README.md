@@ -11,12 +11,12 @@ You will also need to install some python3 modules, preferably in a python virtu
 environment. You can use the requirements.txt file in the demo_gazebo folder:
 
 ```
-pip3 install -r demo_gazebo/requirements.txt
+pip3 install -r src/gazebo_gym/demo_gazebo/requirements.txt
 ```
 
 You can then proceed to build the workspace with catkin_make.
 
-##Usage
+## Usage
 The environment can be launched with:
 
 ```

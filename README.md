@@ -2,6 +2,21 @@
 
 This repository provides a demo of Gazebo used to simulate a cart-pole task that
 implements the python OpenAI gym environment interface.
+
+## Setup
+This repository requires ROS Melodic and python3.6 or later.
+To set up the project you first of all need to clone the repository in your catkin
+workspace src folder.
+You will also need to install some python3 modules, preferably in a python virtual
+environment. You can use the requirements.txt file in the demo_gazebo folder:
+
+```
+pip3 install -r demo_gazebo/requirements.txt
+```
+
+You can then proceed to build the workspace with catkin_make.
+
+##Usage
 The environment can be launched with:
 
 ```
@@ -63,15 +78,25 @@ the theoretical abstraction used in reinforcement learning.
 
 
 ## Performance
-The repository was tested on a laptop equipped with an Intel i7-6820HK CPU and a
-Nvidia GeForce GTX 980M GPU.
+The repository was tested on two laptops:
 
-The simulation, with a step length of 0.05s and without rendering runs at about 45fps,
-which corresponds to about 2.25x real time.
+1. An Alienware laptop equipped with an Intel i7-6820HK CPU and an Nvidia GeForce GTX 980M GPU.
+2. An HP Omen laptop equipped with an Intel i7-8750H CPU and an NVIDIA GeForce GTX 1050 Ti Mobile GPU.
 
-Enabling the rendering reduces the frame rate to about 23fps, about 1.2x real time.
+The performance on the two computers is as follows:
 
-A simulation speed of 23fps means each step requires about 43ms. The rendering requires
-about 10ms, the physics simulation takes about 15ms. The remaining 18ms are consumed by
+| Laptop |       No Rendering        | With Rendering          |
+|--------|---------------------------|-------------------------|
+|   1    |  45fps (2.25x real time)  | 23fps (1.17x real time) |
+|   2    |  63fps (3.14x real time)  | 27fps (1.35x real time) |
+
+The simulation step was kept at 0.05s for all the tests.
+
+The Alienware was also used for determining were most of the time is spent. A simulation
+speed of 23fps means each step requires about 43ms. The rendering requires about
+10ms, the physics simulation takes about 15ms. The remaining 18ms are consumed by
 the ROS messaging overhead: about 10ms for the rendered image transfer and the rest for
 gathering the joint states and for sending the joint effort commands.
+So in the case of the alienware laptop 25% of the time is spent in the rendering,
+35% is spent in the pysics simulation, the remaining 40% is spent in joint state
+readyn, control, and messaging overhead.

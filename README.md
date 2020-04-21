@@ -20,7 +20,7 @@ You can then proceed to build the workspace with catkin_make.
 The environment can be launched with:
 
 ```
-roslaunch gazebo_demo cartpole_gazebo_sim.launch
+roslaunch demo_gazebo cartpole_gazebo_sim.launch
 ```
 
 It is possible to specify the argument gui:=false to run the simulation without the

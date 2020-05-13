@@ -12,8 +12,9 @@
     <include file="$(find demo_gazebo)/launch/fixed_camera_gazebo_sim.launch" >
         <arg name="gui" value="$(arg gui)"/>
         <arg name="noplugin" value="$(arg noplugin)"/>
-        <arg name="model_file" value="$(find demo_gazebo)/models/cartpole_v0.urdf"/>
-        <arg name="model_name" value="cartpole_v0"/>
+        <arg name="model_file" value="$(find demo_gazebo)/models/hopper_v0.urdf.xacro"/>
+        <arg name="model_name" value="hopper"/>
+        <arg name="xacro" value="true"/>
     </include>
 
 

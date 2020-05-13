@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"  ?>
 <robot name="cartpole_v0">
-	
+
 	<gazebo>
         <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
             <robotNamespace>/cartpole_v0</robotNamespace>
+						<robotParam>/cartpole_v0_robot_description</robotParam>
         </plugin>
     </gazebo>
-	
+
 	<!-- * * * Link Definitions * * * -->
   	<!-- * * * Define World Link to fix the foot rail to the world * * * -->
     <link name="world"/>
@@ -99,7 +100,7 @@
         <mu2>0.5</mu2>
         <material>Gazebo/White</material>
     </gazebo>
-	
+
 <!-- * * * Joint Definitions * * * -->
  	<joint name="cartpole_joint" type="revolute">
     	<parent link="base_link"/>
@@ -130,7 +131,7 @@
         <mechanicalReduction>1</mechanicalReduction>
       </actuator>
     </transmission>
-    
+
 	<transmission name="foot_joint_trans">
       <type>transmission_interface/SimpleTransmission</type>
       <joint name="foot_joint">
@@ -141,5 +142,5 @@
         <mechanicalReduction>1</mechanicalReduction>
       </actuator>
     </transmission>
- 
+
 </robot>

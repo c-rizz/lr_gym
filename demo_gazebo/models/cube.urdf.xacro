@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="cube">
+
+  <xacro:macro name="default_inertial" params="mass">
+    <inertial>
+            <mass value="${mass}" />
+            <inertia ixx="0.01" ixy="0.0" ixz="0.0"
+                     iyy="0.01" iyz="0.0"
+                     izz="0.01" />
+    </inertial>
+  </xacro:macro>
+
+  <link name="world"/>
+
+  <link name="cube">
+    <visual>
+      <geometry>
+        <box size="0.5 0.5 0.5" />
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.5 0.5 0.5" />
+      </geometry>
+    </collision>
+    <xacro:default_inertial mass="5"/>
+  </link>
+  <gazebo reference="cube">
+    <mu1 value="0.6"/>
+    <mu2 value="0.6"/>
+    <material>Gazebo/Grey</material>
+  </gazebo>
+  <joint name="world_to_cube" type="floating">
+    <origin xyz="0.0 0.0 0.25" rpy="0 0 0" />
+    <parent link="world"/>
+    <child link="cube"/>
+  </joint>
+
+
+
+
+</robot>

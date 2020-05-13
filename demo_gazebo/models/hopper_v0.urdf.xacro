@@ -1,0 +1,168 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="hopper">
+
+  <material name="red">
+    <color rgba="1 0 0 1"/>
+  </material>
+  <material name="green">
+  <color rgba="0 1 0 1"/>
+  </material>
+  <material name="blue">
+    <color rgba="0 0 1 1"/>
+  </material>
+
+  <xacro:macro name="default_inertial" params="mass">
+    <inertial>
+            <mass value="${mass}" />
+            <inertia ixx="0.01" ixy="0.0" ixz="0.0"
+                     iyy="0.01" iyz="0.0"
+                     izz="0.01" />
+    </inertial>
+  </xacro:macro>
+
+
+
+  <xacro:property name="torso_length" value="0.4" />
+  <xacro:property name="torso_radius" value="0.05" />
+
+  <xacro:property name="thigh_length" value="0.45" />
+  <xacro:property name="thigh_radius" value="0.05" />
+  <xacro:property name="thigh_position" value="0 0 -${thigh_length/2.0}" /> <!--object position relative to the torso joint -->
+  <xacro:property name="thigh_orientation" value="0 0 0" />
+
+  <xacro:property name="leg_length" value="0.50" />
+  <xacro:property name="leg_radius" value="0.04" />
+  <xacro:property name="leg_position" value="0 0 -${leg_length/2}" />
+  <xacro:property name="leg_orientation" value="0 0 0" />
+
+  <xacro:property name="foot_length" value="0.39" />
+  <xacro:property name="foot_radius" value="0.06" />
+  <xacro:property name="foot_position" value="${foot_length/6} 0 0" />
+  <xacro:property name="foot_orientation" value="0 -1.570795 0" />
+
+
+  <link name="world"/>
+
+  <link name="torso">
+    <visual>
+      <geometry>
+        <cylinder length="${torso_length}" radius="${torso_radius}"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="${torso_length}" radius="${torso_radius}"/>
+      </geometry>
+    </collision>
+    <xacro:default_inertial mass="4"/>
+  </link>
+  <gazebo reference="torso">
+    <material>Gazebo/Red</material>
+  </gazebo>
+
+  <joint name="world_to_torso" type="floating">
+    <origin xyz="0.0 0.0 ${torso_length/2 + thigh_length + leg_length + foot_radius}" rpy="0 0 0" />
+    <parent link="world"/>
+    <child link="torso"/>
+  </joint>
+
+
+
+
+
+
+  <link name="thigh">
+    <visual>
+      <geometry>
+        <cylinder length="${thigh_length}" radius="${thigh_radius}"/>
+      </geometry>
+      <origin xyz="${thigh_position}" rpy="${thigh_orientation}" />
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="${thigh_length}" radius="${thigh_radius}"/>
+      </geometry>
+      <origin xyz="${thigh_position}" rpy="${thigh_orientation}" />
+    </collision>
+    <xacro:default_inertial mass="3"/>
+  </link>
+  <gazebo reference="thigh">
+    <material>Gazebo/Green</material>
+  </gazebo>
+  <joint name="torso_to_thigh" type="revolute">
+    <origin xyz="0.0 0.0 -${torso_length/2.0}" rpy="0 0 0" /> <!-- joint pose in the parent frame-->
+    <axis xyz="0 1 0" rpy="0 0 0" />
+    <parent link="torso"/>
+    <child link="thigh"/>
+    <limit effort="1000.0" lower="0.0" upper="2.617991667" velocity="0.5"/>
+  </joint>
+
+
+
+
+  <link name="leg">
+    <visual>
+      <geometry>
+        <cylinder length="${leg_length}" radius="${leg_radius}"/>
+      </geometry>
+      <origin xyz="${leg_position}" rpy="${leg_orientation}" />
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="${leg_length}" radius="${leg_radius}"/>
+      </geometry>
+      <origin xyz="${leg_position}" rpy="${leg_orientation}" />
+    </collision>
+    <xacro:default_inertial mass="2.5"/>
+  </link>
+  <gazebo reference="leg">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+  <joint name="thigh_to_leg" type="revolute">
+    <origin xyz="0.0 0.0 -${thigh_length}" rpy="0 0 0" />
+    <parent link="thigh"/>
+    <child link="leg"/>
+    <axis xyz="0 1 0" rpy="0 0 0" />
+    <limit effort="1000.0" lower="0.0" upper="2.617991667" velocity="0.5"/>
+  </joint>
+
+
+
+
+
+
+
+
+  <link name="foot">
+    <visual>
+      <geometry>
+        <cylinder length="${foot_length}" radius="${foot_radius}"/>
+      </geometry>
+      <origin xyz="${foot_position}" rpy="${foot_orientation}" />
+    </visual>
+    <collision>
+      <origin xyz="${foot_position}" rpy="${foot_orientation}" />
+      <geometry>
+        <cylinder length="${foot_length}" radius="${foot_radius}"/>
+      </geometry>
+      <contact_coefficients mu="0.0" kp="10000" kd="1"/>
+    </collision>
+    <xacro:default_inertial mass="1"/>
+  </link>
+  <gazebo reference="foot">
+    <mu1 value="0.6"/>
+    <mu2 value="0.6"/>
+    <material>Gazebo/Grey</material>
+  </gazebo>
+  <joint name="leg_to_foot" type="revolute">
+    <origin xyz="0 0 ${-leg_length}" rpy="0 0 0" />
+    <parent link="leg"/>
+    <child link="foot"/>
+    <axis xyz="0 1 0" rpy="0 0 0" />
+    <limit effort="1000.0" lower="-0.7853975" upper="0.7853975" velocity="0.5"/>
+  </joint>
+
+
+
+
+</robot>

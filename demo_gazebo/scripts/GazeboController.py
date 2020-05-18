@@ -121,7 +121,7 @@ class GazeboController(GazeboControllerNoPlugin):
             self._lastRenderResult = response.render_result
 
         if response.success == False:
-            rospy.warn("Simulation stepping failed")
+            rospy.logwarn("Simulation stepping failed")
 
     def render(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
 

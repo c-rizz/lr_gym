@@ -37,8 +37,31 @@
 
   <xacro:property name="foot_length" value="0.39" />
   <xacro:property name="foot_radius" value="0.06" />
-  <xacro:property name="foot_position" value="${foot_length/6} 0 0" />
-  <xacro:property name="foot_orientation" value="0 -1.570795 0" />
+  <xacro:property name="foot_position_x" value="${foot_length/6}" />
+  <xacro:property name="foot_position_y" value="0" />
+  <xacro:property name="foot_position_z" value="0" />
+  <xacro:property name="foot_orientation" value="0 1.570795 0" />
+
+  <xacro:property name="max_effort" value="1000" />
+
+  <xacro:property name="spawn_height" value="0.02" />
+  <xacro:property name="gear" value="200" />
+
+
+
+  <xacro:property name="density" value="1000" /> <!-- water density -->
+  <xacro:property name="foot_mass"  value="${foot_radius*foot_radius*3.14159   * foot_length  * density}" />
+  <xacro:property name="leg_mass"   value="${leg_radius*leg_radius*3.14159     * leg_length   * density}" />
+  <xacro:property name="thigh_mass" value="${thigh_radius*thigh_radius*3.14159 * thigh_length * density}" />
+  <xacro:property name="torso_mass" value="${torso_radius*torso_radius*3.14159 * torso_length * density}" />
+
+
+  <xacro:macro name="cylinder_z_inertia_matrix" params="mass height radius ">
+    <inertia ixx="${1/12.0 * mass * (3*radius*radius + height*height)}" ixy="0.0"  ixz="0.0"
+             iyy="${1/12.0 * mass * (3*radius*radius + height*height)}" iyz="0.0"
+             izz="${1/12.0 * mass * radius*radius}" />
+  </xacro:macro>
+
 
 
   <link name="world"/>
@@ -54,18 +77,57 @@
         <cylinder length="${torso_length}" radius="${torso_radius}"/>
       </geometry>
     </collision>
-    <xacro:default_inertial mass="4"/>
+    <inertial>
+      <mass value="${torso_mass}"/>
+      <xacro:cylinder_z_inertia_matrix mass="${torso_mass}" height="${torso_length}" radius="${torso_radius}"/>
+    </inertial>
   </link>
   <gazebo reference="torso">
     <material>Gazebo/Red</material>
   </gazebo>
 
-  <joint name="world_to_torso" type="floating">
-    <origin xyz="0.0 0.0 ${torso_length/2 + thigh_length + leg_length + foot_radius}" rpy="0 0 0" />
+
+
+
+  <!-- We contrain the hopper to stay on the xz plane -->
+  <!-- Gazebo does not support a planar joint, so we use two prismatic joints chained together -->
+  <!-- We must also allow the torso link to rotate around the y axis, we use a continuous joint -->
+  <link name="mid"> <!-- Link used to chain the two prismatic joints together -->
+    <inertial> <!-- gazebo requires inertia to be specified -->
+            <mass value="0.0001" /> <!-- gazebo requires mass to be specified -->
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0"
+                     iyy="0.0" iyz="0.0"
+                     izz="0.0" />
+    </inertial>
+  </link>
+  <link name="mid2"> <!-- link used between the second prismatic joint and the continuous joint -->
+    <inertial>
+            <mass value="0.0001" />
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0"
+                     iyy="0.0" iyz="0.0"
+                     izz="0.0" />
+    </inertial>
+  </link>
+  <joint name="world_to_mid" type="prismatic">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="1 0 0" rpy="0 0 0" />
     <parent link="world"/>
+    <child link="mid"/>
+    <limit effort="10000" lower="-1" upper="1000" velocity="1000"/>
+  </joint>
+  <joint name="mid_to_mid2" type="prismatic">
+    <origin xyz="0 0 ${torso_length/2 + thigh_length + leg_length + foot_radius + spawn_height}" rpy="0 0 0" />
+    <axis xyz="0 0 1" rpy="0 0 0" />
+    <parent link="mid"/>
+    <child link="mid2"/>
+    <limit effort="10000" lower="-10" upper="1000" velocity="1000"/>
+  </joint>
+  <joint name="mid2_to_torso" type="continuous">
+    <origin xyz="0.0 0.0 0" rpy="0 0 0" /> <!-- joint pose in the parent frame-->
+    <axis xyz="0 1 0" rpy="0 0 0" />
+    <parent link="mid2"/>
     <child link="torso"/>
   </joint>
-
 
 
 
@@ -84,7 +146,11 @@
       </geometry>
       <origin xyz="${thigh_position}" rpy="${thigh_orientation}" />
     </collision>
-    <xacro:default_inertial mass="3"/>
+    <inertial>
+      <origin xyz="${thigh_position}" rpy="${thigh_orientation}" />
+      <mass value="${thigh_mass}"/>
+      <xacro:cylinder_z_inertia_matrix mass="${thigh_mass}" height="${thigh_length}" radius="${thigh_radius}"/>
+    </inertial>
   </link>
   <gazebo reference="thigh">
     <material>Gazebo/Green</material>
@@ -94,8 +160,17 @@
     <axis xyz="0 1 0" rpy="0 0 0" />
     <parent link="torso"/>
     <child link="thigh"/>
-    <limit effort="1000.0" lower="0.0" upper="2.617991667" velocity="0.5"/>
+    <limit effort="${max_effort}" lower="0.0" upper="2.617991667" velocity="0.5"/>
   </joint>
+  <transmission name="torso_to_thigh_tran">
+    <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->
+    <joint name="torso_to_thigh">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface> <!-- Use an effort interface to control this joint (which is controlled through the actuator specified next) -->
+    </joint>
+    <actuator name="torso_to_thigh_actuator">
+      <mechanicalReduction>${gear}</mechanicalReduction> <!-- gear reduction for the joint -->
+    </actuator>
+  </transmission>
 
 
 
@@ -113,7 +188,11 @@
       </geometry>
       <origin xyz="${leg_position}" rpy="${leg_orientation}" />
     </collision>
-    <xacro:default_inertial mass="2.5"/>
+    <inertial>
+      <origin xyz="${leg_position}" rpy="${leg_orientation}" />
+      <mass value="${leg_mass}"/>
+      <xacro:cylinder_z_inertia_matrix mass="${leg_mass}" height="${leg_length}" radius="${leg_radius}"/>
+    </inertial>
   </link>
   <gazebo reference="leg">
     <material>Gazebo/Blue</material>
@@ -123,8 +202,17 @@
     <parent link="thigh"/>
     <child link="leg"/>
     <axis xyz="0 1 0" rpy="0 0 0" />
-    <limit effort="1000.0" lower="0.0" upper="2.617991667" velocity="0.5"/>
+    <limit effort="${max_effort}" lower="0.0" upper="2.617991667" velocity="0.5"/>
   </joint>
+  <transmission name="thigh_to_leg_tran">
+    <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->
+    <joint name="thigh_to_leg">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface> <!-- Use an effort interface to control this joint (which is controlled through the actuator specified next) -->
+    </joint>
+    <actuator name="thigh_to_leg_actuator">
+      <mechanicalReduction>${gear}</mechanicalReduction> <!-- gear reduction for the joint -->
+    </actuator>
+  </transmission>
 
 
 
@@ -135,23 +223,53 @@
 
   <link name="foot">
     <visual>
+      <origin xyz="${foot_position_x} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
       <geometry>
-        <cylinder length="${foot_length}" radius="${foot_radius}"/>
+        <cylinder length="${foot_length}" radius="${foot_radius}" />
       </geometry>
-      <origin xyz="${foot_position}" rpy="${foot_orientation}" />
     </visual>
-    <collision>
-      <origin xyz="${foot_position}" rpy="${foot_orientation}" />
+    <visual>
+      <origin xyz="${foot_position_x + foot_length/2} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
       <geometry>
-        <cylinder length="${foot_length}" radius="${foot_radius}"/>
+        <sphere radius="${foot_radius}" />
       </geometry>
-      <contact_coefficients mu="0.0" kp="10000" kd="1"/>
+    </visual>
+    <visual>
+      <origin xyz="${foot_position_x - foot_length/2} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
+      <geometry>
+        <sphere radius="${foot_radius}" />
+      </geometry>
+    </visual>
+
+    <collision>
+      <origin xyz="${foot_position_x} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
+      <geometry>
+        <cylinder length="${foot_length}" radius="${foot_radius}" />
+      </geometry>
     </collision>
-    <xacro:default_inertial mass="1"/>
+    <collision>
+      <origin xyz="${foot_position_x + foot_length/2} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
+      <geometry>
+        <sphere radius="${foot_radius}" />
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="${foot_position_x - foot_length/2} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
+      <geometry>
+        <sphere radius="${foot_radius}" />
+      </geometry>
+    </collision>
+
+
+    <inertial>
+      <origin xyz="${foot_position_x} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
+      <mass value="${foot_mass}"/>
+      <xacro:cylinder_z_inertia_matrix mass="${foot_mass}" height="${foot_length}" radius="${foot_radius}"/>
+    </inertial>
   </link>
   <gazebo reference="foot">
-    <mu1 value="0.6"/>
-    <mu2 value="0.6"/>
+    <mu1 value="1"/>
+    <mu2 value="1"/>
     <material>Gazebo/Grey</material>
   </gazebo>
   <joint name="leg_to_foot" type="revolute">
@@ -159,8 +277,18 @@
     <parent link="leg"/>
     <child link="foot"/>
     <axis xyz="0 1 0" rpy="0 0 0" />
-    <limit effort="1000.0" lower="-0.7853975" upper="0.7853975" velocity="0.5"/>
+    <limit effort="${max_effort}" lower="-0.7853975" upper="0.7853975" velocity="0.5"/>
   </joint>
+  <transmission name="leg_to_foot_tran">
+    <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->
+    <joint name="leg_to_foot">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface> <!-- Use an effort interface to control this joint (which is controlled through the actuator specified next) -->
+    </joint>
+    <actuator name="leg_to_foot_actuator">
+      <mechanicalReduction>${gear}</mechanicalReduction> <!-- gear reduction for the joint -->
+    </actuator>
+  </transmission>
+
 
 
 

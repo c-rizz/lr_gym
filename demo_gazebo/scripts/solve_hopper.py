@@ -3,10 +3,11 @@
 import rospy
 import time
 import tqdm
-from stable_baselines.deepq.policies import MlpPolicy
-from stable_baselines import DQN
-from CartpoleGazeboEnv import CartpoleGazeboEnv
-
+from stable_baselines.td3.policies import MlpPolicy
+from stable_baselines import TD3
+from HopperGazeboEnv import HopperGazeboEnv
+from stable_baselines.ddpg.noise import NormalActionNoise
+import numpy as np
 
 def main() -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
@@ -19,19 +20,26 @@ def main() -> None:
     None
 
     """
-    rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.WARN)
+    rospy.init_node('solve_hopper', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
-    env = CartpoleGazeboEnv(renderInStep=False)
+    env = HopperGazeboEnv(renderInStep=False)
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
     env._max_episode_steps = 500 #limit episode length
 
-    model = DQN(MlpPolicy, env, verbose=1, seed=RANDOM_SEED, n_cpu_tf_sess=1) #seed=RANDOM_SEED, n_cpu_tf_sess=1 are needed to get deterministic results
+    n_actions = env.action_space.shape[-1]
+    action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+
+    #hyperparameters taken by the RL baslines zoo repo
+    model = TD3( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
+                 buffer_size=1000000, gamma=0.99, gradient_steps=1000,
+                 learning_rate=0.001, learning_starts=10000, policy_kwargs=dict(layers=[400, 300]), train_freq=1000)
+
     print("Learning...")
     t_preLearn = time.time()
-    model.learn(total_timesteps=25000)
+    model.learn(total_timesteps=2000000, log_interval=10)
     duration_learn = time.time() - t_preLearn
     print("Learned. Took "+str(duration_learn)+" seconds.")
 
@@ -43,7 +51,7 @@ def main() -> None:
     totDuration=0
     #frames = []
     #do an average over a bunch of episodes
-    for episode in tqdm.tqdm(range(0,50)):
+    for episode in tqdm.tqdm(range(0,5000000)):
         frame = 0
         episodeReward = 0
         done = False

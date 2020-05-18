@@ -17,20 +17,32 @@ from typing import Tuple
 import time
 
 
-class CartpoleGazeboEnv(BaseGazeboEnv):
+class HopperGazeboEnv(BaseGazeboEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
 
     It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
     """
 
-    high = np.array([   2.5 * 2,
-                        np.finfo(np.float32).max,
-                        0.7 * 2,
-                        np.finfo(np.float32).max])
 
-    action_space = gym.spaces.Discrete(2)
-    observation_space = gym.spaces.Box(-high, high)
+    action_high = np.array([1000, 1000, 1000])
+    action_space = gym.spaces.Box(low=-action_high, high=action_high, dtype=np.float32)
+    # Observations are:
+    #  (pos_z, torso_thigh_joint_pos, thigh_leg_joint_pos, leg_foot_joint_pos, vel_x, vel_y, vel_z, torso_thigh_joint_vel, thigh_leg_joint_vel, leg_foot_joint_vel)
+    obs_high = np.full((10), -float('inf'), dtype=np.float32)
+    observation_space = gym.spaces.Box(-obs_high, obs_high)
     metadata = {'render.modes': ['rgb_array']}
+
+    POS_Z_OBS = 0
+    TORSO_THIGH_JOINT_POS_OBS = 1
+    THIGH_LEG_JOINT_POS_OBS = 2
+    LEG_FOOT_JOINT_POS_OBS = 3
+    VEL_X_OBS = 4
+    VEL_Y_OBS = 5
+    VEL_Z_OBS = 6
+    TORSO_THIGH_JOINT_VE_OBS = 7
+    THIGH_LEG_JOINT_VEL_OBS = 8
+    LEG_FOOT_JOINT_VEL_OBS = 9
+
 
     def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500, renderInStep : bool = True, stepLength_sec : float = 0.05):
         """Short summary.
@@ -63,6 +75,7 @@ class CartpoleGazeboEnv(BaseGazeboEnv):
 
         """
 
+        print("HopperGazeboEnv: action_space = "+str(self.action_space))
         super().__init__(usePersistentConnections = usePersistentConnections,
                          maxFramesPerEpisode = maxFramesPerEpisode,
                          renderInStep = renderInStep,
@@ -70,7 +83,8 @@ class CartpoleGazeboEnv(BaseGazeboEnv):
 
         self._serviceNames = {  "getJointProperties" : "/gazebo/get_joint_properties",
                                 "applyJointEffort" : "/gazebo/apply_joint_effort",
-                                "clearJointEffort" : "/gazebo/clear_joint_forces"}
+                                "clearJointEffort" : "/gazebo/clear_joint_forces",
+                                "getLinkState" : "/gazebo/get_link_state"}
 
         timeout_secs = 30.0
         for serviceName in self._serviceNames.values():
@@ -89,33 +103,49 @@ class CartpoleGazeboEnv(BaseGazeboEnv):
         self._getJointPropertiesService = rospy.ServiceProxy(self._serviceNames["getJointProperties"], gazebo_msgs.srv.GetJointProperties, persistent=usePersistentConnections)
         self._applyJointEffortService   = rospy.ServiceProxy(self._serviceNames["applyJointEffort"], gazebo_msgs.srv.ApplyJointEffort, persistent=usePersistentConnections)
         self._clearJointEffortService   = rospy.ServiceProxy(self._serviceNames["clearJointEffort"], gazebo_msgs.srv.JointRequest, persistent=usePersistentConnections)
+        self._getLinkState              = rospy.ServiceProxy(self._serviceNames["getLinkState"], gazebo_msgs.srv.GetLinkState, persistent=usePersistentConnections)
+
+        print("HopperGazeboEnv: action_space = "+str(self.action_space))
 
 
-    def _performAction(self, action : int) -> None:
-        if action == 0: #left
-            direction = -1
-        elif action == 1:
-            direction = 1
-        else:
-            raise AttributeError("action can only be 1 or 0")
+    def _performAction(self, action : Tuple[float,float,float]) -> None:
 
-        # set new effort
+        if len(action)!=3:
+            raise AttributeError("Action must have length 3, it is "+str(action))
+
+        rospy.loginfo("performing action "+str(action))
+        secs = int(self._stepLength_sec)
+        nsecs = int((self._stepLength_sec - secs) * 1000000000)
+
         request = gazebo_msgs.srv.ApplyJointEffortRequest()
-        request.joint_name = "foot_joint"
-        request.effort = direction * 1000
-        request.duration.nsecs = 1000000 #0.5ms
+        request.joint_name = "torso_to_thigh"
+        request.effort = action[0]
+        request.duration.secs = secs
+        request.duration.nsecs = nsecs
+        self._applyJointEffortService.call(request)
+
+        request = gazebo_msgs.srv.ApplyJointEffortRequest()
+        request.joint_name = "thigh_to_leg"
+        request.effort = action[1]
+        request.duration.secs = secs
+        request.duration.nsecs = nsecs
+        self._applyJointEffortService.call(request)
+
+        request = gazebo_msgs.srv.ApplyJointEffortRequest()
+        request.joint_name = "leg_to_foot"
+        request.effort = action[2]
+        request.duration.secs = secs
+        request.duration.nsecs = nsecs
         self._applyJointEffortService.call(request)
 
 
 
-    def _checkEpisodeEnd(self, previousObservation : Tuple[float,float,float,float], observation : Tuple[float,float,float,float]) -> bool:
-        cartPosition = observation[0]
-        poleAngle = observation[2]
+    def _checkEpisodeEnd(self, previousObservation : Tuple[float,float,float,float,float,float,float,float,float,float], observation : Tuple[float,float,float,float,float,float,float,float,float,float]) -> bool:
+        mid_torso_height = observation[self.POS_Z_OBS]
 
-        maxCartDist = 2
-        maxPoleAngle = 0.261791667 #15 degrees
+        rospy.loginfo("height = "+str(mid_torso_height))
 
-        if cartPosition < -maxCartDist or cartPosition > maxCartDist   or   maxPoleAngle < -poleAngle or poleAngle > maxPoleAngle:
+        if mid_torso_height < 0.7:
             done = True
         else:
             done = False
@@ -123,38 +153,53 @@ class CartpoleGazeboEnv(BaseGazeboEnv):
         return done
 
 
-    def _computeReward(self, previousObservation : Tuple[float,float,float,float], observation : Tuple[float,float,float,float]) -> float:
-        return 1
+    def _computeReward( self,
+                        previousObservation : Tuple[float,float,float,float,float,float,float,float,float,float],
+                        observation : Tuple[float,float,float,float,float,float,float,float,float,float]) -> float:
+        return 1 + observation[self.VEL_X_OBS]
 
 
     def _onReset(self) -> None:
-        self._clearJointEffortService.call("foot_joint")
-        self._clearJointEffortService.call("cartpole_joint")
+        self._clearJointEffortService.call("torso_to_thigh")
+        self._clearJointEffortService.call("thigh_to_leg")
+        self._clearJointEffortService.call("leg_to_foot")
 
 
     def _getCameraToRenderName(self) -> str:
         return "camera"
 
 
-    def _getObservation(self) -> Tuple[float,float,float,float]:
+    def _getObservation(self) -> np.ndarray:
         """Get an observation of the environment.
 
         Returns
         -------
-        Tuple[float,float,float,float]
+        np.ndarray
             A tuple containing: (cart position in meters, carts speed in meters/second, pole angle in radiants, pole speed in rad/s)
 
         """
 
 
         t0 = time.time()
-        cartInfo = self._getJointPropertiesService.call("foot_joint")
-        poleInfo = self._getJointPropertiesService.call("cartpole_joint")
+        torso2thigh = self._getJointPropertiesService.call("torso_to_thigh")
+        thigh2leg = self._getJointPropertiesService.call("thigh_to_leg")
+        leg2foot = self._getJointPropertiesService.call("leg_to_foot")
+        world2mid = self._getJointPropertiesService.call("world_to_mid")
+        mid2mid2 = self._getJointPropertiesService.call("mid_to_mid2")
         t1 = time.time()
         rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
 
-        observation = (cartInfo.position[0], cartInfo.rate[0], poleInfo.position[0], poleInfo.rate[0])
+        observation = np.array([mid2mid2.position[0]+1.21,
+                                torso2thigh.position[0],
+                                thigh2leg.position[0],
+                                leg2foot.position[0],
+                                world2mid.rate[0],
+                                0,
+                                mid2mid2.rate[0],
+                                torso2thigh.rate[0],
+                                thigh2leg.rate[0],
+                                leg2foot.rate[0]])
 
-        #print(observation)
+        rospy.loginfo("Observation = " +str(observation))
 
         return observation

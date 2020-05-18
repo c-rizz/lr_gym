@@ -11,12 +11,46 @@
 
     <physics name="custom_physics_profile" type="bullet" default="true">
       <max_step_size>0.001</max_step_size> <!-- do 1ms steps -->
-      <real_time_update_rate>-1</real_time_update_rate> <!-- steps done in each real-time second, -1 does as much as possible-->
+      <real_time_update_rate>-1</real_time_update_rate> <!-- steps done in each real-time second, -1 does as many as possible-->
     </physics>
 
-    <include>
-        <uri>model://ground_plane</uri>
-    </include>
+
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="ground_plane">
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <script>
+              <name>Gazebo/Grey</name>
+            </script>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+        </collision>
+        <surface>
+          <friction>
+            <bullet>
+              <friction>1</friction>
+              <friction2>1</friction2>
+            </bullet>
+          </friction>
+        </surface>
+      </link>
+    </model>
+
 
     <model name='camera'>
       <static>true</static>

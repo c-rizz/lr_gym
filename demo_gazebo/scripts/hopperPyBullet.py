@@ -14,20 +14,19 @@ args = vars(ap.parse_args())
 p.connect(p.GUI)
 p.setAdditionalSearchPath(pybullet_data.getDataPath())
 planeID = p.loadURDF("plane.urdf")
-obUids = p.loadURDF(os.path.dirname(os.path.realpath(__file__))+"/../models/hopper.urdf")
-humanoid = obUids
+hopperObjId = p.loadURDF(os.path.dirname(os.path.realpath(__file__))+"/../models/hopper.urdf")
 
 gravId = p.addUserDebugParameter("gravity", -10, 10, -10)
 jointIds = []
 paramIds = []
 
 p.setPhysicsEngineParameter(numSolverIterations=10)
-p.changeDynamics(humanoid, -1, linearDamping=0, angularDamping=0)
+p.changeDynamics(hopperObjId, -1, linearDamping=0, angularDamping=0)
 p.setTimeStep(0.001)
 
-for j in range(p.getNumJoints(humanoid)):
-    p.changeDynamics(humanoid, j, linearDamping=0, angularDamping=0)
-    p.setJointMotorControl2(humanoid,
+for j in range(p.getNumJoints(hopperObjId)):
+    p.changeDynamics(hopperObjId, j, linearDamping=0, angularDamping=0)
+    p.setJointMotorControl2(hopperObjId,
                             j,
                             controlMode=p.POSITION_CONTROL,
                             targetPosition=0,
@@ -37,20 +36,26 @@ for j in range(p.getNumJoints(humanoid)):
                             force=0)
 if args["manualControl"]:
     for j in [3,4,5]:
-        info = p.getJointInfo(humanoid, j)
+        info = p.getJointInfo(hopperObjId, j)
         #print(info)
         jointName = info[1]
         jointType = info[2]
         if jointType == p.JOINT_REVOLUTE:
             jointIds.append(j)
-            paramIds.append(p.addUserDebugParameter(jointName.decode("utf-8"), -4, 4, 0))
+            paramIds.append(p.addUserDebugParameter(jointName.decode("utf-8"), -1000, 1000, 0))
 
 while (1):
     p.setGravity(0, 0, p.readUserDebugParameter(gravId))
+    states = jointStates = p.getJointStates(hopperObjId, range(0,p.getNumJoints(hopperObjId)))
+    print(states)
     for i in range(len(paramIds)):
         c = paramIds[i]
-        targetPos = p.readUserDebugParameter(c)
-        p.setJointMotorControl2(humanoid, jointIds[i], p.POSITION_CONTROL, targetPos, force=5 * 240.)
+        torque = p.readUserDebugParameter(c)
+        p.setJointMotorControl2(  bodyIndex=hopperObjId,
+                                  jointIndex=jointIds[i],
+                                  controlMode=p.TORQUE_CONTROL,
+                                  force=torque)
+
     p.stepSimulation()
     #print("stepped")
     time.sleep(args["sleepLength"])

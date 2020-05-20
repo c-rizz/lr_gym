@@ -3,13 +3,14 @@ import traceback
 import typing
 from typing import List
 import time
+import gazebo_msgs
 
 import rospy
 from std_srvs.srv import Empty
 import gazebo_gym_env_plugin.srv
 import sensor_msgs
+from utils import JointState
 
-import utils
 
 from GazeboControllerNoPlugin import GazeboControllerNoPlugin
 
@@ -45,35 +46,30 @@ class GazeboController(GazeboControllerNoPlugin):
 
         super().__init__(usePersistentConnections=usePersistentConnections)
 
-        self._stepGazeboServiceName = "/gazebo/gym_env_interface/step"
-        self._renderGazeboServiceName = "/gazebo/gym_env_interface/render"
-
-
-
+        #self._stepGazeboServiceName = "/gazebo/gym_env_interface/step"
+        #self._renderGazeboServiceName = "/gazebo/gym_env_interface/render"
+        serviceNames = {"step" : "/gazebo/gym_env_interface/step",
+                        "render" : "/gazebo/gym_env_interface/render"}
 
         timeout_secs = 30.0
-        try:
-            rospy.wait_for_service(self._renderGazeboServiceName,timeout_secs)
-            rospy.wait_for_service(self._stepGazeboServiceName,timeout_secs)
-        except rospy.ROSException as e:
-            rospy.logfatal("Failed to wait for Gazebo services. Timeout was "+str(timeout_secs)+"s")
-            raise
-        except rospy.ROSInterruptException as e:
-            rospy.logfatal("Interrupeted while waiting for Gazebo services.")
-            raise
+        for serviceName in serviceNames.values():
+            try:
+                rospy.loginfo("waiting for service "+serviceName+" ...")
+                rospy.wait_for_service(serviceName)
+                rospy.loginfo("got service "+serviceName)
+            except rospy.ROSException as e:
+                rospy.logfatal("Failed to wait for service "+serviceName+". Timeouts were "+str(timeout_secs)+"s. Exception = "+str(e))
+                raise
+            except rospy.ROSInterruptException as e:
+                rospy.logfatal("Interrupeted while waiting for service "+serviceName+". Exception = "+str(e))
+                raise
 
-        self._stepGazeboService = rospy.ServiceProxy(self._stepGazeboServiceName, gazebo_gym_env_plugin.srv.StepSimulation, persistent=usePersistentConnections)
-        self._renderGazeboService = rospy.ServiceProxy(self._renderGazeboServiceName, gazebo_gym_env_plugin.srv.RenderCameras, persistent=usePersistentConnections)
-        #self._setGazeboPhysics = rospy.ServiceProxy(self._setGazeboPhysics, SetPhysicsProperties, persistent=usePersistentConnections)
-
-        self.pauseSimulation()
-        self.resetWorld()
-
+        self._stepGazeboService   = rospy.ServiceProxy(serviceNames["step"], gazebo_gym_env_plugin.srv.StepSimulation, persistent=usePersistentConnections)
+        self._renderGazeboService   = rospy.ServiceProxy(serviceNames["render"], gazebo_gym_env_plugin.srv.RenderCameras, persistent=usePersistentConnections)
 
 
     def step(self, runTime_secs : float, performRendering : bool = False, camerasToRender : List[str] = []) -> None:
-        """Runs the simulation for the specified time. It unpauses and the simulation, sleeps and then pauses it back.
-        It may not be precise
+        """Run the simulation for the specified time.
 
         Parameters
         ----------
@@ -94,7 +90,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
         self._stepsTaken +=1
         t0_real = time.time()
-        t0 = rospy.get_time()
+        #t0 = rospy.get_time()
 
 
         request = gazebo_gym_env_plugin.srv.StepSimulationRequest()
@@ -106,7 +102,7 @@ class GazeboController(GazeboControllerNoPlugin):
             request.cameras = camerasToRender
         response = self._stepGazeboService.call(request)
 
-        t3 = rospy.get_time()
+        #t3 = rospy.get_time()
         tf_real = time.time()
         self._episodeSimDuration += runTime_secs
         self._episodeRealSimDuration += tf_real - t0_real
@@ -120,7 +116,7 @@ class GazeboController(GazeboControllerNoPlugin):
             self._lastStepRendered = self._stepsTaken
             self._lastRenderResult = response.render_result
 
-        if response.success == False:
+        if not response.success:
             rospy.logwarn("Simulation stepping failed")
 
     def render(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:

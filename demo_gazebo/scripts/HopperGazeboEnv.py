@@ -2,27 +2,23 @@
 """
 Class implementing Gazebo-based gym cartpole environment.
 
-Based on BaseGazeboEnv
+Based on BaseEnv
 """
 
 import rospy
-from BaseGazeboEnv import BaseGazeboEnv
+from BaseEnv import BaseEnv
 import rospy.client
-import gazebo_msgs
-import gazebo_msgs.srv
 
 import gym
 import numpy as np
 from typing import Tuple
-import time
 
 
-class HopperGazeboEnv(BaseGazeboEnv):
+class HopperGazeboEnv(BaseEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
 
     It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
     """
-
 
     action_high = np.array([1000, 1000, 1000])
     action_space = gym.spaces.Box(low=-action_high, high=action_high, dtype=np.float32)
@@ -75,37 +71,12 @@ class HopperGazeboEnv(BaseGazeboEnv):
 
         """
 
-        print("HopperGazeboEnv: action_space = "+str(self.action_space))
+        #print("HopperGazeboEnv: action_space = "+str(self.action_space))
         super().__init__(usePersistentConnections = usePersistentConnections,
                          maxFramesPerEpisode = maxFramesPerEpisode,
                          renderInStep = renderInStep,
                          stepLength_sec = stepLength_sec)
-
-        self._serviceNames = {  "getJointProperties" : "/gazebo/get_joint_properties",
-                                "applyJointEffort" : "/gazebo/apply_joint_effort",
-                                "clearJointEffort" : "/gazebo/clear_joint_forces",
-                                "getLinkState" : "/gazebo/get_link_state"}
-
-        timeout_secs = 30.0
-        for serviceName in self._serviceNames.values():
-            try:
-                rospy.loginfo("waiting for service "+serviceName+" ...")
-                rospy.wait_for_service(serviceName)
-                rospy.loginfo("got service "+serviceName)
-            except rospy.ROSException as e:
-                rospy.logfatal("Failed to wait for service "+serviceName+". Timeouts were "+str(timeout_secs)+"s. Exception = "+str(e))
-                raise
-            except rospy.ROSInterruptException as e:
-                rospy.logfatal("Interrupeted while waiting for service "+serviceName+". Exception = "+str(e))
-                raise
-
-
-        self._getJointPropertiesService = rospy.ServiceProxy(self._serviceNames["getJointProperties"], gazebo_msgs.srv.GetJointProperties, persistent=usePersistentConnections)
-        self._applyJointEffortService   = rospy.ServiceProxy(self._serviceNames["applyJointEffort"], gazebo_msgs.srv.ApplyJointEffort, persistent=usePersistentConnections)
-        self._clearJointEffortService   = rospy.ServiceProxy(self._serviceNames["clearJointEffort"], gazebo_msgs.srv.JointRequest, persistent=usePersistentConnections)
-        self._getLinkState              = rospy.ServiceProxy(self._serviceNames["getLinkState"], gazebo_msgs.srv.GetLinkState, persistent=usePersistentConnections)
-
-        print("HopperGazeboEnv: action_space = "+str(self.action_space))
+        #print("HopperGazeboEnv: action_space = "+str(self.action_space))
 
 
     def _performAction(self, action : Tuple[float,float,float]) -> None:
@@ -113,30 +84,9 @@ class HopperGazeboEnv(BaseGazeboEnv):
         if len(action)!=3:
             raise AttributeError("Action must have length 3, it is "+str(action))
 
-        rospy.loginfo("performing action "+str(action))
-        secs = int(self._stepLength_sec)
-        nsecs = int((self._stepLength_sec - secs) * 1000000000)
-
-        request = gazebo_msgs.srv.ApplyJointEffortRequest()
-        request.joint_name = "torso_to_thigh"
-        request.effort = action[0]
-        request.duration.secs = secs
-        request.duration.nsecs = nsecs
-        self._applyJointEffortService.call(request)
-
-        request = gazebo_msgs.srv.ApplyJointEffortRequest()
-        request.joint_name = "thigh_to_leg"
-        request.effort = action[1]
-        request.duration.secs = secs
-        request.duration.nsecs = nsecs
-        self._applyJointEffortService.call(request)
-
-        request = gazebo_msgs.srv.ApplyJointEffortRequest()
-        request.joint_name = "leg_to_foot"
-        request.effort = action[2]
-        request.duration.secs = secs
-        request.duration.nsecs = nsecs
-        self._applyJointEffortService.call(request)
+        self._gazeboController.setJointsEffort([("torso_to_thigh",action[0],self._stepLength_sec),
+                                                ("thigh_to_leg",action[1],self._stepLength_sec),
+                                                ("leg_to_foot",action[2],self._stepLength_sec)])
 
 
 
@@ -160,9 +110,7 @@ class HopperGazeboEnv(BaseGazeboEnv):
 
 
     def _onReset(self) -> None:
-        self._clearJointEffortService.call("torso_to_thigh")
-        self._clearJointEffortService.call("thigh_to_leg")
-        self._clearJointEffortService.call("leg_to_foot")
+        self._gazeboController.clearJointsEffort(["torso_to_thigh","thigh_to_leg","leg_to_foot"])
 
 
     def _getCameraToRenderName(self) -> str:
@@ -180,25 +128,19 @@ class HopperGazeboEnv(BaseGazeboEnv):
         """
 
 
-        t0 = time.time()
-        torso2thigh = self._getJointPropertiesService.call("torso_to_thigh")
-        thigh2leg = self._getJointPropertiesService.call("thigh_to_leg")
-        leg2foot = self._getJointPropertiesService.call("leg_to_foot")
-        world2mid = self._getJointPropertiesService.call("world_to_mid")
-        mid2mid2 = self._getJointPropertiesService.call("mid_to_mid2")
-        t1 = time.time()
-        rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
+        jointStates = self._gazeboController.getJointsState(["torso_to_thigh","thigh_to_leg","leg_to_foot","world_to_mid","mid_to_mid2"])
 
-        observation = np.array([mid2mid2.position[0]+1.21,
-                                torso2thigh.position[0],
-                                thigh2leg.position[0],
-                                leg2foot.position[0],
-                                world2mid.rate[0],
+        #print("you ",jointStates["mid_to_mid2"].position)
+        observation = np.array([jointStates["mid_to_mid2"].position[0] + 1.21,
+                                jointStates["torso_to_thigh"].position[0],
+                                jointStates["thigh_to_leg"].position[0],
+                                jointStates["leg_to_foot"].position[0],
+                                jointStates["world_to_mid"].rate[0],
                                 0,
-                                mid2mid2.rate[0],
-                                torso2thigh.rate[0],
-                                thigh2leg.rate[0],
-                                leg2foot.rate[0]])
+                                jointStates["mid_to_mid2"].rate[0],
+                                jointStates["torso_to_thigh"].rate[0],
+                                jointStates["thigh_to_leg"].rate[0],
+                                jointStates["leg_to_foot"].rate[0]])
 
         rospy.loginfo("Observation = " +str(observation))
 

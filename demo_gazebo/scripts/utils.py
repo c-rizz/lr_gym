@@ -103,3 +103,8 @@ def image_to_numpy(rosMsg : sensor_msgs.msg.Image) -> np.ndarray:
     if channels == 1:
             data = data[...,0]
     return data
+
+
+class JointState:
+    position = []
+    rate = []

@@ -19,7 +19,7 @@ from typing import Any
 
 import utils
 
-class BaseGazeboEnv(gym.Env):
+class BaseEnv(gym.Env):
     """This is a base-class for implementing OpenAI-gym environments with Gazebo.
 
     You can extend this class with a sub-class to implement specific environments.
@@ -30,7 +30,7 @@ class BaseGazeboEnv(gym.Env):
     observation_space = None
     metadata = None # e.g. {'render.modes': ['rgb_array']}
 
-    def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500, renderInStep : bool = True, stepLength_sec : float = 0.05):
+    def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500, renderInStep : bool = True, stepLength_sec : float = 0.05, simulatorController = GazeboController()):
         """Short summary.
 
         Parameters
@@ -67,7 +67,7 @@ class BaseGazeboEnv(gym.Env):
         self._cumulativeImagesAge = 0
         self._stepLength_sec = stepLength_sec
         self._renderInStep = renderInStep
-        self._gazeboController = GazeboController()
+        self._gazeboController = simulatorController
         self._simTime = 0
         self._lastStepGotObservation = -1
         self._lastObservation = None

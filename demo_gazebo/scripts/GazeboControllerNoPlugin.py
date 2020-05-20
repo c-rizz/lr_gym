@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
 import traceback
-import typing
+from typing import List
+from typing import Tuple
+from typing import Dict
 import time
+import gazebo_msgs
 
 import rospy
 from std_srvs.srv import Empty
 
-class GazeboControllerNoPlugin():
-    """This class allows to control the execution of the Gazebo simulation. It only uses
-    the default gazebo plugins which are usually included in the installation.
+from SimulatorController import SimulatorController
+from utils import JointState
+
+class GazeboControllerNoPlugin(SimulatorController):
+    """This class allows to control the execution of a Gazebo simulation.
+
+    It only uses the default gazebo plugins which are usually included in the installation.
     Because of this the duration of the simulation steps may not be accurate.
     """
 
     def __init__(self, usePersistentConnections : bool = False):
-        """Initializes the Gazebo controller
+        """Initialize the Gazebo controller.
 
         Parameters
         ----------
@@ -43,34 +50,40 @@ class GazeboControllerNoPlugin():
         self._lastRenderResult = None
 
 
-        self._pauseGazeboServiceName = "/gazebo/pause_physics"
-        self._unpauseGazeboServiceName = "/gazebo/unpause_physics"
-        self._resetGazeboServiceName = "/gazebo/reset_simulation"
-        #self._setGazeboPhysics = "/gazebo/set_physics_properties"
+        serviceNames = {"applyJointEffort" : "/gazebo/apply_joint_effort",
+                        "clearJointEffort" : "/gazebo/clear_joint_forces",
+                        "getJointProperties" : "/gazebo/get_joint_properties",
+                        "pause" : "/gazebo/pause_physics",
+                        "unpause" : "/gazebo/unpause_physics",
+                        "reset" : "/gazebo/reset_simulation"}
 
         timeout_secs = 30.0
-        try:
-            rospy.wait_for_service(self._pauseGazeboServiceName,timeout_secs)
-            rospy.wait_for_service(self._unpauseGazeboServiceName,timeout_secs)
-            rospy.wait_for_service(self._resetGazeboServiceName,timeout_secs)
-            #rospy.wait_for_service(self._setGazeboPhysics,timeout_secs)
-        except rospy.ROSException as e:
-            rospy.logfatal("Failed to wait for Gazebo services. Timeout was "+str(timeout_secs)+"s")
-            raise
-        except rospy.ROSInterruptException as e:
-            rospy.logfatal("Interrupeted while waiting for Gazebo services.")
-            raise
+        for serviceName in serviceNames.values():
+            try:
+                rospy.loginfo("waiting for service "+serviceName+" ...")
+                rospy.wait_for_service(serviceName)
+                rospy.loginfo("got service "+serviceName)
+            except rospy.ROSException as e:
+                rospy.logfatal("Failed to wait for service "+serviceName+". Timeouts were "+str(timeout_secs)+"s. Exception = "+str(e))
+                raise
+            except rospy.ROSInterruptException as e:
+                rospy.logfatal("Interrupeted while waiting for service "+serviceName+". Exception = "+str(e))
+                raise
 
-        self._pauseGazeboService = rospy.ServiceProxy(self._pauseGazeboServiceName, Empty, persistent=usePersistentConnections)
-        self._unpauseGazeboService = rospy.ServiceProxy(self._unpauseGazeboServiceName, Empty, persistent=usePersistentConnections)
-        self._resetGazeboService = rospy.ServiceProxy(self._resetGazeboServiceName, Empty, persistent=usePersistentConnections)
+        self._applyJointEffortService   = rospy.ServiceProxy(serviceNames["applyJointEffort"], gazebo_msgs.srv.ApplyJointEffort, persistent=usePersistentConnections)
+        self._clearJointEffortService   = rospy.ServiceProxy(serviceNames["clearJointEffort"], gazebo_msgs.srv.JointRequest, persistent=usePersistentConnections)
+        self._getJointPropertiesService = rospy.ServiceProxy(serviceNames["getJointProperties"], gazebo_msgs.srv.GetJointProperties, persistent=usePersistentConnections)
+        self._pauseGazeboService        = rospy.ServiceProxy(serviceNames["pause"], Empty, persistent=usePersistentConnections)
+        self._unpauseGazeboService      = rospy.ServiceProxy(serviceNames["unpause"], Empty, persistent=usePersistentConnections)
+        self._resetGazeboService        = rospy.ServiceProxy(serviceNames["reset"], Empty, persistent=usePersistentConnections)
+
         #self._setGazeboPhysics = rospy.ServiceProxy(self._setGazeboPhysics, SetPhysicsProperties, persistent=usePersistentConnections)
 
         self.pauseSimulation()
         self.resetWorld()
 
     def _callService(self,serviceProxy : rospy.ServiceProxy) -> bool:
-        """Call the provided service. It retries in case of failure and handles exceptions. Returns false if the call failed
+        """Call the provided service. It retries in case of failure and handles exceptions. Returns false if the call failed.
 
         Parameters
         ----------
@@ -105,7 +118,7 @@ class GazeboControllerNoPlugin():
         return done
 
     def pauseSimulation(self) -> bool:
-        """Pauses the simulation
+        """Pause the simulation.
 
         Returns
         -------
@@ -119,7 +132,7 @@ class GazeboControllerNoPlugin():
         return ret
 
     def unpauseSimulation(self) -> bool:
-        """Unpauses the simulation
+        """Unpause the simulation.
 
         Returns
         -------
@@ -135,7 +148,7 @@ class GazeboControllerNoPlugin():
         return ret
 
     def resetWorld(self) -> bool:
-        """Resets the world to its initial state
+        """Reset the world to its initial state.
 
         Returns
         -------
@@ -163,13 +176,13 @@ class GazeboControllerNoPlugin():
         if abs(totalSimTimeError)>0.000001:
             rospy.logwarn("Estimated error in simulation time keeping = "+str(totalSimTimeError)+"s")
         if totalEpSimDuration!=0:
-            rospy.loginfo("Duration: sim={:.3f}".format(totalEpSimDuration)+
-                " real={:.3f}".format(totalEpRealDuration)+
-                " sim/real={:.3f}".format(totalRatio)+
-                " step-time-only ratio ={:.3f}".format(ratio)+
-                " totalRenderTime={:.4f}".format(self._totalRenderTime)+
-                " realFps="+str(self._stepsTaken/totalEpRealDuration)+
-                " simFps="+str(self._stepsTaken/totalEpSimDuration))
+            rospy.loginfo(  "Duration: sim={:.3f}".format(totalEpSimDuration)+
+                            " real={:.3f}".format(totalEpRealDuration)+
+                            " sim/real={:.3f}".format(totalRatio)+
+                            " step-time-only ratio ={:.3f}".format(ratio)+
+                            " totalRenderTime={:.4f}".format(self._totalRenderTime)+
+                            " realFps="+str(self._stepsTaken/totalEpRealDuration)+
+                            " simFps="+str(self._stepsTaken/totalEpSimDuration))
         self._episodeSimDuration = 0
         self._episodeRealSimDuration = 0
         self._episodeRealStartTime = time.time()
@@ -181,8 +194,9 @@ class GazeboControllerNoPlugin():
 
 
     def step(self, runTime_secs : float) -> None:
-        """Runs the simulation for the specified time. It unpauses and the simulation, sleeps and then pauses it back.
-        It may not be precise
+        """Run the simulation for the specified time.
+
+        It unpauses and the simulation, sleeps and then pauses it back. It may not be precise.
 
         Parameters
         ----------
@@ -216,3 +230,41 @@ class GazeboControllerNoPlugin():
         rospy.loginfo("Unpaused for a duration between "+str(t2-t1)+"s and "+str(t3-t0)+"s")
 
         self._stepsTaken+=1
+
+
+
+
+    def setJointsEffort(self, jointTorques : List[Tuple[str,float,float]]) -> None:
+        for command in jointTorques:
+            jointName = command[0]
+            torque = command[1]
+            duration_secs = command[2]
+            secs = int(duration_secs)
+            nsecs = int((duration_secs - secs) * 1000000000)
+
+            request = gazebo_msgs.srv.ApplyJointEffortRequest()
+            request.joint_name = jointName
+            request.effort = torque
+            request.duration.secs = secs
+            request.duration.nsecs = nsecs
+            res = self._applyJointEffortService.call(request)
+            if not res.success:
+                rospy.logerror("Failed applying effort for joint jointName: "+res.status_message)
+
+    def clearJointsEffort(self, jointNames : List[str]) -> None:
+        for jointName in jointNames:
+            self._clearJointEffortService.call(jointName)
+
+
+
+    def getJointsState(self, jointNames : List[str]) -> Dict[str,JointState]:
+        ret = {}
+        for jointName in jointNames:
+            jointProp = self._getJointPropertiesService.call(jointName)
+            #print("Got joint prop for "+jointName+" =",jointProp)
+            jointState = JointState()
+            jointState.position = jointProp.position
+            jointState.rate = jointProp.rate
+            ret[jointName] = jointState
+
+        return ret

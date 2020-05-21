@@ -7,16 +7,16 @@ from typing import Union
 import sensor_msgs
 from utils import JointState
 import pybullet as p
+from SimulatorController import SimulatorController
 
 
-
-class SimulatorController():
+class PyBulletController(SimulatorController):
     """This class allows to control the execution of a simulation.
 
     It is an abstract class, it is meant to be extended with sub-classes for specific simulators
     """
 
-    def __init__(self, jointNamesToBodyAndJointId : Dict[str,Tuple[int,int]], usePersistentConnections : bool = False):
+    def __init__(self):
         """Initialize the Simulator controller.
 
         Raises
@@ -28,12 +28,20 @@ class SimulatorController():
         if not p.isConnected():
             raise ValueError("PyBullet is not connected")
 
-        self._jointNamesToBodyAndJointId = jointNamesToBodyAndJointId
+        bodyIds = []
+        for i in range(p.getNumBodies()):
+            bodyIds.append(p.getBodyUniqueId(i))
+
         self._bodyAndJointIdToJointName = {}
-        for couples in self._jointNamesToBodyAndJointId.items():#invert the dict
-            if couples[1] in _bodyAndJointIdToJointName:
-                raise ValueError("BodyId-JointId "+couples[1]+" couple appears twice in jointNamesToBodyAndJointId")
-            _bodyAndJointIdToJointName[couples[1]] = couples[0]
+        self._jointNamesToBodyAndJointId = {}
+        for bodyId in bodyIds:
+            for jointId in range(p.getNumJoints()):
+                jointName = p.getJointInfo(bodyId,jointId)
+                bodyPlusJoint = (bodyId,jointId)
+                self._bodyAndJointIdToJointName[bodyPlusJoint] = jointName
+                self._jointNamesToBodyAndJointId[jointName] = bodyPlusJoint
+
+        self._startStateId = p.saveState()
 
 
     def _getJointName(self, bodyId, jointIndex):
@@ -41,6 +49,9 @@ class SimulatorController():
 
     def _getBodyAndJointId(self, jointName):
         return self._jointNamesToBodyAndJointId[jointName]
+
+    def resetWorld(self):
+        p.restoreState(self._startStateId)
 
     def step(self, runTime_secs : float, performRendering : bool = False, camerasToRender : List[str] = []) -> None:
         """Run the simulation for the specified time.

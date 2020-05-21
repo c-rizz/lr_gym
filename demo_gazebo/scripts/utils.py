@@ -108,3 +108,7 @@ def image_to_numpy(rosMsg : sensor_msgs.msg.Image) -> np.ndarray:
 class JointState:
     position = []
     rate = []
+
+    def __str__(self):
+        #print("I'm magic")
+        return "JointState("+str(self.position)+","+str(self.rate)+")"

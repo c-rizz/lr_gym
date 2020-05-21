@@ -5,6 +5,7 @@ from typing import Tuple
 from typing import Dict
 import time
 import gazebo_msgs
+import gazebo_msgs.srv
 
 import rospy
 from std_srvs.srv import Empty
@@ -19,7 +20,7 @@ class GazeboControllerNoPlugin(SimulatorController):
     Because of this the duration of the simulation steps may not be accurate.
     """
 
-    def __init__(self, usePersistentConnections : bool = False):
+    def __init__(self, usePersistentConnections : bool = False, stepLength_sec : float = 0.001):
         """Initialize the Gazebo controller.
 
         Parameters
@@ -38,6 +39,7 @@ class GazeboControllerNoPlugin(SimulatorController):
             If it fails to find the gazebo services
 
         """
+        super().__init__(stepLength_sec=stepLength_sec)
 
         self._lastUnpausedTime = 0
         self._episodeSimDuration = 0
@@ -193,7 +195,7 @@ class GazeboControllerNoPlugin(SimulatorController):
         return ret
 
 
-    def step(self, runTime_secs : float) -> None:
+    def step(self) -> None:
         """Run the simulation for the specified time.
 
         It unpauses and the simulation, sleeps and then pauses it back. It may not be precise.
@@ -219,7 +221,7 @@ class GazeboControllerNoPlugin(SimulatorController):
         t0 = rospy.get_time()
         self.unpauseSimulation()
         t1 = rospy.get_time()
-        rospy.sleep(runTime_secs)
+        rospy.sleep(self._stepLength_sec)
         t2 = rospy.get_time()
         self.pauseSimulation()
         t3 = rospy.get_time()
@@ -234,11 +236,11 @@ class GazeboControllerNoPlugin(SimulatorController):
 
 
 
-    def setJointsEffort(self, jointTorques : List[Tuple[str,float,float]]) -> None:
+    def setJointsEffort(self, jointTorques : List[Tuple[str,float]]) -> None:
         for command in jointTorques:
             jointName = command[0]
             torque = command[1]
-            duration_secs = command[2]
+            duration_secs = self._stepLength_sec
             secs = int(duration_secs)
             nsecs = int((duration_secs - secs) * 1000000000)
 
@@ -263,8 +265,8 @@ class GazeboControllerNoPlugin(SimulatorController):
             jointProp = self._getJointPropertiesService.call(jointName)
             #print("Got joint prop for "+jointName+" =",jointProp)
             jointState = JointState()
-            jointState.position = jointProp.position
-            jointState.rate = jointProp.rate
+            jointState.position = list(jointProp.position)
+            jointState.rate = list(jointProp.rate)
             ret[jointName] = jointState
 
         return ret

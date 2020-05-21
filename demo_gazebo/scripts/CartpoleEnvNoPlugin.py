@@ -22,7 +22,7 @@ import numpy as np
 
 import utils
 
-class CartpoleGazeboEnvNoPlugin(gym.Env):
+class CartpoleEnvNoPlugin(gym.Env):
     """The class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
     This environment only uses the only the default gazebo plugins which are usually
     included in the Gazebo installation.
@@ -99,7 +99,7 @@ class CartpoleGazeboEnvNoPlugin(gym.Env):
 
 
         self._lastCameraImage = None
-        self._gazeboController = GazeboControllerNoPlugin()
+        self._simulatorController = GazeboControllerNoPlugin()
         self._cameraTopic = "/cartpole/camera/image_raw"
         rospy.Subscriber(self._cameraTopic, sensor_msgs.msg.Image, self._cameraCallback,  queue_size=1)
 
@@ -158,7 +158,7 @@ class CartpoleGazeboEnvNoPlugin(gym.Env):
         t0 = time.time()
         self._lastStepStartSimTime = rospy.get_time()
 
-        self._gazeboController.step(self._stepLength_sec)
+        self._simulatorController.step(self._stepLength_sec)
         observation = self._getObservation()
 
         self._lastStepEndSimTime = rospy.get_time()
@@ -204,8 +204,8 @@ class CartpoleGazeboEnvNoPlugin(gym.Env):
         #rospy.loginfo("reset()")
 
         #reset simulation state
-        self._gazeboController.pauseSimulation()
-        self._gazeboController.resetWorld()
+        self._simulatorController.pauseSimulation()
+        self._simulatorController.resetWorld()
 
         if self._framesCounter!=0 and self._cumulativeImagesAge!=0:
             rospy.logwarn("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))

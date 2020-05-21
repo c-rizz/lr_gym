@@ -5,7 +5,7 @@ import time
 import tqdm
 from stable_baselines.deepq.policies import MlpPolicy
 from stable_baselines import DQN
-from CartpoleGazeboEnv import CartpoleGazeboEnv
+from CartpoleEnv import CartpoleEnv
 
 
 def main() -> None:
@@ -21,7 +21,7 @@ def main() -> None:
     """
     rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
-    env = CartpoleGazeboEnv(renderInStep=False)
+    env = CartpoleEnv(renderInStep=False)
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)

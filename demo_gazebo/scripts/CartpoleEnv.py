@@ -17,7 +17,7 @@ from typing import Tuple
 import time
 
 
-class CartpoleGazeboEnv(BaseEnv):
+class CartpoleEnv(BaseEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
 
     It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
@@ -32,7 +32,12 @@ class CartpoleGazeboEnv(BaseEnv):
     observation_space = gym.spaces.Box(-high, high)
     metadata = {'render.modes': ['rgb_array']}
 
-    def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500, renderInStep : bool = True, stepLength_sec : float = 0.05):
+    def __init__(   self,
+                    usePersistentConnections : bool = False,
+                    maxFramesPerEpisode : int = 500,
+                    renderInStep : bool = True,
+                    stepLength_sec : float = 0.05,
+                    simulatorController = None):
         """Short summary.
 
         Parameters
@@ -53,6 +58,8 @@ class CartpoleGazeboEnv(BaseEnv):
             Duration in seconds of each simulation step. Lower values will lead to
             slower simulation. This value should be kept higher than the gazebo
             max_step_size parameter.
+        simulatorController : SimulatorController
+            Specifies which simulator controller to use. By default it connects to Gazebo
 
         Raises
         -------
@@ -63,32 +70,13 @@ class CartpoleGazeboEnv(BaseEnv):
 
         """
 
+
         super().__init__(usePersistentConnections = usePersistentConnections,
                          maxFramesPerEpisode = maxFramesPerEpisode,
                          renderInStep = renderInStep,
-                         stepLength_sec = stepLength_sec)
+                         stepLength_sec = stepLength_sec,
+                         simulatorController = simulatorController)
 
-        self._serviceNames = {  "getJointProperties" : "/gazebo/get_joint_properties",
-                                "applyJointEffort" : "/gazebo/apply_joint_effort",
-                                "clearJointEffort" : "/gazebo/clear_joint_forces"}
-
-        timeout_secs = 30.0
-        for serviceName in self._serviceNames.values():
-            try:
-                rospy.loginfo("waiting for service "+serviceName+" ...")
-                rospy.wait_for_service(serviceName)
-                rospy.loginfo("got service "+serviceName)
-            except rospy.ROSException as e:
-                rospy.logfatal("Failed to wait for service "+serviceName+". Timeouts were "+str(timeout_secs)+"s. Exception = "+str(e))
-                raise
-            except rospy.ROSInterruptException as e:
-                rospy.logfatal("Interrupeted while waiting for service "+serviceName+". Exception = "+str(e))
-                raise
-
-
-        self._getJointPropertiesService = rospy.ServiceProxy(self._serviceNames["getJointProperties"], gazebo_msgs.srv.GetJointProperties, persistent=usePersistentConnections)
-        self._applyJointEffortService   = rospy.ServiceProxy(self._serviceNames["applyJointEffort"], gazebo_msgs.srv.ApplyJointEffort, persistent=usePersistentConnections)
-        self._clearJointEffortService   = rospy.ServiceProxy(self._serviceNames["clearJointEffort"], gazebo_msgs.srv.JointRequest, persistent=usePersistentConnections)
 
 
     def _performAction(self, action : int) -> None:
@@ -99,12 +87,7 @@ class CartpoleGazeboEnv(BaseEnv):
         else:
             raise AttributeError("action can only be 1 or 0")
 
-        # set new effort
-        request = gazebo_msgs.srv.ApplyJointEffortRequest()
-        request.joint_name = "foot_joint"
-        request.effort = direction * 1000
-        request.duration.nsecs = 1000000 #0.5ms
-        self._applyJointEffortService.call(request)
+        self._simulatorController.setJointsEffort(jointTorques = [("foot_joint", direction * 20)])
 
 
 
@@ -128,8 +111,7 @@ class CartpoleGazeboEnv(BaseEnv):
 
 
     def _onReset(self) -> None:
-        self._clearJointEffortService.call("foot_joint")
-        self._clearJointEffortService.call("cartpole_joint")
+        self._simulatorController.clearJointsEffort(["foot_joint","cartpole_joint"])
 
 
     def _getCameraToRenderName(self) -> str:
@@ -148,12 +130,16 @@ class CartpoleGazeboEnv(BaseEnv):
 
 
         t0 = time.time()
-        cartInfo = self._getJointPropertiesService.call("foot_joint")
-        poleInfo = self._getJointPropertiesService.call("cartpole_joint")
+        states = self._simulatorController.getJointsState(jointNames=["foot_joint","cartpole_joint"])
+        #print("states['foot_joint'] = "+str(states["foot_joint"]))
+        #print("Got joint state "+str(states))
         t1 = time.time()
         rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
 
-        observation = (cartInfo.position[0], cartInfo.rate[0], poleInfo.position[0], poleInfo.rate[0])
+        observation = ( states["foot_joint"].position[0],
+                        states["foot_joint"].rate[0],
+                        states["cartpole_joint"].position[0],
+                        states["cartpole_joint"].rate[0])
 
         #print(observation)
 

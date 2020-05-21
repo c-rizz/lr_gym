@@ -30,7 +30,11 @@ class BaseEnv(gym.Env):
     observation_space = None
     metadata = None # e.g. {'render.modes': ['rgb_array']}
 
-    def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500, renderInStep : bool = True, stepLength_sec : float = 0.05, simulatorController = GazeboController()):
+    def __init__(self, usePersistentConnections : bool = False,
+                 maxFramesPerEpisode : int = 500,
+                 renderInStep : bool = True,
+                 stepLength_sec : float = 0.05,
+                 simulatorController = None):
         """Short summary.
 
         Parameters
@@ -51,6 +55,8 @@ class BaseEnv(gym.Env):
             Duration in seconds of each simulation step. Lower values will lead to
             slower simulation. This value should be kept higher than the gazebo
             max_step_size parameter.
+        simulatorController : SimulatorController
+            Specifies which simulator controller to use. By default it connects to Gazebo
 
         Raises
         -------
@@ -60,6 +66,10 @@ class BaseEnv(gym.Env):
             In case it gets interrupted while waiting for ROS servics
 
         """
+
+        if simulatorController is None:
+            simulatorController = GazeboController(stepLength_sec = stepLength_sec)
+
         self._maxFramesPerEpisode = maxFramesPerEpisode
         self._framesCounter = 0
         self._lastStepStartSimTime = -1
@@ -67,7 +77,7 @@ class BaseEnv(gym.Env):
         self._cumulativeImagesAge = 0
         self._stepLength_sec = stepLength_sec
         self._renderInStep = renderInStep
-        self._gazeboController = simulatorController
+        self._simulatorController = simulatorController
         self._simTime = 0
         self._lastStepGotObservation = -1
         self._lastObservation = None
@@ -120,7 +130,7 @@ class BaseEnv(gym.Env):
         self._performAction(action)
 
         self._lastStepStartSimTime = rospy.get_time()
-        self._gazeboController.step(self._stepLength_sec,performRendering=self._renderInStep)
+        self._simulatorController.step(performRendering=self._renderInStep)
         observation = self._getObservationCached()
         self._lastStepEndSimTime = rospy.get_time()
 
@@ -154,8 +164,8 @@ class BaseEnv(gym.Env):
         #rospy.loginfo("reset()")
 
         #reset simulation state
-        self._gazeboController.pauseSimulation()
-        self._gazeboController.resetWorld()
+        self._simulatorController.pauseSimulation()
+        self._simulatorController.resetWorld()
 
         if self._framesCounter!=0 and self._cumulativeImagesAge!=0:
             rospy.logwarn("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
@@ -212,7 +222,7 @@ class BaseEnv(gym.Env):
         cameraName = self._getCameraToRenderName()
 
         #t0 = time.time()
-        cameraImage = self._gazeboController.render([cameraName])[0]
+        cameraImage = self._simulatorController.render([cameraName])[0]
         if cameraImage is None:
             rospy.logerr("No camera image received. render() will return and empty image.")
             return np.empty([0,0,3])

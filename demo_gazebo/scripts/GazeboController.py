@@ -1,26 +1,22 @@
 #!/usr/bin/env python3
-import traceback
-import typing
 from typing import List
 import time
-import gazebo_msgs
 
 import rospy
-from std_srvs.srv import Empty
 import gazebo_gym_env_plugin.srv
 import sensor_msgs
-from utils import JointState
 
 
 from GazeboControllerNoPlugin import GazeboControllerNoPlugin
 
 class GazeboController(GazeboControllerNoPlugin):
-    """This class allows to control the execution of the Gazebo simulation. It makes
-    use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
+    """This class allows to control the execution of the Gazebo simulation.
+
+    It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
     """
 
-    def __init__(self, usePersistentConnections : bool = False):
-        """Initializes the Gazebo controller
+    def __init__(self, usePersistentConnections : bool = False, stepLength_sec : float = 0.001):
+        """Initialize the Gazebo controller.
 
         Parameters
         ----------
@@ -44,7 +40,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
         """
 
-        super().__init__(usePersistentConnections=usePersistentConnections)
+        super().__init__(usePersistentConnections=usePersistentConnections, stepLength_sec=stepLength_sec)
 
         #self._stepGazeboServiceName = "/gazebo/gym_env_interface/step"
         #self._renderGazeboServiceName = "/gazebo/gym_env_interface/render"
@@ -68,7 +64,7 @@ class GazeboController(GazeboControllerNoPlugin):
         self._renderGazeboService   = rospy.ServiceProxy(serviceNames["render"], gazebo_gym_env_plugin.srv.RenderCameras, persistent=usePersistentConnections)
 
 
-    def step(self, runTime_secs : float, performRendering : bool = False, camerasToRender : List[str] = []) -> None:
+    def step(self, performRendering : bool = False, camerasToRender : List[str] = []) -> None:
         """Run the simulation for the specified time.
 
         Parameters
@@ -94,7 +90,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
 
         request = gazebo_gym_env_plugin.srv.StepSimulationRequest()
-        request.step_duration_secs = runTime_secs
+        request.step_duration_secs = self._stepLength_sec
         request.request_time = time.time()
         if performRendering:
             #rospy.loginfo("Performing rendering within step")
@@ -104,7 +100,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
         #t3 = rospy.get_time()
         tf_real = time.time()
-        self._episodeSimDuration += runTime_secs
+        self._episodeSimDuration += self._stepLength_sec
         self._episodeRealSimDuration += tf_real - t0_real
         #rospy.loginfo("t0 = "+str(t0)+"   t3 = "+str(t3))
         #rospy.loginfo("Unpaused for a duration of about  "+str(t3-t0)+"s")

@@ -12,9 +12,10 @@ import rospy.client
 import gym
 import numpy as np
 from typing import Tuple
+from SimulatorController import SimulatorController
+from GazeboController import GazeboController
 
-
-class HopperGazeboEnv(BaseEnv):
+class HopperEnv(BaseEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
 
     It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
@@ -40,7 +41,12 @@ class HopperGazeboEnv(BaseEnv):
     LEG_FOOT_JOINT_VEL_OBS = 9
 
 
-    def __init__(self, usePersistentConnections : bool = False, maxFramesPerEpisode : int = 500, renderInStep : bool = True, stepLength_sec : float = 0.05):
+    def __init__(   self,
+                    usePersistentConnections : bool = False,
+                    maxFramesPerEpisode : int = 500,
+                    renderInStep : bool = True,
+                    stepLength_sec : float = 0.05,
+                    simulatorController : SimulatorController = None):
         """Short summary.
 
         Parameters
@@ -61,6 +67,8 @@ class HopperGazeboEnv(BaseEnv):
             Duration in seconds of each simulation step. Lower values will lead to
             slower simulation. This value should be kept higher than the gazebo
             max_step_size parameter.
+        simulatorController : SimulatorController
+            Specifies which simulator controller to use. By default it connects to Gazebo
 
         Raises
         -------
@@ -70,13 +78,15 @@ class HopperGazeboEnv(BaseEnv):
             In case it gets interrupted while waiting for ROS servics
 
         """
-
-        #print("HopperGazeboEnv: action_space = "+str(self.action_space))
+        if simulatorController is None:
+            simulatorController = GazeboController(stepLength_sec = stepLength_sec)
+        #print("HopperEnv: action_space = "+str(self.action_space))
         super().__init__(usePersistentConnections = usePersistentConnections,
                          maxFramesPerEpisode = maxFramesPerEpisode,
                          renderInStep = renderInStep,
-                         stepLength_sec = stepLength_sec)
-        #print("HopperGazeboEnv: action_space = "+str(self.action_space))
+                         stepLength_sec = stepLength_sec,
+                         simulatorController = simulatorController)
+        #print("HopperEnv: action_space = "+str(self.action_space))
 
 
     def _performAction(self, action : Tuple[float,float,float]) -> None:
@@ -84,9 +94,9 @@ class HopperGazeboEnv(BaseEnv):
         if len(action)!=3:
             raise AttributeError("Action must have length 3, it is "+str(action))
 
-        self._gazeboController.setJointsEffort([("torso_to_thigh",action[0],self._stepLength_sec),
-                                                ("thigh_to_leg",action[1],self._stepLength_sec),
-                                                ("leg_to_foot",action[2],self._stepLength_sec)])
+        self._simulatorController.setJointsEffort([ ("torso_to_thigh",action[0]),
+                                                    ("thigh_to_leg",action[1]),
+                                                    ("leg_to_foot",action[2])])
 
 
 
@@ -110,7 +120,7 @@ class HopperGazeboEnv(BaseEnv):
 
 
     def _onReset(self) -> None:
-        self._gazeboController.clearJointsEffort(["torso_to_thigh","thigh_to_leg","leg_to_foot"])
+        self._simulatorController.clearJointsEffort(["torso_to_thigh","thigh_to_leg","leg_to_foot"])
 
 
     def _getCameraToRenderName(self) -> str:
@@ -128,7 +138,7 @@ class HopperGazeboEnv(BaseEnv):
         """
 
 
-        jointStates = self._gazeboController.getJointsState(["torso_to_thigh","thigh_to_leg","leg_to_foot","world_to_mid","mid_to_mid2"])
+        jointStates = self._simulatorController.getJointsState(["torso_to_thigh","thigh_to_leg","leg_to_foot","world_to_mid","mid_to_mid2"])
 
         #print("you ",jointStates["mid_to_mid2"].position)
         observation = np.array([jointStates["mid_to_mid2"].position[0] + 1.21,

@@ -5,7 +5,7 @@ import time
 import tqdm
 from stable_baselines.td3.policies import MlpPolicy
 from stable_baselines import TD3
-from HopperGazeboEnv import HopperGazeboEnv
+from HopperEnv import HopperEnv
 from stable_baselines.ddpg.noise import NormalActionNoise
 import numpy as np
 
@@ -22,7 +22,7 @@ def main() -> None:
     """
     rospy.init_node('solve_hopper', anonymous=True, log_level=rospy.INFO)
     #env = gym.make('CartPoleStayUp-v0')
-    env = HopperGazeboEnv(renderInStep=False)
+    env = HopperEnv(renderInStep=False)
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)

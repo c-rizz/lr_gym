@@ -5,14 +5,14 @@ import gym
 import time
 import tqdm
 import cv2
-from CartpoleGazeboEnv import CartpoleGazeboEnv
-from CartpoleGazeboEnvNoPlugin import CartpoleGazeboEnvNoPlugin
+from CartpoleEnv import CartpoleEnv
+from GazeboController import GazeboController
 import os
 import argparse
 
 
-def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = False, stepLength_sec : float = 0.05) -> None:
-    """Runs the gazebo cartpole environment with a simple hard-coded policy
+def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = False, stepLength_sec : float = 0.05, simulatorController = None) -> None:
+    """Run the gazebo cartpole environment with a simple hard-coded policy.
 
     Parameters
     ----------
@@ -30,12 +30,14 @@ def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = F
     None
 
     """
+
     rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.WARN)
+
+    if simulatorController is None:
+        simulatorController = GazeboController(stepLength_sec = stepLength_sec)
+
     #env = gym.make('CartPoleStayUp-v0')
-    if noPlugin:
-        env = CartpoleGazeboEnvNoPlugin()
-    else:
-        env = CartpoleGazeboEnv(renderInStep = doRender, stepLength_sec=stepLength_sec)
+    env = CartpoleEnv(renderInStep = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController)
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
@@ -66,7 +68,7 @@ def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = F
         while not done:
             #rospy.loginfo("---------------------------------------")
             #time.sleep(1)
-            #print("Episode "+str(episode)+" frame "+str(frame))
+            #rospy.loginfo("Episode "+str(episode)+" frame "+str(frame))
 
             if doRender:
                 img = env.render()
@@ -77,14 +79,14 @@ def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = F
                     #else:
                     #    print("saved image")
 
-
+            #rospy.loginfo(obs)
             if obs[2]>0:
                 action = 1
             else:
                 action = 0
-            #rospy.loginfo("stepping...")
+            #rospy.loginfo("stepping("+str(action)+")...")
             obs, stepReward, done, info = env.step(action)
-            #print("stepped")
+            #rospy.loginfo("stepped")
             #frames.append(env.render("rgb_array"))
             #time.sleep(0.016)
             frame+=1

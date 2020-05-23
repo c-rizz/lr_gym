@@ -16,6 +16,7 @@ from gym.utils import seeding
 from typing import Tuple
 from typing import Dict
 from typing import Any
+import time
 
 import utils
 
@@ -85,7 +86,10 @@ class BaseEnv(gym.Env):
         # Crete a publisher to manually send clock messages (used in reset, very ugly, sorry)
         self._clockPublisher = rospy.Publisher("/clock", rosgraph_msgs.msg.Clock, queue_size=1)
 
-
+        self._envStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
+        self._actionDurationAverage = utils.AverageKeeper(bufferSize = 100)
+        self._observationDurationAverage = utils.AverageKeeper(bufferSize = 100)
+        self._simStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
 
 
 
@@ -125,25 +129,40 @@ class BaseEnv(gym.Env):
             done = True
             return (observation, reward, done, {"simTime":self._simTime})
 
+        # Get previous observation
+        t0 = time.time()
         previousObservation = self._getObservationCached()
 
+        # Setup action to perform
+        t_preAct = time.time()
         self._performAction(action)
+        self._actionDurationAverage.addValue(newValue = time.time()-t_preAct)
 
+        # Step the environment
         self._lastStepStartSimTime = rospy.get_time()
+        t_preStep = time.time()
         self._simulatorController.step(performRendering=self._renderInStep)
+        self._simStepDurationAverage.addValue(newValue = time.time()-t_preStep)
+        self._framesCounter+=1
+        self._simTime += self._stepLength_sec
+
+        #Get new observation
+        t_preObs = time.time()
         observation = self._getObservationCached()
+        self._observationDurationAverage.addValue(newValue = time.time()-t_preObs)
         self._lastStepEndSimTime = rospy.get_time()
 
-
+        # Assess the situation
         done = self._checkEpisodeEnd(previousObservation, observation)
         reward = self._computeReward(previousObservation, observation)
 
-        self._framesCounter+=1
-        self._simTime += self._stepLength_sec
 
 
         #rospy.loginfo("step() return")
         ret = (observation, reward, done, {"simTime":self._simTime})
+
+        self._envStepDurationAverage.addValue(newValue = time.time()-t0)
+
         #rospy.logwarn("returning "+str(ret))
         return ret
 
@@ -164,7 +183,6 @@ class BaseEnv(gym.Env):
         #rospy.loginfo("reset()")
 
         #reset simulation state
-        self._simulatorController.pauseSimulation()
         self._simulatorController.resetWorld()
 
         if self._framesCounter!=0 and self._cumulativeImagesAge!=0:
@@ -176,7 +194,7 @@ class BaseEnv(gym.Env):
         self._lastStepGotObservation = -1
         self._lastObservation = None
 
-        self._onReset()
+        self._onResetDone()
         #time.sleep(1)
 
         # Reset the time manually. Incredibly ugly, incredibly effective
@@ -184,6 +202,17 @@ class BaseEnv(gym.Env):
         self._clockPublisher.publish(t)
 
         self._simTime = 0
+
+        rospy.loginfo(" ------- Resetted Environment -------")
+        rospy.loginfo(" - Average total step duration  = "+str(self._envStepDurationAverage.getAverage()))
+        rospy.loginfo(" - Average action duration      = "+str(self._actionDurationAverage.getAverage()))
+        rospy.loginfo(" - Average sim step duration    = "+str(self._simStepDurationAverage.getAverage()))
+        rospy.loginfo(" - Average observation duration = "+str(self._observationDurationAverage.getAverage()))
+
+        self._envStepDurationAverage.reset()
+        self._actionDurationAverage.reset()
+        self._observationDurationAverage.reset()
+        self._simStepDurationAverage.reset()
 
         #rospy.loginfo("reset() return")
         return  self._getObservationCached()
@@ -402,7 +431,7 @@ class BaseEnv(gym.Env):
         raise NotImplementedError()
 
 
-    def _onReset(self) -> None:
+    def _onResetDone(self) -> None:
         """To be implemented in subclass.
 
         This method is called by the reset method to allow the sub-class to reset environment-specific details

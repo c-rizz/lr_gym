@@ -160,7 +160,7 @@
     <axis xyz="0 1 0" rpy="0 0 0" />
     <parent link="torso"/>
     <child link="thigh"/>
-    <limit effort="${max_effort}" lower="0.0" upper="2.617991667" velocity="0.5"/>
+    <limit effort="${max_effort}" lower="0.0" upper="2.617991667" velocity="1000"/>
   </joint>
   <transmission name="torso_to_thigh_tran">
     <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->
@@ -202,7 +202,7 @@
     <parent link="thigh"/>
     <child link="leg"/>
     <axis xyz="0 1 0" rpy="0 0 0" />
-    <limit effort="${max_effort}" lower="0.0" upper="2.617991667" velocity="0.5"/>
+    <limit effort="${max_effort}" lower="0.0" upper="2.617991667" velocity="1000"/>
   </joint>
   <transmission name="thigh_to_leg_tran">
     <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->
@@ -277,7 +277,7 @@
     <parent link="leg"/>
     <child link="foot"/>
     <axis xyz="0 1 0" rpy="0 0 0" />
-    <limit effort="${max_effort}" lower="-0.7853975" upper="0.7853975" velocity="0.5"/>
+    <limit effort="${max_effort}" lower="-0.7853975" upper="0.7853975" velocity="1000"/>
   </joint>
   <transmission name="leg_to_foot_tran">
     <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->

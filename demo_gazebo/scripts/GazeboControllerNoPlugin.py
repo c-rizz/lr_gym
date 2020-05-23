@@ -6,6 +6,7 @@ from typing import Dict
 import time
 import gazebo_msgs
 import gazebo_msgs.srv
+import geometry_msgs.msg
 
 import rospy
 from std_srvs.srv import Empty
@@ -55,6 +56,7 @@ class GazeboControllerNoPlugin(SimulatorController):
         serviceNames = {"applyJointEffort" : "/gazebo/apply_joint_effort",
                         "clearJointEffort" : "/gazebo/clear_joint_forces",
                         "getJointProperties" : "/gazebo/get_joint_properties",
+                        "getLinkState" : "/gazebo/get_link_state",
                         "pause" : "/gazebo/pause_physics",
                         "unpause" : "/gazebo/unpause_physics",
                         "reset" : "/gazebo/reset_simulation"}
@@ -75,6 +77,7 @@ class GazeboControllerNoPlugin(SimulatorController):
         self._applyJointEffortService   = rospy.ServiceProxy(serviceNames["applyJointEffort"], gazebo_msgs.srv.ApplyJointEffort, persistent=usePersistentConnections)
         self._clearJointEffortService   = rospy.ServiceProxy(serviceNames["clearJointEffort"], gazebo_msgs.srv.JointRequest, persistent=usePersistentConnections)
         self._getJointPropertiesService = rospy.ServiceProxy(serviceNames["getJointProperties"], gazebo_msgs.srv.GetJointProperties, persistent=usePersistentConnections)
+        self._getLinkStateService       = rospy.ServiceProxy(serviceNames["getLinkState"], gazebo_msgs.srv.GetLinkState, persistent=usePersistentConnections)
         self._pauseGazeboService        = rospy.ServiceProxy(serviceNames["pause"], Empty, persistent=usePersistentConnections)
         self._unpauseGazeboService      = rospy.ServiceProxy(serviceNames["unpause"], Empty, persistent=usePersistentConnections)
         self._resetGazeboService        = rospy.ServiceProxy(serviceNames["reset"], Empty, persistent=usePersistentConnections)
@@ -158,6 +161,7 @@ class GazeboControllerNoPlugin(SimulatorController):
             True if the simulation was paused, false in case of failure
 
         """
+        self.pauseSimulation()
         totalEpSimDuration = rospy.get_time()
         totalEpRealDuration = time.time() - self._episodeRealStartTime
 
@@ -180,8 +184,8 @@ class GazeboControllerNoPlugin(SimulatorController):
         if totalEpSimDuration!=0:
             rospy.loginfo(  "Duration: sim={:.3f}".format(totalEpSimDuration)+
                             " real={:.3f}".format(totalEpRealDuration)+
-                            " sim/real={:.3f}".format(totalRatio)+
-                            " step-time-only ratio ={:.3f}".format(ratio)+
+                            " sim/real={:.3f}".format(totalRatio)+ # Achieved sim/real time ratio
+                            " step-time-only ratio ={:.3f}".format(ratio)+ #This would be the sim/real time ratio if there was no overhead for sending actions and getting observations
                             " totalRenderTime={:.4f}".format(self._totalRenderTime)+
                             " realFps="+str(self._stepsTaken/totalEpRealDuration)+
                             " simFps="+str(self._stepsTaken/totalEpSimDuration))
@@ -269,4 +273,13 @@ class GazeboControllerNoPlugin(SimulatorController):
             jointState.rate = list(jointProp.rate)
             ret[jointName] = jointState
 
+        return ret
+
+
+
+    def getLinksState(self, linkNames : List[str]) -> Dict[str,gazebo_msgs.msg.LinkState]:
+        ret = {}
+        for linkName in linkNames:
+            resp = self._getLinkStateService.call(link_name=linkName)
+            ret[linkName] = resp.link_state
         return ret

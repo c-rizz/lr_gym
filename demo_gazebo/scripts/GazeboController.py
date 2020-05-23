@@ -40,7 +40,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
         """
 
-        super().__init__(usePersistentConnections=usePersistentConnections, stepLength_sec=stepLength_sec)
+        super().__init__(stepLength_sec=stepLength_sec)
 
         #self._stepGazeboServiceName = "/gazebo/gym_env_interface/step"
         #self._renderGazeboServiceName = "/gazebo/gym_env_interface/render"
@@ -106,14 +106,14 @@ class GazeboController(GazeboControllerNoPlugin):
         #rospy.loginfo("Unpaused for a duration of about  "+str(t3-t0)+"s")
         #rospy.loginfo("Reported duration is  "+str(response.step_duration_done_secs)+"s")
 
-        rospy.loginfo("Transfer time of stepping response = "+str(time.time()-response.response_time))
+        #rospy.loginfo("Transfer time of stepping response = "+str(time.time()-response.response_time))
 
         if performRendering:
             self._lastStepRendered = self._stepsTaken
             self._lastRenderResult = response.render_result
 
         if not response.success:
-            rospy.logwarn("Simulation stepping failed")
+            rospy.logerror("Simulation stepping failed")
 
     def render(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
 

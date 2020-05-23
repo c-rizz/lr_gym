@@ -14,6 +14,8 @@ import numpy as np
 from typing import Tuple
 from SimulatorController import SimulatorController
 from GazeboController import GazeboController
+import time
+from utils import AverageKeeper
 
 class HopperEnv(BaseEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
@@ -21,7 +23,7 @@ class HopperEnv(BaseEnv):
     It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
     """
 
-    action_high = np.array([1000, 1000, 1000])
+    action_high = np.array([1, 1, 1])
     action_space = gym.spaces.Box(low=-action_high, high=action_high, dtype=np.float32)
     # Observations are:
     #  (pos_z, torso_thigh_joint_pos, thigh_leg_joint_pos, leg_foot_joint_pos, vel_x, vel_y, vel_z, torso_thigh_joint_vel, thigh_leg_joint_vel, leg_foot_joint_vel)
@@ -40,6 +42,7 @@ class HopperEnv(BaseEnv):
     THIGH_LEG_JOINT_VEL_OBS = 8
     LEG_FOOT_JOINT_VEL_OBS = 9
 
+    MAX_TORQUE = 100
 
     def __init__(   self,
                     usePersistentConnections : bool = False,
@@ -88,22 +91,21 @@ class HopperEnv(BaseEnv):
                          simulatorController = simulatorController)
         #print("HopperEnv: action_space = "+str(self.action_space))
 
-
     def _performAction(self, action : Tuple[float,float,float]) -> None:
 
         if len(action)!=3:
             raise AttributeError("Action must have length 3, it is "+str(action))
 
-        self._simulatorController.setJointsEffort([ ("torso_to_thigh",action[0]),
-                                                    ("thigh_to_leg",action[1]),
-                                                    ("leg_to_foot",action[2])])
-
+        unnormalizedAction = (action[0]*self.MAX_TORQUE,action[1]*self.MAX_TORQUE,action[2]*self.MAX_TORQUE)
+        self._simulatorController.setJointsEffort([ ("torso_to_thigh",unnormalizedAction[0]),
+                                                    ("thigh_to_leg",unnormalizedAction[1]),
+                                                    ("leg_to_foot",unnormalizedAction[2])])
 
 
     def _checkEpisodeEnd(self, previousObservation : Tuple[float,float,float,float,float,float,float,float,float,float], observation : Tuple[float,float,float,float,float,float,float,float,float,float]) -> bool:
         mid_torso_height = observation[self.POS_Z_OBS]
 
-        rospy.loginfo("height = "+str(mid_torso_height))
+        #rospy.loginfo("height = "+str(mid_torso_height))
 
         if mid_torso_height < 0.7:
             done = True
@@ -119,7 +121,7 @@ class HopperEnv(BaseEnv):
         return 1 + observation[self.VEL_X_OBS]
 
 
-    def _onReset(self) -> None:
+    def _onResetDone(self) -> None:
         self._simulatorController.clearJointsEffort(["torso_to_thigh","thigh_to_leg","leg_to_foot"])
 
 
@@ -139,19 +141,20 @@ class HopperEnv(BaseEnv):
 
 
         jointStates = self._simulatorController.getJointsState(["torso_to_thigh","thigh_to_leg","leg_to_foot","world_to_mid","mid_to_mid2"])
-
+        torsoState = self._simulatorController.getLinksState(["torso"])["torso"]
+        #print("torsoState = ",torsoState)
         #print("you ",jointStates["mid_to_mid2"].position)
-        observation = np.array([jointStates["mid_to_mid2"].position[0] + 1.21,
+        observation = np.array([torsoState.pose.position.z,
                                 jointStates["torso_to_thigh"].position[0],
                                 jointStates["thigh_to_leg"].position[0],
                                 jointStates["leg_to_foot"].position[0],
-                                jointStates["world_to_mid"].rate[0],
-                                0,
-                                jointStates["mid_to_mid2"].rate[0],
+                                torsoState.twist.linear.x,
+                                torsoState.twist.linear.y,
+                                torsoState.twist.linear.z,
                                 jointStates["torso_to_thigh"].rate[0],
                                 jointStates["thigh_to_leg"].rate[0],
                                 jointStates["leg_to_foot"].rate[0]])
 
-        rospy.loginfo("Observation = " +str(observation))
+        #rospy.loginfo("Observation = " +str(observation))
 
         return observation

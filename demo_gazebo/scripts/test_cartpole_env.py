@@ -7,11 +7,13 @@ import tqdm
 import cv2
 from CartpoleEnv import CartpoleEnv
 from GazeboController import GazeboController
+from PyBulletController import PyBulletController
 import os
 import argparse
+import PyBulletUtils
 
 
-def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = False, stepLength_sec : float = 0.05, simulatorController = None) -> None:
+def main(simulatorController, doRender : bool = False, noPlugin : bool = False, saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength : float = 0) -> None:
     """Run the gazebo cartpole environment with a simple hard-coded policy.
 
     Parameters
@@ -31,10 +33,6 @@ def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = F
 
     """
 
-    rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.WARN)
-
-    if simulatorController is None:
-        simulatorController = GazeboController(stepLength_sec = stepLength_sec)
 
     #env = gym.make('CartPoleStayUp-v0')
     env = CartpoleEnv(renderInStep = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController)
@@ -88,7 +86,8 @@ def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = F
             obs, stepReward, done, info = env.step(action)
             #rospy.loginfo("stepped")
             #frames.append(env.render("rgb_array"))
-            #time.sleep(0.016)
+            if sleepLength>0:
+                time.sleep(sleepLength)
             frame+=1
             episodeReward += stepReward
 
@@ -100,7 +99,7 @@ def main(doRender : bool = False, noPlugin : bool = False, saveFrames : bool = F
     avgReward = sum(rewards)/len(rewards)
     totalWallTime = time.time() - wallTimeStart
 
-    print("Computed average reward. Took "+str(totalWallTime)+" seconds ({:.3f}".format(totFrames/totDuration)+" fps). simTime/wallTime={:.3f}".format(totalSimTime/totalWallTime)+" total frames count = "+str(totFrames))
+    print("Average reward is "+str(avgReward)+". Took "+str(totalWallTime)+" seconds ({:.3f}".format(totFrames/totDuration)+" fps). simTime/wallTime={:.3f}".format(totalSimTime/totalWallTime)+" total frames count = "+str(totFrames))
 
 
 def createFolders(folder):
@@ -114,9 +113,20 @@ def createFolders(folder):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--render", default=False, action='store_true', help="Enable camera rendering")
+    ap.add_argument("--pybullet", default=False, action='store_true', help="Use pybullet simulator")
     ap.add_argument("--noplugin", default=False, action='store_true', help="Don't use the gazebo gazebo_gym_env plugin")
     ap.add_argument("--saveframes", default=False, action='store_true', help="Saves each frame of each episode in ./frames")
     ap.add_argument("--steplength", required=False, default=0.05, type=float, help="Duration of each simulation step")
+    ap.add_argument("--sleeplength", required=False, default=0, type=float, help="How much to sleep at the end of each frame execution")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
-    main(doRender = args["render"], noPlugin=args["noplugin"], saveFrames=args["saveframes"], stepLength_sec=args["steplength"])
+
+    rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.WARN)
+
+    if args["pybullet"]:
+        PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/cartpole_v0.urdf")
+        simulatorController = PyBulletController(stepLength_sec = args["steplength"])
+    else:
+        simulatorController = GazeboController(stepLength_sec = args["steplength"])
+
+    main(simulatorController, doRender = args["render"], noPlugin=args["noplugin"], saveFrames=args["saveframes"], stepLength_sec=args["steplength"], sleepLength = args["sleeplength"])

@@ -5,7 +5,7 @@ import sensor_msgs
 import sensor_msgs.msg
 import time
 import cv2
-
+import collections
 
 name_to_dtypes = {
     "rgb8":    (np.uint8,  3),
@@ -112,3 +112,19 @@ class JointState:
     def __str__(self):
         #print("I'm magic")
         return "JointState("+str(self.position)+","+str(self.rate)+")"
+
+class AverageKeeper:
+    def __init__(self, bufferSize = 100):
+        self._bufferSize = bufferSize
+        self.reset()
+
+    def addValue(self, newValue):
+        self._buffer.append(newValue)
+        self._avg = float(sum(self._buffer))/len(self._buffer)
+
+    def getAverage(self):
+        return self._avg
+
+    def reset(self):
+        self._buffer = collections.deque(maxlen=self._bufferSize)
+        self._avg = 0

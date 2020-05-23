@@ -110,7 +110,7 @@ class CartpoleEnv(BaseEnv):
         return 1
 
 
-    def _onReset(self) -> None:
+    def _onResetDone(self) -> None:
         self._simulatorController.clearJointsEffort(["foot_joint","cartpole_joint"])
 
 

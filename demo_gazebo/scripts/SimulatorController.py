@@ -5,6 +5,7 @@ from typing import Dict
 
 import sensor_msgs
 from utils import JointState
+import gazebo_msgs.msg
 
 
 
@@ -15,7 +16,7 @@ class SimulatorController():
     It is an abstract class, it is meant to be extended with sub-classes for specific simulators
     """
 
-    def __init__(self, usePersistentConnections : bool = False, stepLength_sec : float = 0.001):
+    def __init__(self, stepLength_sec : float = 0.001):
         """Initialize the Simulator controller.
 
         Raises
@@ -57,6 +58,9 @@ class SimulatorController():
         raise NotImplementedError()
 
     def getJointsState(self, jointNames : List[str]) -> Dict[str,JointState]:
+        raise NotImplementedError()
+
+    def getLinksState(self, linkNames : List[str]) -> Dict[str,gazebo_msgs.msg.LinkState]:
         raise NotImplementedError()
 
     def resetWorld(self):

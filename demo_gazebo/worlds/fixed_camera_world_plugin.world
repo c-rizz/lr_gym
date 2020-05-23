@@ -10,7 +10,7 @@
     <plugin name='gazebo_gym_env' filename='libgazebo_gym_env_plugin.so'/>
 
     <physics name="custom_physics_profile" type="bullet" default="true">
-      <max_step_size>0.001</max_step_size> <!-- do 1ms steps -->
+      <max_step_size>0.0041666</max_step_size> <!-- 240fps, bullet should be optimized for this frequency -->
       <real_time_update_rate>-1</real_time_update_rate> <!-- steps done in each real-time second, -1 does as many as possible-->
     </physics>
 

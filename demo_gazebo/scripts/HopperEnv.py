@@ -143,14 +143,14 @@ class HopperEnv(BaseEnv):
 
         jointStates = self._simulatorController.getJointsState(["torso_to_thigh","thigh_to_leg","leg_to_foot","world_to_mid","mid_to_mid2"])
         state = self._simulatorController.getLinksState(["torso","thigh","leg","foot"])
-        avg_x = (state["torso"].pose.position.x + state["thigh"].pose.position.x + state["leg"].pose.position.x + state["foot"].pose.position.x)/4
+        avg_vel_x = (state["torso"].twist.linear.x + state["thigh"].twist.linear.x + state["leg"].twist.linear.x + state["foot"].twist.linear.x)/4
         #print("torsoState = ",torsoState)
         #print("you ",jointStates["mid_to_mid2"].position)
         observation = np.array([state["torso"].pose.position.z,
                                 jointStates["torso_to_thigh"].position[0],
                                 jointStates["thigh_to_leg"].position[0],
                                 jointStates["leg_to_foot"].position[0],
-                                avg_x,
+                                avg_vel_x,
                                 state["torso"].twist.linear.y,
                                 state["torso"].twist.linear.z,
                                 jointStates["torso_to_thigh"].rate[0],

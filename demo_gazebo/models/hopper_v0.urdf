@@ -57,14 +57,14 @@
     <axis rpy="0 0 0" xyz="1 0 0"/>
     <parent link="world"/>
     <child link="mid"/>
-    <limit effort="10000" lower="-1" upper="1000" velocity="1000"/>
+    <limit effort="10000" lower="-1" upper="1000" velocity="10000"/>
   </joint>
   <joint name="mid_to_mid2" type="prismatic">
     <origin rpy="0 0 0" xyz="0 0 1.23"/>
     <axis rpy="0 0 0" xyz="0 0 1"/>
     <parent link="mid"/>
     <child link="mid2"/>
-    <limit effort="10000" lower="-10" upper="1000" velocity="1000"/>
+    <limit effort="10000" lower="-10" upper="1000" velocity="10000"/>
   </joint>
   <joint name="mid2_to_torso" type="continuous">
     <origin rpy="0 0 0" xyz="0.0 0.0 0"/>
@@ -101,7 +101,7 @@
     <axis rpy="0 0 0" xyz="0 1 0"/>
     <parent link="torso"/>
     <child link="thigh"/>
-    <limit effort="1000" lower="0.0" upper="2.617991667" velocity="0.5"/>
+    <limit effort="1000" lower="0.0" upper="2.617991667" velocity="10000"/>
   </joint>
   <transmission name="torso_to_thigh_tran">
     <type>transmission_interface/SimpleTransmission</type>
@@ -142,7 +142,7 @@
     <parent link="thigh"/>
     <child link="leg"/>
     <axis rpy="0 0 0" xyz="0 1 0"/>
-    <limit effort="1000" lower="0.0" upper="2.617991667" velocity="0.5"/>
+    <limit effort="1000" lower="0.0" upper="2.617991667" velocity="10000"/>
   </joint>
   <transmission name="thigh_to_leg_tran">
     <type>transmission_interface/SimpleTransmission</type>
@@ -157,6 +157,10 @@
     </actuator>
   </transmission>
   <link name="foot">
+    <contact>
+      <!-- PyBullet's way of specifying friction -->
+      <lateral_friction value="1"/>
+    </contact>
     <visual>
       <origin rpy="0 1.570795 0" xyz="0.065 0 0"/>
       <geometry>
@@ -209,7 +213,7 @@
     <parent link="leg"/>
     <child link="foot"/>
     <axis rpy="0 0 0" xyz="0 1 0"/>
-    <limit effort="1000" lower="-0.7853975" upper="0.7853975" velocity="0.5"/>
+    <limit effort="1000" lower="-0.7853975" upper="0.7853975" velocity="10000"/>
   </joint>
   <transmission name="leg_to_foot_tran">
     <type>transmission_interface/SimpleTransmission</type>

@@ -117,8 +117,9 @@ class HopperEnv(BaseEnv):
 
     def _computeReward( self,
                         previousObservation : Tuple[float,float,float,float,float,float,float,float,float,float],
-                        observation : Tuple[float,float,float,float,float,float,float,float,float,float]) -> float:
-        return 1 + observation[self.VEL_X_OBS]
+                        observation : Tuple[float,float,float,float,float,float,float,float,float,float],
+                        action : Tuple[float,float,float]) -> float:
+        return 1 + 2*observation[self.VEL_X_OBS] - 0.003*(action[0]*action[0] + action[1]*action[1] + action[2]*action[2]) # should be more or less the same as openai's hopper_v3
 
 
     def _onResetDone(self) -> None:
@@ -141,16 +142,17 @@ class HopperEnv(BaseEnv):
 
 
         jointStates = self._simulatorController.getJointsState(["torso_to_thigh","thigh_to_leg","leg_to_foot","world_to_mid","mid_to_mid2"])
-        torsoState = self._simulatorController.getLinksState(["torso"])["torso"]
+        state = self._simulatorController.getLinksState(["torso","thigh","leg","foot"])
+        avg_x = (state["torso"].pose.position.x + state["thigh"].pose.position.x + state["leg"].pose.position.x + state["foot"].pose.position.x)/4
         #print("torsoState = ",torsoState)
         #print("you ",jointStates["mid_to_mid2"].position)
-        observation = np.array([torsoState.pose.position.z,
+        observation = np.array([state["torso"].pose.position.z,
                                 jointStates["torso_to_thigh"].position[0],
                                 jointStates["thigh_to_leg"].position[0],
                                 jointStates["leg_to_foot"].position[0],
-                                torsoState.twist.linear.x,
-                                torsoState.twist.linear.y,
-                                torsoState.twist.linear.z,
+                                avg_x,
+                                state["torso"].twist.linear.y,
+                                state["torso"].twist.linear.z,
                                 jointStates["torso_to_thigh"].rate[0],
                                 jointStates["thigh_to_leg"].rate[0],
                                 jointStates["leg_to_foot"].rate[0]])

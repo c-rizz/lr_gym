@@ -124,6 +124,7 @@ class BaseEnv(gym.Env):
         #rospy.loginfo("step()")
 
         if self._framesCounter>=self._maxFramesPerEpisode:
+            rospy.loginfo("Environment reached max duration")
             observation = self._getObservationCached()
             reward = 0
             done = True
@@ -154,7 +155,7 @@ class BaseEnv(gym.Env):
 
         # Assess the situation
         done = self._checkEpisodeEnd(previousObservation, observation)
-        reward = self._computeReward(previousObservation, observation)
+        reward = self._computeReward(previousObservation, observation, action)
 
 
 
@@ -381,7 +382,7 @@ class BaseEnv(gym.Env):
         """
         raise NotImplementedError()
 
-    def _computeReward(self, previousObservation, observation) -> float:
+    def _computeReward(self, previousObservation, observation, action) -> float:
         """To be implemented in subclass.
 
         This method is called during the stepping of the simulation. Just after the simulation has been stepped forward

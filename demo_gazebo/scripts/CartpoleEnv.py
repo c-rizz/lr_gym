@@ -106,7 +106,7 @@ class CartpoleEnv(BaseEnv):
         return done
 
 
-    def _computeReward(self, previousObservation : Tuple[float,float,float,float], observation : Tuple[float,float,float,float]) -> float:
+    def _computeReward(self, previousObservation : Tuple[float,float,float,float], observation : Tuple[float,float,float,float], action : int) -> float:
         return 1
 
 

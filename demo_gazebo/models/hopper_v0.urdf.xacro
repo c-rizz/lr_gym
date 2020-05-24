@@ -44,8 +44,9 @@
 
   <xacro:property name="max_effort" value="1000" />
 
-  <xacro:property name="spawn_height" value="0.02" />
+  <xacro:property name="spawn_height" value="0.001" />
   <xacro:property name="gear" value="200" />
+  <xacro:property name="friction_coefficient" value="1" />
 
 
 
@@ -113,14 +114,14 @@
     <axis xyz="1 0 0" rpy="0 0 0" />
     <parent link="world"/>
     <child link="mid"/>
-    <limit effort="10000" lower="-1" upper="1000" velocity="1000"/>
+    <limit effort="10000" lower="-1" upper="1000" velocity="10000"/>
   </joint>
   <joint name="mid_to_mid2" type="prismatic">
     <origin xyz="0 0 ${torso_length/2 + thigh_length + leg_length + foot_radius + spawn_height}" rpy="0 0 0" />
     <axis xyz="0 0 1" rpy="0 0 0" />
     <parent link="mid"/>
     <child link="mid2"/>
-    <limit effort="10000" lower="-10" upper="1000" velocity="1000"/>
+    <limit effort="10000" lower="-10" upper="1000" velocity="10000"/>
   </joint>
   <joint name="mid2_to_torso" type="continuous">
     <origin xyz="0.0 0.0 0" rpy="0 0 0" /> <!-- joint pose in the parent frame-->
@@ -160,7 +161,7 @@
     <axis xyz="0 1 0" rpy="0 0 0" />
     <parent link="torso"/>
     <child link="thigh"/>
-    <limit effort="${max_effort}" lower="0.0" upper="2.617991667" velocity="1000"/>
+    <limit effort="${max_effort}" lower="0.0" upper="2.617991667" velocity="10000"/>
   </joint>
   <transmission name="torso_to_thigh_tran">
     <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->
@@ -202,7 +203,7 @@
     <parent link="thigh"/>
     <child link="leg"/>
     <axis xyz="0 1 0" rpy="0 0 0" />
-    <limit effort="${max_effort}" lower="0.0" upper="2.617991667" velocity="1000"/>
+    <limit effort="${max_effort}" lower="0.0" upper="2.617991667" velocity="10000"/>
   </joint>
   <transmission name="thigh_to_leg_tran">
     <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->
@@ -222,6 +223,9 @@
 
 
   <link name="foot">
+    <contact> <!-- PyBullet's way of specifying friction -->
+        <lateral_friction value="${friction_coefficient}"/>
+    </contact>
     <visual>
       <origin xyz="${foot_position_x} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
       <geometry>
@@ -268,8 +272,8 @@
     </inertial>
   </link>
   <gazebo reference="foot">
-    <mu1 value="1"/>
-    <mu2 value="1"/>
+    <mu1 value="${friction_coefficient}"/>
+    <mu2 value="${friction_coefficient}"/>
     <material>Gazebo/Grey</material>
   </gazebo>
   <joint name="leg_to_foot" type="revolute">
@@ -277,7 +281,7 @@
     <parent link="leg"/>
     <child link="foot"/>
     <axis xyz="0 1 0" rpy="0 0 0" />
-    <limit effort="${max_effort}" lower="-0.7853975" upper="0.7853975" velocity="1000"/>
+    <limit effort="${max_effort}" lower="-0.7853975" upper="0.7853975" velocity="10000"/>
   </joint>
   <transmission name="leg_to_foot_tran">
     <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->

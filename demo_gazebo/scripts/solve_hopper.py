@@ -29,7 +29,7 @@ def main(usePyBullet : bool = False) -> None:
     #env = gym.make('CartPoleStayUp-v0')
     if usePyBullet:
         stepLength_sec = 1/240
-        PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/hopper.urdf")
+        PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/hopper_v0.urdf")
         simulatorController = PyBulletController(stepLength_sec = stepLength_sec)
     else:
         stepLength_sec = 1/240
@@ -38,7 +38,7 @@ def main(usePyBullet : bool = False) -> None:
     env = HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, renderInStep=False, maxFramesPerEpisode = 20/stepLength_sec)
 
     #setup seeds for reproducibility
-    RANDOM_SEED=20200401
+    RANDOM_SEED=20200524
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
 
@@ -52,7 +52,7 @@ def main(usePyBullet : bool = False) -> None:
 
     print("Learning...")
     t_preLearn = time.time()
-    model.learn(total_timesteps=500000, log_interval=10)
+    model.learn(total_timesteps=1000000, log_interval=10)
     duration_learn = time.time() - t_preLearn
     print("Learned. Took "+str(duration_learn)+" seconds.")
 

@@ -15,8 +15,8 @@ def buildPlaneWorld():
     return planeObjId
 
 def loadModel(modelFilePath : str):
-    #objId = p.loadURDF(modelFilePath)
-    objId = p.loadMJCF(os.path.dirname(os.path.realpath(__file__))+"/../models/hopper.xml")[0]
+    objId = p.loadURDF(modelFilePath)
+    #objId = p.loadMJCF(os.path.dirname(os.path.realpath(__file__))+"/../models/hopper.xml")[0]
 
     p.setPhysicsEngineParameter(numSolverIterations=10)
     p.changeDynamics(objId, -1, linearDamping=0, angularDamping=0)
@@ -32,6 +32,7 @@ def loadModel(modelFilePath : str):
                                 positionGain=0.1,
                                 velocityGain=0.1,
                                 force=0)
+        print("Joint "+str(j)+" dynamics info: "+str(p.getDynamicsInfo(objId,j)))
 
 def buildSimpleEnv(modelFilePath : str):
     start()

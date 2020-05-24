@@ -49,6 +49,8 @@ find_package(gazebo REQUIRED)
 add_message_files(
  FILES
  RenderedCameras.msg
+ JointInfo.msg
+ JointInfoArray.msg
 )
 
 ## Generate services in the 'srv' folder

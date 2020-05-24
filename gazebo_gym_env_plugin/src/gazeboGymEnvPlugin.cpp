@@ -7,6 +7,8 @@
 #include <ros/ros.h>
 #include "gazebo_gym_env_plugin/StepSimulation.h"
 #include "gazebo_gym_env_plugin/RenderCameras.h"
+#include "gazebo_gym_env_plugin/JointInfo.h"
+#include "gazebo_gym_env_plugin/JointInfoArray.h"
 #include <boost/algorithm/string.hpp>
 #include <thread>
 #include <sensor_msgs/fill_image.h>
@@ -189,23 +191,17 @@ namespace gazebo
       this->nodeHandle = std::make_shared<ros::NodeHandle>("~/gym_env_interface");
       //ROS_INFO("Got node handle");
 
+      this->nodeHandle->setCallbackQueue( &callbacksQueue);
 
 
       //Start thread that will handle the service calls
       callbacksThread = std::make_shared<std::thread>(&GazeboGymEnvPlugin::callbacksThreadMain, this);
 
-      ros::AdvertiseServiceOptions step_service_aso = ros::AdvertiseServiceOptions::create<gazebo_gym_env_plugin::StepSimulation>(
-                                                                    stepServiceName,
-                                                                    boost::bind(&GazeboGymEnvPlugin::stepServiceCallback,this,_1,_2),
-                                                                    ros::VoidPtr(), &callbacksQueue);
-      stepService = nodeHandle->advertiseService(step_service_aso);
+
+      stepService = nodeHandle->advertiseService(stepServiceName, &GazeboGymEnvPlugin::stepServiceCallback,this);
       ROS_INFO_STREAM("Advertised service "<<stepServiceName);
 
-      ros::AdvertiseServiceOptions render_service_aso = ros::AdvertiseServiceOptions::create<gazebo_gym_env_plugin::RenderCameras>(
-                                                                    renderServiceName,
-                                                                    boost::bind(&GazeboGymEnvPlugin::renderServiceCallback,this,_1,_2),
-                                                                    ros::VoidPtr(), &callbacksQueue);
-      renderService = nodeHandle->advertiseService(render_service_aso);
+      renderService = nodeHandle->advertiseService(renderServiceName, &GazeboGymEnvPlugin::renderServiceCallback,this);
       ROS_INFO_STREAM("Advertised service "<<renderServiceName);
 
       //world->Physics()->SetSeed(20200413);
@@ -538,6 +534,57 @@ namespace gazebo
 
       res.response_time = ros::WallTime::now().toSec();
       return true;//Must be false only in case we cannot send a response
+    }
+
+
+
+    /**
+     * Gets Position and speed of a joint
+     * @param  jointName The name of the joint
+     * @param  ret       The result is returned here
+     * @return           Positive in case of success, negative in case of error
+     */
+    int getJointInfo(std::string jointName, gazebo_gym_env_plugin::JointInfo& ret)
+    {
+      gazebo::physics::JointPtr joint;
+      for (unsigned int i = 0; i < world->ModelCount(); i ++)
+      {
+        joint = world->ModelByIndex(i)->GetJoint(jointName);
+        if (joint)
+          break;
+      }
+
+      if (!joint)
+        return -1;
+
+      ret.position.clear();
+      ret.position.push_back(joint->Position(0));
+      ret.rate.clear();
+      ret.rate.push_back(joint->GetVelocity(0));
+
+      return 0;
+    }
+
+    /**
+     * Gets position and speed of a set of joints
+     * @param  jointName The names of the joints
+     * @param  ret       The result is returned here (ret.joint_info contains the information in the same order as jointNames)
+     * @return           Positive in case of success, negative in case of error
+     */
+    int getJointInfos(std::vector<std::string> jointNames, gazebo_gym_env_plugin::JointInfoArray& ret)
+    {
+      for(const std::string& jointName : jointNames)
+      {
+        gazebo_gym_env_plugin::JointInfo jointInfo;
+        int r = getJointInfo(jointName, jointInfo);
+        if(r<0)
+        {
+          ROS_WARN_STREAM("Could not get info for joint "<<jointName);
+          return -1;
+        }
+        ret.joint_infos.push_back(jointInfo);
+      }
+      return 0;
     }
 
   };

@@ -21,7 +21,11 @@ class GazeboControllerNoPlugin(SimulatorController):
     Because of this the duration of the simulation steps may not be accurate.
     """
 
-    def __init__(self, usePersistentConnections : bool = False, stepLength_sec : float = 0.001):
+    def __init__(   self,
+                    usePersistentConnections : bool = False,
+                    stepLength_sec : float = 0.001,
+                    jointsToObserve : List[Tuple[str,str]] = [],
+                    camerasToRender : List[str] = []):
         """Initialize the Gazebo controller.
 
         Parameters
@@ -40,7 +44,7 @@ class GazeboControllerNoPlugin(SimulatorController):
             If it fails to find the gazebo services
 
         """
-        super().__init__(stepLength_sec=stepLength_sec)
+        super().__init__(stepLength_sec=stepLength_sec, jointsToObserve=jointsToObserve, camerasToRender=camerasToRender)
 
         self._lastUnpausedTime = 0
         self._episodeSimDuration = 0
@@ -240,10 +244,10 @@ class GazeboControllerNoPlugin(SimulatorController):
 
 
 
-    def setJointsEffort(self, jointTorques : List[Tuple[str,float]]) -> None:
+    def setJointsEffort(self, jointTorques : List[Tuple[str,str,float]]) -> None:
         for command in jointTorques:
-            jointName = command[0]
-            torque = command[1]
+            jointName = command[1]
+            torque = command[2]
             duration_secs = self._stepLength_sec
             secs = int(duration_secs)
             nsecs = int((duration_secs - secs) * 1000000000)
@@ -257,21 +261,23 @@ class GazeboControllerNoPlugin(SimulatorController):
             if not res.success:
                 rospy.logerror("Failed applying effort for joint jointName: "+res.status_message)
 
-    def clearJointsEffort(self, jointNames : List[str]) -> None:
-        for jointName in jointNames:
+    def clearJointsEffort(self, joints : List[Tuple[str,str]]) -> None:
+        for j in joints:
+            jointName = j[1]
             self._clearJointEffortService.call(jointName)
 
 
-
-    def getJointsState(self, jointNames : List[str]) -> Dict[str,JointState]:
+    def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
         ret = {}
-        for jointName in jointNames:
-            jointProp = self._getJointPropertiesService.call(jointName)
+        for i in range(len(requestedJoints)):
+            jointName = requestedJoints[i][1]
+            modelName = requestedJoints[i][0]
+            jointProp = self._getJointPropertiesService.call(jointName) ## TODO: this ignores the model name!
             #print("Got joint prop for "+jointName+" =",jointProp)
             jointState = JointState()
             jointState.position = list(jointProp.position)
             jointState.rate = list(jointProp.rate)
-            ret[jointName] = jointState
+            ret[(modelName,jointName)] = jointState
 
         return ret
 

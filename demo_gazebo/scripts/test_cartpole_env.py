@@ -55,7 +55,7 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
     totalSimTime = 0
 
     #do an average over a bunch of episodes
-    for episode in tqdm.tqdm(range(0,20)):
+    for episode in tqdm.tqdm(range(0,100)):
         frame = 0
         episodeReward = 0
         done = False

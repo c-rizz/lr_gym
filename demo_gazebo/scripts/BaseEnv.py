@@ -33,7 +33,6 @@ class BaseEnv(gym.Env):
 
     def __init__(self, usePersistentConnections : bool = False,
                  maxFramesPerEpisode : int = 500,
-                 renderInStep : bool = True,
                  stepLength_sec : float = 0.05,
                  simulatorController = None):
         """Short summary.
@@ -49,9 +48,6 @@ class BaseEnv(gym.Env):
         maxFramesPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
-        renderInStep : bool
-            Performs the rendering within the step call to reduce overhead
-            Disable this if you don't need the rendering
         stepLength_sec : float
             Duration in seconds of each simulation step. Lower values will lead to
             slower simulation. This value should be kept higher than the gazebo
@@ -77,7 +73,6 @@ class BaseEnv(gym.Env):
         self._lastStepEndSimTime = -1
         self._cumulativeImagesAge = 0
         self._stepLength_sec = stepLength_sec
-        self._renderInStep = renderInStep
         self._simulatorController = simulatorController
         self._simTime = 0
         self._lastStepGotObservation = -1
@@ -142,7 +137,7 @@ class BaseEnv(gym.Env):
         # Step the environment
         self._lastStepStartSimTime = rospy.get_time()
         t_preStep = time.time()
-        self._simulatorController.step(performRendering=self._renderInStep)
+        self._simulatorController.step()
         self._simStepDurationAverage.addValue(newValue = time.time()-t_preStep)
         self._framesCounter+=1
         self._simTime += self._stepLength_sec

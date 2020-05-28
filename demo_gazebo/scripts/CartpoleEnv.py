@@ -73,10 +73,10 @@ class CartpoleEnv(BaseEnv):
 
         super().__init__(usePersistentConnections = usePersistentConnections,
                          maxFramesPerEpisode = maxFramesPerEpisode,
-                         renderInStep = renderInStep,
                          stepLength_sec = stepLength_sec,
                          simulatorController = simulatorController)
 
+        self._simulatorController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
 
 
     def _performAction(self, action : int) -> None:
@@ -87,7 +87,7 @@ class CartpoleEnv(BaseEnv):
         else:
             raise AttributeError("action can only be 1 or 0")
 
-        self._simulatorController.setJointsEffort(jointTorques = [("foot_joint", direction * 20)])
+        self._simulatorController.setJointsEffort(jointTorques = [("cartpole_v0","foot_joint", direction * 20)])
 
 
 
@@ -111,7 +111,7 @@ class CartpoleEnv(BaseEnv):
 
 
     def _onResetDone(self) -> None:
-        self._simulatorController.clearJointsEffort(["foot_joint","cartpole_joint"])
+        self._simulatorController.clearJointsEffort([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
 
 
     def _getCameraToRenderName(self) -> str:
@@ -130,16 +130,16 @@ class CartpoleEnv(BaseEnv):
 
 
         t0 = time.time()
-        states = self._simulatorController.getJointsState(jointNames=["foot_joint","cartpole_joint"])
+        states = self._simulatorController.getJointsState(requestedJoints=[("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
         #print("states['foot_joint'] = "+str(states["foot_joint"]))
         #print("Got joint state "+str(states))
         t1 = time.time()
         rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
 
-        observation = ( states["foot_joint"].position[0],
-                        states["foot_joint"].rate[0],
-                        states["cartpole_joint"].position[0],
-                        states["cartpole_joint"].rate[0])
+        observation = ( states[("cartpole_v0","foot_joint")].position[0],
+                        states[("cartpole_v0","foot_joint")].rate[0],
+                        states[("cartpole_v0","cartpole_joint")].position[0],
+                        states[("cartpole_v0","cartpole_joint")].rate[0])
 
         #print(observation)
 

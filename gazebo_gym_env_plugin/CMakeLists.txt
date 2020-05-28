@@ -14,6 +14,9 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   std_srvs
   sensor_msgs
+  genmsg
+  actionlib_msgs
+  actionlib
 )
 
 
@@ -50,7 +53,9 @@ add_message_files(
  FILES
  RenderedCameras.msg
  JointInfo.msg
- JointInfoArray.msg
+ JointId.msg
+ JointsInfoResponse.msg
+ JointEffortRequest.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -60,18 +65,17 @@ add_service_files(
   RenderCameras.srv
 )
 
-## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
+add_action_files(
+  DIRECTORY action FILES
+  GetJointsInfo.action
+)
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
   std_msgs
   sensor_msgs
+  actionlib_msgs
 )
 
 ################################################

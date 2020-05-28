@@ -86,10 +86,13 @@ class HopperEnv(BaseEnv):
         #print("HopperEnv: action_space = "+str(self.action_space))
         super().__init__(usePersistentConnections = usePersistentConnections,
                          maxFramesPerEpisode = maxFramesPerEpisode,
-                         renderInStep = renderInStep,
                          stepLength_sec = stepLength_sec,
                          simulatorController = simulatorController)
         #print("HopperEnv: action_space = "+str(self.action_space))
+        self._simulatorController.setJointsToObserve([  ("hopper","torso_to_thigh"),
+                                                        ("hopper","thigh_to_leg"),
+                                                        ("hopper","leg_to_foot")])
+
 
     def _performAction(self, action : Tuple[float,float,float]) -> None:
 
@@ -97,9 +100,9 @@ class HopperEnv(BaseEnv):
             raise AttributeError("Action must have length 3, it is "+str(action))
 
         unnormalizedAction = (action[0]*self.MAX_TORQUE,action[1]*self.MAX_TORQUE,action[2]*self.MAX_TORQUE)
-        self._simulatorController.setJointsEffort([ ("torso_to_thigh",unnormalizedAction[0]),
-                                                    ("thigh_to_leg",unnormalizedAction[1]),
-                                                    ("leg_to_foot",unnormalizedAction[2])])
+        self._simulatorController.setJointsEffort([ ("hopper","torso_to_thigh",unnormalizedAction[0]),
+                                                    ("hopper","thigh_to_leg",unnormalizedAction[1]),
+                                                    ("hopper","leg_to_foot",unnormalizedAction[2])])
 
 
     def _checkEpisodeEnd(self, previousObservation : Tuple[float,float,float,float,float,float,float,float,float,float], observation : Tuple[float,float,float,float,float,float,float,float,float,float]) -> bool:
@@ -123,7 +126,9 @@ class HopperEnv(BaseEnv):
 
 
     def _onResetDone(self) -> None:
-        self._simulatorController.clearJointsEffort(["torso_to_thigh","thigh_to_leg","leg_to_foot"])
+        self._simulatorController.clearJointsEffort([("hopper","torso_to_thigh"),
+                                                     ("hopper","thigh_to_leg"),
+                                                     ("hopper","leg_to_foot")])
 
 
     def _getCameraToRenderName(self) -> str:
@@ -141,21 +146,23 @@ class HopperEnv(BaseEnv):
         """
 
 
-        jointStates = self._simulatorController.getJointsState(["torso_to_thigh","thigh_to_leg","leg_to_foot","world_to_mid","mid_to_mid2"])
+        jointStates = self._simulatorController.getJointsState([("hopper","torso_to_thigh"),
+                                                                ("hopper","thigh_to_leg"),
+                                                                ("hopper","leg_to_foot")])
         state = self._simulatorController.getLinksState(["torso","thigh","leg","foot"])
         avg_vel_x = (state["torso"].twist.linear.x + state["thigh"].twist.linear.x + state["leg"].twist.linear.x + state["foot"].twist.linear.x)/4
         #print("torsoState = ",torsoState)
         #print("you ",jointStates["mid_to_mid2"].position)
         observation = np.array([state["torso"].pose.position.z,
-                                jointStates["torso_to_thigh"].position[0],
-                                jointStates["thigh_to_leg"].position[0],
-                                jointStates["leg_to_foot"].position[0],
+                                jointStates[("hopper","torso_to_thigh")].position[0],
+                                jointStates[("hopper","thigh_to_leg")].position[0],
+                                jointStates[("hopper","leg_to_foot")].position[0],
                                 avg_vel_x,
                                 state["torso"].twist.linear.y,
                                 state["torso"].twist.linear.z,
-                                jointStates["torso_to_thigh"].rate[0],
-                                jointStates["thigh_to_leg"].rate[0],
-                                jointStates["leg_to_foot"].rate[0]])
+                                jointStates[("hopper","torso_to_thigh")].rate[0],
+                                jointStates[("hopper","thigh_to_leg")].rate[0],
+                                jointStates[("hopper","leg_to_foot")].rate[0]])
 
         #rospy.loginfo("Observation = " +str(observation))
 

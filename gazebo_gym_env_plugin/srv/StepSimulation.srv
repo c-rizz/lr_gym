@@ -17,6 +17,12 @@ bool render
 # cameras to be rendered (only used if render==true)
 string[] cameras
 
+# Joints to return the state of
+gazebo_gym_env_plugin/JointId[] requested_joints
+
+# Effort to apply during this step
+gazebo_gym_env_plugin/JointEffortRequest[] joint_effort_requests
+
 # Wall time at which the request was made
 float64 request_time
 ---
@@ -38,3 +44,6 @@ float64 response_time
 
 # Rendering of the cameras (if requested with request.render)
 RenderedCameras render_result
+
+# State of the joints as requested in request.requestedJoints
+gazebo_gym_env_plugin/JointsInfoResponse joints_info

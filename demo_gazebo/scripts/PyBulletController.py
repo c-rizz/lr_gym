@@ -99,20 +99,20 @@ class PyBulletController(SimulatorController):
         p.stepSimulation()
 
 
-    def render(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
+    def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
         raise NotImplementedError("Rendering is not supported for PyBullet")
 
 
 
-    def setJointsEffort(self, jointTorques : List[Tuple[str,float]]) -> None:
+    def setJointsEffort(self, jointTorques : List[Tuple[str,str,float]]) -> None:
         #For each bodyId I submit a request for joint motor control
         requests = {}
         for jt in jointTorques:
-            bodyId, jointId = self._getBodyAndJointId(jt[0])
+            bodyId, jointId = self._getBodyAndJointId(jt[1])
             if bodyId not in requests: #If we haven't created a request for this body yet
                 requests[bodyId] = ([],[])
             requests[bodyId][0].append(jointId) #requested jont
-            requests[bodyId][1].append(jt[1]) #requested torque
+            requests[bodyId][1].append(jt[2]) #requested torque
 
         for bodyId in requests.keys():
             p.setJointMotorControlArray(bodyIndex=bodyId,
@@ -121,15 +121,15 @@ class PyBulletController(SimulatorController):
                                         forces=requests[bodyId][1])
 
 
-    def clearJointsEffort(self, jointNames : List[str]) -> None:
+    def clearJointsEffort(self, joints : List[Tuple[str,str]]) -> None:
         jointTorques = []
-        for jointName in jointNames:
-            jointTorques.append((jointName,0,0))
+        for j in joints:
+            jointTorques.append((j[0],j[1],0))
         self.setJointsEffort(jointTorques)
 
 
-
-    def getJointsState(self, jointNames : List[str]) -> Dict[str,JointState]:
+    def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
+        jointNames = [x[1] for x in requestedJoints] ## TODO: actually search for the body name
         #For each bodyId I submit a request for joint state
         requests = {} #for each body id we will have a list of joints
         for jn in jointNames:
@@ -146,7 +146,8 @@ class PyBulletController(SimulatorController):
                 jointState = JointState()
                 jointState.position = [bodyStates[i][0]]
                 jointState.rate = [bodyStates[i][1]]
-                allStates[self._getJointName(bodyId,jointId)] = jointState
+                bodyName = p.getBodyInfo(bodyId)
+                allStates[bodyName,self._getJointName(bodyId,jointId)] = jointState
 
 
         return allStates

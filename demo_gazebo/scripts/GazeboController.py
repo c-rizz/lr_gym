@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 from typing import List
+from typing import Tuple
+from typing import Dict
 import time
 
 import rospy
 import gazebo_gym_env_plugin.srv
+import gazebo_gym_env_plugin.msg
 import sensor_msgs
 
 
 from GazeboControllerNoPlugin import GazeboControllerNoPlugin
+from utils import JointState
 
 class GazeboController(GazeboControllerNoPlugin):
     """This class allows to control the execution of the Gazebo simulation.
@@ -15,7 +19,17 @@ class GazeboController(GazeboControllerNoPlugin):
     It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
     """
 
-    def __init__(self, usePersistentConnections : bool = False, stepLength_sec : float = 0.001):
+    class _SimState:
+        stepNumber = -1
+        jointsState = {} # key = (model_name, joint_name), value=gazebo_gym_env_plugin.JointInfo
+        linksState = {}
+        cameraRenders = {} # key = camera_name, value = (sensor_msgs.Image, sensor_msgs.CameraInfo)
+
+    def __init__(   self,
+                    usePersistentConnections : bool = False,
+                    stepLength_sec : float = 0.001,
+                    jointsToObserve : List[Tuple[str,str]] = [],
+                    camerasToRender : List[str] = []):
         """Initialize the Gazebo controller.
 
         Parameters
@@ -40,7 +54,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
         """
 
-        super().__init__(stepLength_sec=stepLength_sec)
+        super().__init__(stepLength_sec=stepLength_sec, jointsToObserve=jointsToObserve, camerasToRender=camerasToRender)
 
         #self._stepGazeboServiceName = "/gazebo/gym_env_interface/step"
         #self._renderGazeboServiceName = "/gazebo/gym_env_interface/render"
@@ -63,24 +77,19 @@ class GazeboController(GazeboControllerNoPlugin):
         self._stepGazeboService   = rospy.ServiceProxy(serviceNames["step"], gazebo_gym_env_plugin.srv.StepSimulation, persistent=usePersistentConnections)
         self._renderGazeboService   = rospy.ServiceProxy(serviceNames["render"], gazebo_gym_env_plugin.srv.RenderCameras, persistent=usePersistentConnections)
 
+        self._simulationState = GazeboController._SimState()
+        self._jointEffortsToRequest = []
 
-    def step(self, performRendering : bool = False, camerasToRender : List[str] = []) -> None:
-        """Run the simulation for the specified time.
+
+    def step(self) -> None:
+        """Run the simulation for the step time and optionally get some information.
 
         Parameters
         ----------
-        runTime_secs : float
-            Time to run the simulation for, in seconds
-
-        Returns
-        -------
-        None
-
-
-        Raises
-        -------
-        ExceptionName
-            Why the exception is raised.
+        performRendering : bool
+            Set to true to get camera renderings
+        camerasToRender : List[str]
+            Names of the cameras to get renderings of
 
         """
 
@@ -92,11 +101,24 @@ class GazeboController(GazeboControllerNoPlugin):
         request = gazebo_gym_env_plugin.srv.StepSimulationRequest()
         request.step_duration_secs = self._stepLength_sec
         request.request_time = time.time()
-        if performRendering:
+        if len(self._camerasToRender)>0:
             #rospy.loginfo("Performing rendering within step")
             request.render = True
-            request.cameras = camerasToRender
+            request.cameras = self._camerasToRender
+        if len(self._jointsToObserve)>0:
+            request.requested_joints = []
+            for j in self._jointsToObserve:
+                jointId = gazebo_gym_env_plugin.msg.JointId()
+                jointId.joint_name = j[1]
+                jointId.model_name = j[0]
+                request.requested_joints.append(jointId)
+
+        request.joint_effort_requests = self._jointEffortsToRequest
+        #print("Step request = "+str(request))
+
         response = self._stepGazeboService.call(request)
+
+        #print("Step response = "+str(response))
 
         #t3 = rospy.get_time()
         tf_real = time.time()
@@ -108,43 +130,71 @@ class GazeboController(GazeboControllerNoPlugin):
 
         #rospy.loginfo("Transfer time of stepping response = "+str(time.time()-response.response_time))
 
-        if performRendering:
-            self._lastStepRendered = self._stepsTaken
-            self._lastRenderResult = response.render_result
+        self._simulationState.stepNumber = self._stepsTaken
 
+        if len(self._camerasToRender)>0:
+            if not response.render_result.success:
+                rospy.logerr("Error getting renderings: "+response.render_result.error_message)
+            for i in range(len(response.camera_names)):
+                self._simulationState.cameraRenders[response.render_result.camera_names[i]] = (response.render_result.images[i],response.render_result.camera_infos[i])
+
+        if len(self._jointsToObserve)>0:
+            if not response.joints_info.success:
+                rospy.logerr("Error getting joint information: "+response.joints_info.error_message)
+            for ji in response.joints_info.joints_info:
+                self._simulationState.jointsState[(ji.joint_id.model_name,ji.joint_id.joint_name)] = ji
+
+        #print("Step done, joint state = "+str(self._simulationState.jointsState))
         if not response.success:
             rospy.logerror("Simulation stepping failed")
 
-    def render(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
-
-        if self._lastStepRendered == self._stepsTaken: #If we already have arendering for this timestep
-            #rospy.loginfo("Threse is a rendering for this timestep...")
-            images = []
-            for c in requestedCameras:
-                #rospy.loginfo("Searching for camera '"+str(c)+"' in cache")
-                for i in range(len(self._lastRenderResult.camera_names)): #search for the camera named c
-                    if self._lastRenderResult.camera_names[i]==c:
-                        images.append(self._lastRenderResult.images[i])
-                        #rospy.loginfo("Found camera '"+str(c)+"' in cache")
-            if len(images)==len(requestedCameras): #if all the requested images have been found
-                #rospy.loginfo("Using cached rendering")
-                return images
-            #else:
-            #    rospy.loginfo("Required cameras not available in cache")
-
+    def _performRender(self, requestedCameras : List[str]):
         req = gazebo_gym_env_plugin.srv.RenderCamerasRequest()
         req.cameras=requestedCameras
         req.request_time = time.time()
-        t0 = time.time()
+        #t0 = time.time()
         res = self._renderGazeboService.call(req)
-        t1 = time.time()
-        self._totalRenderTime += t1-t0
-        rospy.loginfo("Transfer time of rendering response = "+str(time.time()-res.response_time))
+        #t1 = time.time()
+        #self._totalRenderTime += t1-t0
+        #rospy.loginfo("Transfer time of rendering response = "+str(time.time()-res.response_time))
 
         if not res.render_result.success:
             rospy.logerror("Error rendering cameras: "+res.render_result.error_message)
 
-        self._lastStepRendered = self._stepsTaken
-        self._lastRenderResult = res.render_result
+        return res.render_result
 
-        return res.render_result.images
+
+    def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
+        if self._simulationState.stepNumber<0: #If no step has ever been done
+            cameraRenders = self._performRender(requestedCameras)
+        else:
+            cameraRenders = self._simulationState.cameraRenders
+
+        ret = []
+        for name in requestedCameras:
+            ret.append(cameraRenders[name][0])
+        return ret
+
+
+    def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
+
+        if self._simulationState.stepNumber<0: #If no step has ever been done
+            return super().getJointsState(requestedJoints)
+
+        ret = {}
+        for rj in requestedJoints:
+            jointInfo = self._simulationState.jointsState[rj]
+            jointState = JointState()
+            jointState.position = list(jointInfo.position)
+            jointState.rate = list(jointInfo.rate)
+            ret[rj] = jointState
+        return ret
+
+    def setJointsEffort(self, jointTorques : List[Tuple[str,str,float]]) -> None:
+        self._jointEffortsToRequest = []
+        for jt in jointTorques:
+            jer = gazebo_gym_env_plugin.msg.JointEffortRequest()
+            jer.joint_id.model_name = jt[0]
+            jer.joint_id.joint_name = jt[1]
+            jer.effort = 2
+            self._jointEffortsToRequest.append(jer)

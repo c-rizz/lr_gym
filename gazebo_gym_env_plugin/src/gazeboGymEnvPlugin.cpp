@@ -3,20 +3,28 @@
 #include "gazebo/sensors/sensors.hh"
 #include "gazebo/rendering/rendering.hh"
 #include "gazebo/common/common.hh"
+
 #include <ros/callback_queue.h>
 #include <ros/ros.h>
-#include "gazebo_gym_env_plugin/StepSimulation.h"
-#include "gazebo_gym_env_plugin/RenderCameras.h"
-#include "gazebo_gym_env_plugin/JointInfo.h"
-#include "gazebo_gym_env_plugin/JointInfoArray.h"
-#include <boost/algorithm/string.hpp>
-#include <thread>
+#include <actionlib/server/simple_action_server.h>
 #include <sensor_msgs/fill_image.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
+
+#include "gazebo_gym_env_plugin/StepSimulation.h"
+#include "gazebo_gym_env_plugin/RenderCameras.h"
+#include "gazebo_gym_env_plugin/JointInfo.h"
+#include "gazebo_gym_env_plugin/JointEffortRequest.h"
+#include "gazebo_gym_env_plugin/JointInfoArray.h"
+#include "gazebo_gym_env_plugin/GetJointsInfoAction.h"
+
+#include <boost/algorithm/string.hpp>
+#include <thread>
 #include <mutex>
 #include <chrono>
 #include <functional>
+#include <string>
+
 #include "utils.hpp"
 
 namespace gazebo
@@ -114,6 +122,7 @@ namespace gazebo
 
     std::shared_ptr<ros::NodeHandle> nodeHandle;
     event::ConnectionPtr renderConnection;//conected gazebo events
+    event::ConnectionPtr applyJointEffortsCallback;
     std::shared_ptr<std::thread> callbacksThread;
     ros::CallbackQueue callbacksQueue;
     physics::WorldPtr world;
@@ -129,6 +138,8 @@ namespace gazebo
     ros::ServiceServer renderService;
     const std::string renderServiceName = "render";
 
+    const std::string getJointsInfoActionName = "get_joints_info";
+
     bool keepServingCallbacks = true;
 
 
@@ -142,6 +153,12 @@ namespace gazebo
     AverageKeeper avgStepRequestDelay;
     AverageKeeper avgSteppingTime;
 
+
+
+
+    std::vector<gazebo_gym_env_plugin::JointEffortRequest> requestedJointEfforts;
+    std::timed_mutex requestedJointEfforts_mutex;
+
   public:
 
     virtual ~GazeboGymEnvPlugin()
@@ -150,6 +167,10 @@ namespace gazebo
       keepServingCallbacks = false;
       callbacksThread->join();
     }
+
+
+
+
 
     /**
      * Loads the plugin setting up the necessary things
@@ -186,7 +207,7 @@ namespace gazebo
       //    - ImageSensorContainer::Update()
       //    - event::Events::render()
       renderConnection = event::Events::ConnectRender(std::bind(&GazeboGymEnvPlugin::renderThreadCallback, this));
-
+      applyJointEffortsCallback = gazebo::event::Events::ConnectWorldUpdateBegin(boost::bind(&GazeboGymEnvPlugin::applyRequestedJointEfforts,this));
 
       this->nodeHandle = std::make_shared<ros::NodeHandle>("~/gym_env_interface");
       //ROS_INFO("Got node handle");
@@ -204,8 +225,18 @@ namespace gazebo
       renderService = nodeHandle->advertiseService(renderServiceName, &GazeboGymEnvPlugin::renderServiceCallback,this);
       ROS_INFO_STREAM("Advertised service "<<renderServiceName);
 
+
       //world->Physics()->SetSeed(20200413);
     }
+
+
+
+
+
+
+
+
+
 
   private:
 
@@ -405,6 +436,164 @@ namespace gazebo
     }
 
 
+    /**
+     * Check if the specified joint exists
+     * @param  jointId Joint to check
+     * @return         true if it exists
+     */
+    bool doesJointExist(const gazebo_gym_env_plugin::JointId& jointId)
+    {
+        gazebo::physics::ModelPtr model = world->ModelByName(jointId.model_name);
+        if (!model)
+          return false;
+        gazebo::physics::JointPtr joint = model->GetJoint(jointId.joint_name);
+        if (!joint)
+          return false;
+        return true;
+    }
+
+
+    /**
+     * Gets Position and speed of a joint
+     * @param  jointId   The joint to get the information for
+     * @param  ret       The result is returned here
+     * @return           Positive in case of success, negative in case of error
+     */
+    int getJointInfo(const gazebo_gym_env_plugin::JointId& jointId, gazebo_gym_env_plugin::JointInfo& ret)
+    {
+
+      gazebo::physics::ModelPtr model = world->ModelByName(jointId.model_name);
+      if (!model)
+        return -1;
+      gazebo::physics::JointPtr joint = model->GetJoint(jointId.joint_name);
+      if (!joint)
+        return -2;
+
+      ret.joint_id = jointId;
+      ret.position.clear();
+      ret.position.push_back(joint->Position(0));
+      ret.rate.clear();
+      ret.rate.push_back(joint->GetVelocity(0));
+
+      return 0;
+    }
+
+    /**
+     * Gets position and speed of a set of joints
+     * @param  jointIds  The joints to get the information for
+     * @param  ret       The result is returned here (the returned joints are n the same order as in jointIds)
+     * @return           Positive in case of success, negative in case of error
+     */
+    void getJointsInfo(std::vector<gazebo_gym_env_plugin::JointId> jointIds, gazebo_gym_env_plugin::JointsInfoResponse& ret)
+    {
+      ret.error_message = "";
+      for(const gazebo_gym_env_plugin::JointId& jointId : jointIds)
+      {
+        ROS_INFO_STREAM("Getting joint info for "<<jointId.model_name<<"."<<jointId.joint_name);
+        gazebo_gym_env_plugin::JointInfo jointInfo;
+        int r = getJointInfo(jointId, jointInfo);
+        if(r<0)
+        {
+          ret.success=false;
+          ret.error_message = ret.error_message + "Could not get info for joint " + jointId.model_name + "." + jointId.joint_name+". ";
+          ROS_WARN_STREAM(ret.error_message);
+        }
+        ret.joints_info.push_back(jointInfo);
+      }
+      ret.success=true;
+      ret.error_message="No Error";
+    }
+
+
+    /**
+     * Set the effort to be applied on a joint in the next timestep
+     * @param  jointId Identifier for the joint
+     * @param  effort  Effort to be applied (force or torque depending on the joint type)
+     * @return         0 if successfult, negative otherwise
+     */
+    int setJointEffort(const gazebo_gym_env_plugin::JointId& jointId, double effort)
+    {
+      gazebo::physics::ModelPtr model = world->ModelByName(jointId.model_name);
+      if (!model)
+        return -1;
+      gazebo::physics::JointPtr joint = model->GetJoint(jointId.joint_name);
+      if (!joint)
+        return -2;
+
+      joint->SetForce(0,effort); //TODO: do something for joints with more than 1 DOF
+      return 0;
+    }
+
+    /**
+     * Applies the efforts requested by requestJointEffort()
+     * @return 0 if successfult, negative if any joint effort request failed
+     */
+    int applyRequestedJointEfforts()
+    {
+      std::unique_lock<std::timed_mutex> lk(requestedJointEfforts_mutex,std::chrono::seconds(5));
+      if(!lk)
+      {
+        ROS_ERROR_STREAM("Failed to acquire mutex in "<<__func__<<", aborting");
+        return -1;
+      }
+      //ROS_INFO("Appling efforts");
+      int ret = 0;
+      for(const gazebo_gym_env_plugin::JointEffortRequest& jer : requestedJointEfforts)
+      {
+        int r = setJointEffort(jer.joint_id,jer.effort);
+        if(r<0)
+        {
+          ROS_ERROR_STREAM("Failed to apply effort to joint "<<jer.joint_id.model_name<<"."<<jer.joint_id.joint_name);
+          ret = -2;
+        }
+      }
+      return ret;
+    }
+
+    /**
+     * Request a joint effort to be applied on the next timestep
+     * @param  request Joint effort request
+     * @return         0 if successful
+     */
+    int requestJointEffort(const gazebo_gym_env_plugin::JointEffortRequest& request)
+    {
+      std::unique_lock<std::timed_mutex> lk(requestedJointEfforts_mutex,std::chrono::seconds(5));
+      if(!lk)
+      {
+        ROS_ERROR_STREAM("Failed to acquire mutex in "<<__func__<<", aborting");
+        return -1;
+      }
+      requestedJointEfforts.push_back(request);
+      return 0;
+    }
+
+    /**
+     * Clear requests made via requestJointEffort()
+     * @return         0 if successful
+     */
+    int clearRequestedJointEfforts()
+    {
+      std::unique_lock<std::timed_mutex> lk(requestedJointEfforts_mutex,std::chrono::seconds(5));
+      if(!lk)
+      {
+        ROS_ERROR_STREAM("Failed to acquire mutex in "<<__func__<<", aborting");
+        return -1;
+      }
+      requestedJointEfforts.clear();
+      return 0;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -474,6 +663,33 @@ namespace gazebo
       avgStepRequestDelay.addValue(delay_secs);
       //ROS_INFO_STREAM("Stepping simulation. Service request delay = "<<delay_secs);
 
+
+
+      res.success = false;
+      res.iterations_done = 0;
+      res.step_duration_done_secs = 0;
+      for(const gazebo_gym_env_plugin::JointEffortRequest& jer : req.joint_effort_requests)
+      {
+        if(!doesJointExist(jer.joint_id))
+        {
+          res.error_message = "Requested effort for non-existing joint "+jer.joint_id.model_name+"."+jer.joint_id.joint_name+", aborting step";
+          res.response_time = ros::WallTime::now().toSec();
+          ROS_WARN_STREAM(res.error_message);
+          return true;//must return false only if we cannot send a response
+        }
+      }
+      for(const gazebo_gym_env_plugin::JointId& jid : req.requested_joints)
+      {
+        if(!doesJointExist(jid))
+        {
+          res.error_message = "Requested state for non-existing joint "+jid.model_name+"."+jid.joint_name+", aborting step";
+          res.response_time = ros::WallTime::now().toSec();
+          ROS_WARN_STREAM(res.error_message);
+          return true;//must return false only if we cannot send a response
+        }
+      }
+
+
       int requestedIterations = -1;
       if(req.step_duration_secs!=0)
         requestedIterations = req.step_duration_secs/world->Physics()->GetMaxStepSize();
@@ -482,11 +698,25 @@ namespace gazebo
 
       common::Time startTime = world->SimTime();
 
+
+      for(const gazebo_gym_env_plugin::JointEffortRequest& jer : req.joint_effort_requests)
+      {
+        requestJointEffort(jer);
+      }
+
+
+
       int iterationsBefore = world->Iterations();
       //ROS_INFO("Stepping simulation...");
       avgSteppingTime.onTaskStart();
       world->Step(requestedIterations);
       avgSteppingTime.onTaskEnd();
+
+
+      clearRequestedJointEfforts();
+
+
+
 
       common::Time endTime = world->SimTime();
 
@@ -503,6 +733,9 @@ namespace gazebo
       {
         renderCameras(req.cameras,res.render_result);
       }
+
+      if(req.requested_joints.size()>0)
+        getJointsInfo(req.requested_joints,res.joints_info);
 
       //Print timing info
       ROS_INFO_STREAM("-------------------------------------------------");
@@ -536,56 +769,6 @@ namespace gazebo
       return true;//Must be false only in case we cannot send a response
     }
 
-
-
-    /**
-     * Gets Position and speed of a joint
-     * @param  jointName The name of the joint
-     * @param  ret       The result is returned here
-     * @return           Positive in case of success, negative in case of error
-     */
-    int getJointInfo(std::string jointName, gazebo_gym_env_plugin::JointInfo& ret)
-    {
-      gazebo::physics::JointPtr joint;
-      for (unsigned int i = 0; i < world->ModelCount(); i ++)
-      {
-        joint = world->ModelByIndex(i)->GetJoint(jointName);
-        if (joint)
-          break;
-      }
-
-      if (!joint)
-        return -1;
-
-      ret.position.clear();
-      ret.position.push_back(joint->Position(0));
-      ret.rate.clear();
-      ret.rate.push_back(joint->GetVelocity(0));
-
-      return 0;
-    }
-
-    /**
-     * Gets position and speed of a set of joints
-     * @param  jointName The names of the joints
-     * @param  ret       The result is returned here (ret.joint_info contains the information in the same order as jointNames)
-     * @return           Positive in case of success, negative in case of error
-     */
-    int getJointInfos(std::vector<std::string> jointNames, gazebo_gym_env_plugin::JointInfoArray& ret)
-    {
-      for(const std::string& jointName : jointNames)
-      {
-        gazebo_gym_env_plugin::JointInfo jointInfo;
-        int r = getJointInfo(jointName, jointInfo);
-        if(r<0)
-        {
-          ROS_WARN_STREAM("Could not get info for joint "<<jointName);
-          return -1;
-        }
-        ret.joint_infos.push_back(jointInfo);
-      }
-      return 0;
-    }
 
   };
 

@@ -47,7 +47,7 @@ class HopperEnv(BaseEnv):
     def __init__(   self,
                     usePersistentConnections : bool = False,
                     maxFramesPerEpisode : int = 500,
-                    renderInStep : bool = True,
+                    render : bool = False,
                     stepLength_sec : float = 0.05,
                     simulatorController : SimulatorController = None):
         """Short summary.
@@ -63,8 +63,8 @@ class HopperEnv(BaseEnv):
         maxFramesPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
-        renderInStep : bool
-            Performs the rendering within the step call to reduce overhead
+        render : bool
+            Perform rendering at each timestep
             Disable this if you don't need the rendering
         stepLength_sec : float
             Duration in seconds of each simulation step. Lower values will lead to
@@ -92,6 +92,12 @@ class HopperEnv(BaseEnv):
         self._simulatorController.setJointsToObserve([  ("hopper","torso_to_thigh"),
                                                         ("hopper","thigh_to_leg"),
                                                         ("hopper","leg_to_foot")])
+
+        self._simulatorController.setLinksToObserve([("hopper","torso"),("hopper","thigh"),("hopper","leg"),("hopper","foot")])
+
+        self._renderingEnabled = render
+        if self._renderingEnabled:
+            self._simulatorController.setCamerasToRender(["camera"])
 
 
     def _performAction(self, action : Tuple[float,float,float]) -> None:
@@ -149,17 +155,23 @@ class HopperEnv(BaseEnv):
         jointStates = self._simulatorController.getJointsState([("hopper","torso_to_thigh"),
                                                                 ("hopper","thigh_to_leg"),
                                                                 ("hopper","leg_to_foot")])
-        state = self._simulatorController.getLinksState(["torso","thigh","leg","foot"])
-        avg_vel_x = (state["torso"].twist.linear.x + state["thigh"].twist.linear.x + state["leg"].twist.linear.x + state["foot"].twist.linear.x)/4
+        state = self._simulatorController.getLinksState([("hopper","torso"),
+                                                         ("hopper","thigh"),
+                                                         ("hopper","leg"),
+                                                         ("hopper","foot")])
+        avg_vel_x = (   state[("hopper","torso")].twist.linear.x +
+                        state[("hopper","thigh")].twist.linear.x +
+                        state[("hopper","leg")].twist.linear.x   +
+                        state[("hopper","foot")].twist.linear.x)/4
         #print("torsoState = ",torsoState)
         #print("you ",jointStates["mid_to_mid2"].position)
-        observation = np.array([state["torso"].pose.position.z,
+        observation = np.array([state[("hopper","torso")].pose.position.z,
                                 jointStates[("hopper","torso_to_thigh")].position[0],
                                 jointStates[("hopper","thigh_to_leg")].position[0],
                                 jointStates[("hopper","leg_to_foot")].position[0],
                                 avg_vel_x,
-                                state["torso"].twist.linear.y,
-                                state["torso"].twist.linear.z,
+                                state[("hopper","torso")].twist.linear.y,
+                                state[("hopper","torso")].twist.linear.z,
                                 jointStates[("hopper","torso_to_thigh")].rate[0],
                                 jointStates[("hopper","thigh_to_leg")].rate[0],
                                 jointStates[("hopper","leg_to_foot")].rate[0]])

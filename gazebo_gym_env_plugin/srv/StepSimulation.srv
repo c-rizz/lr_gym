@@ -20,6 +20,9 @@ string[] cameras
 # Joints to return the state of
 gazebo_gym_env_plugin/JointId[] requested_joints
 
+# Links to return the state of
+gazebo_gym_env_plugin/LinkId[] requested_links
+
 # Effort to apply during this step
 gazebo_gym_env_plugin/JointEffortRequest[] joint_effort_requests
 
@@ -45,5 +48,8 @@ float64 response_time
 # Rendering of the cameras (if requested with request.render)
 RenderedCameras render_result
 
-# State of the joints as requested in request.requestedJoints
+# State of the joints as requested in request.requested_joints
 gazebo_gym_env_plugin/JointsInfoResponse joints_info
+
+# State of the links as requested in request.requested_links
+gazebo_gym_env_plugin/LinksInfoResponse links_info

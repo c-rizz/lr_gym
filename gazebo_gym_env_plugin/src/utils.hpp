@@ -1,3 +1,6 @@
+#ifndef UTILS_HPP_CRZZ_20200528
+#define UTILS_HPP_CRZZ_20200528
+
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <gazebo/gazebo.hh>
@@ -29,3 +32,5 @@ public:
 std::string getCameraRosEncoding(std::shared_ptr<gazebo::sensors::CameraSensor> sensor);
 
 unsigned int getCameraPixelBytes(std::shared_ptr<gazebo::sensors::CameraSensor> sensor);
+
+#endif

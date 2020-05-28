@@ -247,7 +247,7 @@ class BaseEnv(gym.Env):
         cameraName = self._getCameraToRenderName()
 
         #t0 = time.time()
-        cameraImage = self._simulatorController.render([cameraName])[0]
+        cameraImage = self._simulatorController.getRenderings([cameraName])[0]
         if cameraImage is None:
             rospy.logerr("No camera image received. render() will return and empty image.")
             return np.empty([0,0,3])

@@ -52,9 +52,15 @@ find_package(gazebo REQUIRED)
 add_message_files(
  FILES
  RenderedCameras.msg
+
  JointInfo.msg
  JointId.msg
  JointsInfoResponse.msg
+
+ LinkId.msg
+ LinkInfo.msg
+ LinksInfoResponse.msg
+
  JointEffortRequest.msg
 )
 
@@ -126,7 +132,7 @@ include_directories(
 )
 
 ## Declare a C++ library
-add_library(gazebo_gym_env_plugin SHARED src/gazeboGymEnvPlugin.cpp src/utils.cpp)
+add_library(gazebo_gym_env_plugin SHARED src/gazeboGymEnvPlugin.cpp src/utils.cpp src/RenderingHelper.cpp src/JointEffortControl.cpp)
 add_dependencies(gazebo_gym_env_plugin ${PROJECT_NAME}_generate_messages_cpp )
 
 ## Add cmake target dependencies of the library

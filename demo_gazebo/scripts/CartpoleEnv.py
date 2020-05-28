@@ -35,7 +35,7 @@ class CartpoleEnv(BaseEnv):
     def __init__(   self,
                     usePersistentConnections : bool = False,
                     maxFramesPerEpisode : int = 500,
-                    renderInStep : bool = True,
+                    render : bool = False,
                     stepLength_sec : float = 0.05,
                     simulatorController = None):
         """Short summary.
@@ -51,8 +51,8 @@ class CartpoleEnv(BaseEnv):
         maxFramesPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
-        renderInStep : bool
-            Performs the rendering within the step call to reduce overhead
+        render : bool
+            Perform rendering at each timestep
             Disable this if you don't need the rendering
         stepLength_sec : float
             Duration in seconds of each simulation step. Lower values will lead to
@@ -75,8 +75,11 @@ class CartpoleEnv(BaseEnv):
                          maxFramesPerEpisode = maxFramesPerEpisode,
                          stepLength_sec = stepLength_sec,
                          simulatorController = simulatorController)
+        self._renderingEnabled = render
 
         self._simulatorController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
+        if self._renderingEnabled:
+            self._simulatorController.setCamerasToRender(["camera"])
 
 
     def _performAction(self, action : int) -> None:

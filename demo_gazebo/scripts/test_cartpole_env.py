@@ -35,7 +35,7 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
 
 
     #env = gym.make('CartPoleStayUp-v0')
-    env = CartpoleEnv(renderInStep = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController)
+    env = CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController)
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)

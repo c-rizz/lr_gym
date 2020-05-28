@@ -1,0 +1,4 @@
+gazebo_gym_env_plugin/LinkId link_id
+geometry_msgs/Pose pose
+geometry_msgs/Twist twist
+string reference_frame

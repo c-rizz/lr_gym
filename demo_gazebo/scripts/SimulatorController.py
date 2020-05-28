@@ -16,10 +16,7 @@ class SimulatorController():
     It is an abstract class, it is meant to be extended with sub-classes for specific simulators
     """
 
-    def __init__(   self,
-                    stepLength_sec : float = 0.001,
-                    jointsToObserve : List[Tuple[str,str]] = [],
-                    camerasToRender : List[str] = []):
+    def __init__(   self, stepLength_sec : float = 0.001):
         """Initialize the Simulator controller.
 
         Raises
@@ -29,11 +26,12 @@ class SimulatorController():
 
         """
         self._stepLength_sec = stepLength_sec
-        self.setJointsToObserve(jointsToObserve)
-        self.setCamerasToRender(camerasToRender)
+        self.setJointsToObserve([])
+        self.setLinksToObserve([])
+        self.setCamerasToRender([])
 
     def setJointsToObserve(self, jointsToObserve : List[Tuple[str,str]]):
-        """Set which joints should be observed after each simulation step. This information allows for more efficient communication with the simulator
+        """Set which joints should be observed after each simulation step. This information allows for more efficient communication with the simulator.
 
         Parameters
         ----------
@@ -43,8 +41,20 @@ class SimulatorController():
         """
         self._jointsToObserve = jointsToObserve
 
+
+    def setLinksToObserve(self, linksToObserve : List[Tuple[str,str]]):
+        """Set which links should be observed after each simulation step. This information allows for more efficient communication with the simulator.
+
+        Parameters
+        ----------
+        linksToObserve : List[Tuple[str,str]]
+            List of tuples of the format (model_name, link_name)
+
+        """
+        self._linksToObserve = linksToObserve
+
     def setCamerasToRender(self, camerasToRender : List[str] = []):
-        """Set which camera should be rendered after each simulation step. This information allows for more efficient communication with the simulator
+        """Set which camera should be rendered after each simulation step. This information allows for more efficient communication with the simulator.
 
         Parameters
         ----------
@@ -57,23 +67,7 @@ class SimulatorController():
 
 
     def step(self) -> None:
-        """Run the simulation for the specified time.
-
-        Parameters
-        ----------
-
-
-        Returns
-        -------
-        None
-
-
-        Raises
-        -------
-        ExceptionName
-            Why the exception is raised.
-
-        """
+        """Run the simulation for the specified time."""
 
         raise NotImplementedError()
 

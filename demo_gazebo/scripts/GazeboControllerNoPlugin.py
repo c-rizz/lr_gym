@@ -44,7 +44,7 @@ class GazeboControllerNoPlugin(SimulatorController):
             If it fails to find the gazebo services
 
         """
-        super().__init__(stepLength_sec=stepLength_sec, jointsToObserve=jointsToObserve, camerasToRender=camerasToRender)
+        super().__init__(stepLength_sec=stepLength_sec)
 
         self._lastUnpausedTime = 0
         self._episodeSimDuration = 0
@@ -283,9 +283,10 @@ class GazeboControllerNoPlugin(SimulatorController):
 
 
 
-    def getLinksState(self, linkNames : List[str]) -> Dict[str,gazebo_msgs.msg.LinkState]:
+    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],gazebo_msgs.msg.LinkState]:
         ret = {}
-        for linkName in linkNames:
+        for link in requestedLinks:
+            linkName = link[1]
             resp = self._getLinkStateService.call(link_name=linkName)
-            ret[linkName] = resp.link_state
+            ret[link] = resp.link_state
         return ret

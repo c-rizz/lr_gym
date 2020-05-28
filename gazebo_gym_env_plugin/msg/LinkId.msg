@@ -1,2 +1,2 @@
 string model_name
-string joint_name
+string link_name

@@ -8,6 +8,7 @@ import rospy
 import gazebo_gym_env_plugin.srv
 import gazebo_gym_env_plugin.msg
 import sensor_msgs
+import gazebo_msgs
 
 
 from GazeboControllerNoPlugin import GazeboControllerNoPlugin
@@ -28,7 +29,6 @@ class GazeboController(GazeboControllerNoPlugin):
     def __init__(   self,
                     usePersistentConnections : bool = False,
                     stepLength_sec : float = 0.001,
-                    jointsToObserve : List[Tuple[str,str]] = [],
                     camerasToRender : List[str] = []):
         """Initialize the Gazebo controller.
 
@@ -54,7 +54,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
         """
 
-        super().__init__(stepLength_sec=stepLength_sec, jointsToObserve=jointsToObserve, camerasToRender=camerasToRender)
+        super().__init__(stepLength_sec=stepLength_sec)
 
         #self._stepGazeboServiceName = "/gazebo/gym_env_interface/step"
         #self._renderGazeboServiceName = "/gazebo/gym_env_interface/render"
@@ -112,6 +112,13 @@ class GazeboController(GazeboControllerNoPlugin):
                 jointId.joint_name = j[1]
                 jointId.model_name = j[0]
                 request.requested_joints.append(jointId)
+        if len(self._linksToObserve)>0:
+            request.requested_links = []
+            for l in self._linksToObserve:
+                linkId = gazebo_gym_env_plugin.msg.LinkId()
+                linkId.link_name  = l[1]
+                linkId.model_name = l[0]
+                request.requested_links.append(linkId)
 
         request.joint_effort_requests = self._jointEffortsToRequest
         #print("Step request = "+str(request))
@@ -143,6 +150,12 @@ class GazeboController(GazeboControllerNoPlugin):
                 rospy.logerr("Error getting joint information: "+response.joints_info.error_message)
             for ji in response.joints_info.joints_info:
                 self._simulationState.jointsState[(ji.joint_id.model_name,ji.joint_id.joint_name)] = ji
+
+        if len(self._linksToObserve)>0:
+            if not response.links_info.success:
+                rospy.logerr("Error getting link information: "+response.joints_info.error_message)
+            for li in response.links_info.links_info:
+                self._simulationState.linksState[(li.link_id.model_name,li.link_id.link_name)] = li
 
         #print("Step done, joint state = "+str(self._simulationState.jointsState))
         if not response.success:
@@ -190,11 +203,27 @@ class GazeboController(GazeboControllerNoPlugin):
             ret[rj] = jointState
         return ret
 
+
+    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],gazebo_msgs.msg.LinkState]:
+
+        if self._simulationState.stepNumber<0: #If no step has ever been done
+            return super().getLinksState(requestedLinks)
+
+        ret = {}
+        for rl in requestedLinks:
+            linkInfo = self._simulationState.linksState[rl]
+
+            linkState = gazebo_msgs.msg.LinkState()
+            linkState.pose = linkInfo.pose
+            linkState.twist = linkInfo.twist
+            ret[rl] = linkState
+        return ret
+
     def setJointsEffort(self, jointTorques : List[Tuple[str,str,float]]) -> None:
         self._jointEffortsToRequest = []
         for jt in jointTorques:
             jer = gazebo_gym_env_plugin.msg.JointEffortRequest()
             jer.joint_id.model_name = jt[0]
             jer.joint_id.joint_name = jt[1]
-            jer.effort = 2
+            jer.effort =  jt[2]
             self._jointEffortsToRequest.append(jer)

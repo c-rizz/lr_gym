@@ -35,7 +35,7 @@ def main(usePyBullet : bool = False) -> None:
         stepLength_sec = 1/240
         simulatorController = GazeboController(stepLength_sec = stepLength_sec)
 
-    env = HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, renderInStep=False, maxFramesPerEpisode = 20/stepLength_sec)
+    env = HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, maxFramesPerEpisode = 20/stepLength_sec)
 
     #setup seeds for reproducibility
     RANDOM_SEED=20200524

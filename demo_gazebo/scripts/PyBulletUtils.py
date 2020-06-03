@@ -14,8 +14,6 @@ def start():
     #p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
 
 def buildPlaneWorld():
-
-
     # Taken from pybullet's scene_abstract.py
     p.setGravity(0, 0, -9.8)
     p.setDefaultContactERP(0.9)
@@ -31,11 +29,9 @@ def buildPlaneWorld():
 
     # Taken from pybullet's scene_stadium.py
     p.changeDynamics(planeObjId, -1, lateralFriction=0.8, restitution=0.5)
-    p.changeVisualShape(planeObjId, -1, rgbaColor=[1, 1, 1, 0.8])
-    p.configureDebugVisualizer(p.COV_ENABLE_PLANAR_REFLECTION,planeObjId)
 
-    #Taken from env_bases.py
-    p.setPhysicsEngineParameter(deterministicOverlappingPairs=1)
+    #Taken from env_bases.py (works both with and without)
+    # p.setPhysicsEngineParameter(deterministicOverlappingPairs=1)
 
     return planeObjId
 

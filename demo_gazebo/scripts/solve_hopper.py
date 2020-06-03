@@ -13,8 +13,14 @@ from PyBulletController import PyBulletController
 from GazeboController import GazeboController
 import os
 import argparse
+from datetime import datetime
+import gym
+import pybullet_envs
+import pybullet as p
+from stable_baselines.common import env_checker
+from pybullet_envs.gym_locomotion_envs import HopperBulletEnv
 
-def main(usePyBullet : bool = False) -> None:
+def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : str = None, useHopperBullet : bool = False, noControl : bool = False, trainIterations : int = 50000) -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
 
     It does not use the rendering at all, it learns from the joint states.
@@ -27,20 +33,32 @@ def main(usePyBullet : bool = False) -> None:
     """
     rospy.init_node('solve_hopper', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
-    if usePyBullet:
-        stepLength_sec = 1/240
-        PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/hopper_v0.urdf")
-        simulatorController = PyBulletController(stepLength_sec = stepLength_sec)
-    else:
-        stepLength_sec = 1/240
-        simulatorController = GazeboController(stepLength_sec = stepLength_sec)
 
-    env = HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, maxFramesPerEpisode = 20/stepLength_sec)
+
+
+    print("Setting up environment...")
+    stepLength_sec = 1/240
+    if useHopperBullet:
+        env = HopperBulletEnv(render=True)
+    else:
+        if usePyBullet:
+            if useMjcfFile:
+                PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/hopper.xml",fileFormat = "mjcf")
+            else:
+                PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/hopper_v0.urdf")
+            simulatorController = PyBulletController()
+        else:
+            simulatorController = GazeboController(stepLength_sec = stepLength_sec)
+        env = HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, maxFramesPerEpisode = 20/stepLength_sec)
+    print("Environment created")
 
     #setup seeds for reproducibility
     RANDOM_SEED=20200524
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
+
+    env_checker.check_env(env)
+    print("Checked environment gym compliance :)")
 
     n_actions = env.action_space.shape[-1]
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
@@ -48,14 +66,40 @@ def main(usePyBullet : bool = False) -> None:
     #hyperparameters taken by the RL baslines zoo repo
     model = TD3( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
                  buffer_size=1000000, gamma=0.99, gradient_steps=1000,
-                 learning_rate=0.001, learning_starts=10000, policy_kwargs=dict(layers=[400, 300]), train_freq=1000)
+                 learning_rate=0.001, learning_starts=10000, policy_kwargs=dict(layers=[400, 300]), train_freq=1000,
+                 seed = RANDOM_SEED, n_cpu_tf_sess=1) #n_cpu_tf_sess is needed for reproducibility
 
-    print("Learning...")
-    t_preLearn = time.time()
-    model.learn(total_timesteps=1000000, log_interval=10)
-    duration_learn = time.time() - t_preLearn
-    print("Learned. Took "+str(duration_learn)+" seconds.")
-
+    if noControl:
+        pass
+    elif fileToLoad is None:
+        print("Learning...")
+        t_preLearn = time.time()
+        trainIterations
+        model.learn(total_timesteps=trainIterations, log_interval=10)
+        duration_learn = time.time() - t_preLearn
+        print("Learned. Took "+str(duration_learn)+" seconds.")
+        if usePyBullet:
+            sim = "pybullet"
+        else:
+            sim = "gazebo"
+        if useMjcfFile:
+            modelFormat = "mjcf"
+        else:
+            modelFormat = "urdf"
+        if useHopperBullet:
+            envType = "bulletEnv"
+        else:
+            envType = "gazeboGym"
+        filename = "td3_hopper_"+datetime.now().strftime('%Y%m%d-%H%M%S')+"s"+str(trainIterations)+sim+"-"+modelFormat+"-"+envType
+        model.save(filename)
+        print("Saved as "+filename)
+    elif fileToLoad:
+        print("Loading "+fileToLoad+"...")
+        model.load(fileToLoad)
+        print("Loaded")
+    else:
+        print("Invalid mode")
+        exit(1)
 
     print("Computing average reward...")
     t_preVal = time.time()
@@ -75,7 +119,11 @@ def main(usePyBullet : bool = False) -> None:
         t0 = time.time()
         while not done:
             #print("Episode "+str(episode)+" frame "+str(frame))
-            action, _states = model.predict(obs)
+            if noControl:
+                action = (0,0,0)
+            else:
+                action, _states = model.predict(obs)
+            #print("action = "+str(action))
             obs, stepReward, done, info = env.step(action)
             #frames.append(env.render("rgb_array"))
             time.sleep(stepLength_sec)
@@ -94,6 +142,11 @@ def main(usePyBullet : bool = False) -> None:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--pybullet", default=False, action='store_true', help="Use pybullet simulator")
+    ap.add_argument("--mjcf", default=False, action='store_true', help="Use MJCF file instead of URDF, only used with pybullet")
+    ap.add_argument("--load", default=None, type=str, help="load this model instead of perfomring the training")
+    ap.add_argument("--hopperbullet", default=False, action='store_true', help="Use the hopper environment provided by pybullet")
+    ap.add_argument("--nocontrol", default=False, action='store_true', help="Don't train, and keep torques at zero")
+    ap.add_argument("--iterations", default=50000, type=int, help="Number of triaiing steps to perform (Default is 50000)")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
-    main(usePyBullet = args["pybullet"])
+    main(usePyBullet = args["pybullet"], useMjcfFile = args["mjcf"], fileToLoad = args["load"], useHopperBullet = args["hopperbullet"], noControl = args["nocontrol"], trainIterations = args["iterations"])

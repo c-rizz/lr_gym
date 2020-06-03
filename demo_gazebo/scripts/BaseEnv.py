@@ -75,8 +75,8 @@ class BaseEnv(gym.Env):
         self._stepLength_sec = stepLength_sec
         self._simulatorController = simulatorController
         self._simTime = 0
-        self._lastStepGotObservation = -1
-        self._lastObservation = None
+        self._lastStepGotState = -1
+        self._lastState = None
 
         # Crete a publisher to manually send clock messages (used in reset, very ugly, sorry)
         self._clockPublisher = rospy.Publisher("/clock", rosgraph_msgs.msg.Clock, queue_size=1)
@@ -120,14 +120,15 @@ class BaseEnv(gym.Env):
 
         if self._framesCounter>=self._maxFramesPerEpisode:
             rospy.loginfo("Environment reached max duration")
-            observation = self._getObservationCached()
+            state = self._getStateCached()
+            observation = self._getObservation(state)
             reward = 0
             done = True
             return (observation, reward, done, {"simTime":self._simTime})
 
         # Get previous observation
         t0 = time.time()
-        previousObservation = self._getObservationCached()
+        previousState = self._getStateCached()
 
         # Setup action to perform
         t_preAct = time.time()
@@ -144,13 +145,14 @@ class BaseEnv(gym.Env):
 
         #Get new observation
         t_preObs = time.time()
-        observation = self._getObservationCached()
+        state = self._getStateCached()
         self._observationDurationAverage.addValue(newValue = time.time()-t_preObs)
         self._lastStepEndSimTime = rospy.get_time()
 
         # Assess the situation
-        done = self._checkEpisodeEnd(previousObservation, observation)
-        reward = self._computeReward(previousObservation, observation, action)
+        done = self._checkEpisodeEnd(previousState, state)
+        reward = self._computeReward(previousState, state, action)
+        observation = self._getObservation(state)
 
 
 
@@ -159,7 +161,12 @@ class BaseEnv(gym.Env):
 
         self._envStepDurationAverage.addValue(newValue = time.time()-t0)
 
-        #rospy.logwarn("returning "+str(ret))
+        # print(type(observation))
+
+        # for r in ret:
+        #     print(str(r))
+        #   time.sleep(1)
+        # rospy.logwarn("returning "+str(ret))
         return ret
 
 
@@ -187,8 +194,8 @@ class BaseEnv(gym.Env):
         self._cumulativeImagesAge = 0
         self._lastStepStartSimTime = -1
         self._lastStepEndSimTime = 0
-        self._lastStepGotObservation = -1
-        self._lastObservation = None
+        self._lastStepGotState = -1
+        self._lastState = None
 
         self._onResetDone()
         #time.sleep(1)
@@ -211,7 +218,10 @@ class BaseEnv(gym.Env):
         self._simStepDurationAverage.reset()
 
         #rospy.loginfo("reset() return")
-        return  self._getObservationCached()
+        observation = self._getObservation(self._getStateCached())
+        # print("observation space = "+str(self.observation_space)+" high = "+str(self.observation_space.high)+" low = "+str(self.observation_space.low))
+        # print("observation = "+str(observation))
+        return observation
 
 
 
@@ -313,7 +323,7 @@ class BaseEnv(gym.Env):
 
 
 
-    def _getObservationCached(self) -> Any:
+    def _getStateCached(self) -> Any:
         """Get the an observation of the environment keeping a cache of the last observation.
 
         Returns
@@ -322,11 +332,11 @@ class BaseEnv(gym.Env):
             An observation of the environment. See the environment implementation for details on its format
 
         """
-        if self._framesCounter != self._lastStepGotObservation:
-            self._lastStepGotObservation = self._framesCounter
-            self._lastObservation = self._getObservation()
+        if self._framesCounter != self._lastStepGotState:
+            self._lastStepGotState = self._framesCounter
+            self._lastState = self._getState()
 
-        return self._lastObservation
+        return self._lastState
 
 
 
@@ -356,7 +366,7 @@ class BaseEnv(gym.Env):
         """
         raise NotImplementedError()
 
-    def _checkEpisodeEnd(self, previousObservation, observation) -> bool:
+    def _checkEpisodeEnd(self, previousState, state) -> bool:
         """To be implemented in subclass.
 
         This method is called during the stepping of the simulation. Just after the simulation has been stepped forward
@@ -364,9 +374,9 @@ class BaseEnv(gym.Env):
 
         Parameters
         ----------
-        previousObservation : type
+        previousState : type
             The observation before the simulation was stepped forward
-        observation : type
+        state : type
             The observation after the simulation was stepped forward
 
         Returns
@@ -377,7 +387,7 @@ class BaseEnv(gym.Env):
         """
         raise NotImplementedError()
 
-    def _computeReward(self, previousObservation, observation, action) -> float:
+    def _computeReward(self, previousState, state, action) -> float:
         """To be implemented in subclass.
 
         This method is called during the stepping of the simulation. Just after the simulation has been stepped forward
@@ -385,10 +395,10 @@ class BaseEnv(gym.Env):
 
         Parameters
         ----------
-        previousObservation : type
-            The observation before the simulation was stepped forward
-        observation : type
-            The observation after the simulation was stepped forward
+        previousState : type
+            The state before the simulation was stepped forward
+        state : type
+            The state after the simulation was stepped forward
 
         Returns
         -------
@@ -403,6 +413,19 @@ class BaseEnv(gym.Env):
         """To be implemented in subclass.
 
         Get an observation of the environment.
+
+        Returns
+        -------
+        Any
+            An observation of the environment. See the environment implementation for details on its format
+
+        """
+        raise NotImplementedError()
+
+    def _getState(self) -> Tuple[float,float,float,float]:
+        """To be implemented in subclass.
+
+        Get the state of the environment form the simulation
 
         Returns
         -------

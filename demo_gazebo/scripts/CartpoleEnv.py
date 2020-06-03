@@ -94,9 +94,9 @@ class CartpoleEnv(BaseEnv):
 
 
 
-    def _checkEpisodeEnd(self, previousObservation : Tuple[float,float,float,float], observation : Tuple[float,float,float,float]) -> bool:
-        cartPosition = observation[0]
-        poleAngle = observation[2]
+    def _checkEpisodeEnd(self, previousState : Tuple[float,float,float,float], state : Tuple[float,float,float,float]) -> bool:
+        cartPosition = state[0]
+        poleAngle = state[2]
 
         maxCartDist = 2
         maxPoleAngle = 0.261791667 #15 degrees
@@ -109,7 +109,7 @@ class CartpoleEnv(BaseEnv):
         return done
 
 
-    def _computeReward(self, previousObservation : Tuple[float,float,float,float], observation : Tuple[float,float,float,float], action : int) -> float:
+    def _computeReward(self, previousState : Tuple[float,float,float,float], state : Tuple[float,float,float,float], action : int) -> float:
         return 1
 
 
@@ -121,7 +121,10 @@ class CartpoleEnv(BaseEnv):
         return "camera"
 
 
-    def _getObservation(self) -> Tuple[float,float,float,float]:
+    def _getObservation(self, state) -> np.ndarray:
+        return state
+
+    def _getState(self) -> Tuple[float,float,float,float]:
         """Get an observation of the environment.
 
         Returns
@@ -139,11 +142,11 @@ class CartpoleEnv(BaseEnv):
         t1 = time.time()
         rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
 
-        observation = ( states[("cartpole_v0","foot_joint")].position[0],
-                        states[("cartpole_v0","foot_joint")].rate[0],
-                        states[("cartpole_v0","cartpole_joint")].position[0],
-                        states[("cartpole_v0","cartpole_joint")].rate[0])
+        state = ( states[("cartpole_v0","foot_joint")].position[0],
+                  states[("cartpole_v0","foot_joint")].rate[0],
+                  states[("cartpole_v0","cartpole_joint")].position[0],
+                  states[("cartpole_v0","cartpole_joint")].rate[0])
 
         #print(observation)
 
-        return observation
+        return state

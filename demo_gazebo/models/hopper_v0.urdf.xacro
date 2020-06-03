@@ -109,21 +109,21 @@
                      izz="0.0" />
     </inertial>
   </link>
-  <joint name="world_to_mid" type="prismatic">
+  <joint name="torso_x_slider" type="prismatic">
     <origin xyz="0 0 0" rpy="0 0 0" />
     <axis xyz="1 0 0" rpy="0 0 0" />
     <parent link="world"/>
     <child link="mid"/>
     <limit effort="10000" lower="-1" upper="1000" velocity="10000"/>
   </joint>
-  <joint name="mid_to_mid2" type="prismatic">
+  <joint name="torso_z_slider" type="prismatic">
     <origin xyz="0 0 ${torso_length/2 + thigh_length + leg_length + foot_radius + spawn_height}" rpy="0 0 0" />
     <axis xyz="0 0 1" rpy="0 0 0" />
     <parent link="mid"/>
     <child link="mid2"/>
     <limit effort="10000" lower="-10" upper="1000" velocity="10000"/>
   </joint>
-  <joint name="mid2_to_torso" type="continuous">
+  <joint name="torso_pitch_joint" type="continuous">
     <origin xyz="0.0 0.0 0" rpy="0 0 0" /> <!-- joint pose in the parent frame-->
     <axis xyz="0 1 0" rpy="0 0 0" />
     <parent link="mid2"/>

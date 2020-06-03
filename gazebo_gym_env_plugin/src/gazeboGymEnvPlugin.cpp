@@ -282,7 +282,7 @@ namespace gazebo
       //Initialize rendering engine in this thread (necessary for rendeing the camera)
       //rendering::load();
       //rendering::init();
-      static const double timeout = 0.001;
+      static const double timeout = 0.0005;
       while(keepServingCallbacks)
       {
         //ROS_INFO("Looping callbacksThreadMain");
@@ -411,14 +411,14 @@ namespace gazebo
         getLinksInfo(req.requested_links,res.links_info);
 
       //Print timing info
-      ROS_INFO_STREAM("-------------------------------------------------");
-      ROS_INFO_STREAM("Render request delay:         avg="<<avgRenderRequestDelay.getAverage()*1000<<"ms");
-      ROS_INFO_STREAM("Render thread call delay:     avg="<<renderingHelper->getAvgRenderThreadDelay()*1000<<"ms");
-      ROS_INFO_STREAM("Render duration:              avg="<<renderingHelper->getAvgRenderTime()*1000<<"ms");
-      ROS_INFO_STREAM("Image fill duration:          avg="<<renderingHelper->getAvgFillTime()*1000<<"ms");
-      ROS_INFO_STREAM("Total Render duration:        avg="<<renderingHelper->getAvgTotalRenderTime()*1000<<"ms");
-      ROS_INFO_STREAM("Step request delay:           avg="<<avgStepRequestDelay.getAverage()*1000<<"ms");
-      ROS_INFO_STREAM("Step wall duration:           avg="<<avgSteppingTime.getAverage()*1000<<"ms");
+      ROS_DEBUG_STREAM("-------------------------------------------------");
+      ROS_DEBUG_STREAM("Render request delay:         avg="<<avgRenderRequestDelay.getAverage()*1000<<"ms");
+      ROS_DEBUG_STREAM("Render thread call delay:     avg="<<renderingHelper->getAvgRenderThreadDelay()*1000<<"ms");
+      ROS_DEBUG_STREAM("Render duration:              avg="<<renderingHelper->getAvgRenderTime()*1000<<"ms");
+      ROS_DEBUG_STREAM("Image fill duration:          avg="<<renderingHelper->getAvgFillTime()*1000<<"ms");
+      ROS_DEBUG_STREAM("Total Render duration:        avg="<<renderingHelper->getAvgTotalRenderTime()*1000<<"ms");
+      ROS_DEBUG_STREAM("Step request delay:           avg="<<avgStepRequestDelay.getAverage()*1000<<"ms");
+      ROS_DEBUG_STREAM("Step wall duration:           avg="<<avgSteppingTime.getAverage()*1000<<"ms");
 
       return true;//Must be false only in case we cannot send a response
     }

@@ -225,5 +225,5 @@ class GazeboController(GazeboControllerNoPlugin):
             jer = gazebo_gym_env_plugin.msg.JointEffortRequest()
             jer.joint_id.model_name = jt[0]
             jer.joint_id.joint_name = jt[1]
-            jer.effort =  jt[2]
+            jer.effort = jt[2]
             self._jointEffortsToRequest.append(jer)

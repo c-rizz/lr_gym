@@ -183,7 +183,7 @@ class GazeboControllerNoPlugin(SimulatorController):
         else:
             totalRatio = -1
         totalSimTimeError = totalEpSimDuration - self._episodeSimDuration
-        if abs(totalSimTimeError)>0.000001:
+        if abs(totalSimTimeError)>=0.001:
             rospy.logwarn("Estimated error in simulation time keeping = "+str(totalSimTimeError)+"s")
         if totalEpSimDuration!=0:
             rospy.loginfo(  "Duration: sim={:.3f}".format(totalEpSimDuration)+

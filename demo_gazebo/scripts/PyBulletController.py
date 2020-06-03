@@ -17,7 +17,7 @@ class PyBulletController(SimulatorController):
     It is an abstract class, it is meant to be extended with sub-classes for specific simulators
     """
 
-    def __init__(self, stepLength_sec : float = 1.0/240):
+    def __init__(self):
         """Initialize the Simulator controller.
 
         Raises
@@ -26,7 +26,7 @@ class PyBulletController(SimulatorController):
             If it fails to find the gazebo services
 
         """
-        super().__init__(stepLength_sec = stepLength_sec)
+        super().__init__(stepLength_sec = -1)
 
         if not p.isConnected():
             raise ValueError("PyBullet is not connected")
@@ -95,7 +95,7 @@ class PyBulletController(SimulatorController):
         if performRendering or len(camerasToRender)!=0:
             raise NotImplementedError("Rendering is not supported for PyBullet")
 
-        p.setTimeStep(self._stepLength_sec) #This is here, but still, as stated in the pybulelt quickstart guide this should not be changed often
+        #p.setTimeStep(self._stepLength_sec) #This is here, but still, as stated in the pybulelt quickstart guide this should not be changed often
         p.stepSimulation()
 
 
@@ -146,13 +146,14 @@ class PyBulletController(SimulatorController):
                 jointState = JointState()
                 jointState.position = [bodyStates[i][0]]
                 jointState.rate = [bodyStates[i][1]]
-                bodyName = p.getBodyInfo(bodyId)
-                allStates[bodyName,self._getJointName(bodyId,jointId)] = jointState
+                bodyName = p.getBodyInfo(bodyId)[1].decode("utf-8")
+                allStates[(bodyName,self._getJointName(bodyId,jointId))] = jointState
 
 
         return allStates
 
-    def getLinksState(self, linkNames : List[str]) -> Dict[str,gazebo_msgs.msg.LinkState]:
+    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],gazebo_msgs.msg.LinkState]:
+        linkNames = [x[1] for x in requestedLinks] ## TODO: actually search for the body name
         #For each bodyId I submit a request for joint state
         requests = {} #for each body id we will have a list of joints
         for jn in linkNames:
@@ -177,13 +178,15 @@ class PyBulletController(SimulatorController):
                 linkState.pose.orientation.w = bodyStates[i][1][3]
 
                 linkState.twist.linear.x = bodyStates[i][6][0]
-                linkState.twist.linear.z = bodyStates[i][6][1]
-                linkState.twist.linear.y = bodyStates[i][6][2]
+                linkState.twist.linear.y = bodyStates[i][6][1]
+                linkState.twist.linear.z = bodyStates[i][6][2]
                 linkState.twist.angular.x = bodyStates[i][7][0]
-                linkState.twist.angular.z = bodyStates[i][7][1]
-                linkState.twist.angular.y = bodyStates[i][7][2]
+                linkState.twist.angular.y = bodyStates[i][7][1]
+                linkState.twist.angular.z = bodyStates[i][7][2]
 
-                allStates[self._getLinkName(bodyId,linkId)] = linkState
+                bodyName = p.getBodyInfo(bodyId)[1].decode("utf-8")
+                allStates[(bodyName,self._getLinkName(bodyId,linkId))] = linkState
 
+        #print("returning "+str(allStates))
 
         return allStates

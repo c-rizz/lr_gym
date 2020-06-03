@@ -16,6 +16,7 @@ from SimulatorController import SimulatorController
 from GazeboController import GazeboController
 import time
 from utils import AverageKeeper
+#import tf2_py
 
 class HopperEnv(BaseEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
@@ -27,22 +28,28 @@ class HopperEnv(BaseEnv):
     action_space = gym.spaces.Box(low=-action_high, high=action_high, dtype=np.float32)
     # Observations are:
     #  (pos_z, torso_thigh_joint_pos, thigh_leg_joint_pos, leg_foot_joint_pos, vel_x, vel_y, vel_z, torso_thigh_joint_vel, thigh_leg_joint_vel, leg_foot_joint_vel)
-    obs_high = np.full((10), -float('inf'), dtype=np.float32)
+    obs_high = np.full((15), float('inf'), dtype=np.float32)
     observation_space = gym.spaces.Box(-obs_high, obs_high)
     metadata = {'render.modes': ['rgb_array']}
 
-    POS_Z_OBS = 0
-    TORSO_THIGH_JOINT_POS_OBS = 1
-    THIGH_LEG_JOINT_POS_OBS = 2
-    LEG_FOOT_JOINT_POS_OBS = 3
-    VEL_X_OBS = 4
-    VEL_Y_OBS = 5
-    VEL_Z_OBS = 6
-    TORSO_THIGH_JOINT_VE_OBS = 7
-    THIGH_LEG_JOINT_VEL_OBS = 8
-    LEG_FOOT_JOINT_VEL_OBS = 9
 
-    MAX_TORQUE = 100
+    POS_Z_OBS = 0
+    TARGET_DIRECTION_COSINE_OBS = 1
+    TARGET_DIRECTION_SINE_OBS = 2
+    VEL_X_OBS = 3
+    VEL_Y_OBS = 4
+    VEL_Z_OBS = 5
+    TORSO_ROLL_OBS = 6
+    TORSO_PITCH_OBS = 7
+    TORSO_THIGH_JOINT_POS_OBS = 8
+    TORSO_THIGH_JOINT_VEL_OBS = 9
+    THIGH_LEG_JOINT_POS_OBS = 10
+    THIGH_LEG_JOINT_VEL_OBS = 11
+    LEG_FOOT_JOINT_POS_OBS = 12
+    LEG_FOOT_JOINT_VEL_OBS = 13
+    CONTACT_OBS = 14
+
+    MAX_TORQUE = 75
 
     def __init__(   self,
                     usePersistentConnections : bool = False,
@@ -91,7 +98,8 @@ class HopperEnv(BaseEnv):
         #print("HopperEnv: action_space = "+str(self.action_space))
         self._simulatorController.setJointsToObserve([  ("hopper","torso_to_thigh"),
                                                         ("hopper","thigh_to_leg"),
-                                                        ("hopper","leg_to_foot")])
+                                                        ("hopper","leg_to_foot"),
+                                                        ("hopper","torso_pitch_joint")])
 
         self._simulatorController.setLinksToObserve([("hopper","torso"),("hopper","thigh"),("hopper","leg"),("hopper","foot")])
 
@@ -105,30 +113,38 @@ class HopperEnv(BaseEnv):
         if len(action)!=3:
             raise AttributeError("Action must have length 3, it is "+str(action))
 
-        unnormalizedAction = (action[0]*self.MAX_TORQUE,action[1]*self.MAX_TORQUE,action[2]*self.MAX_TORQUE)
+        unnormalizedAction = (  float(np.clip(action[0],-1,1))*self.MAX_TORQUE,
+                                float(np.clip(action[1],-1,1))*self.MAX_TORQUE,
+                                float(np.clip(action[2],-1,1))*self.MAX_TORQUE)
         self._simulatorController.setJointsEffort([ ("hopper","torso_to_thigh",unnormalizedAction[0]),
                                                     ("hopper","thigh_to_leg",unnormalizedAction[1]),
                                                     ("hopper","leg_to_foot",unnormalizedAction[2])])
 
 
-    def _checkEpisodeEnd(self, previousObservation : Tuple[float,float,float,float,float,float,float,float,float,float], observation : Tuple[float,float,float,float,float,float,float,float,float,float]) -> bool:
-        mid_torso_height = observation[self.POS_Z_OBS]
-
+    def _checkEpisodeEnd(self, previousState : Tuple[float,float,float,float,float,float,float,float,float,float],
+                         state : Tuple[float,float,float,float,float,float,float,float,float,float]) -> bool:
+        mid_torso_height = state[self.POS_Z_OBS] + 1.25
+        torso_pitch = state[self.TORSO_PITCH_OBS]
         #rospy.loginfo("height = "+str(mid_torso_height))
 
-        if mid_torso_height < 0.7:
-            done = True
-        else:
+        if mid_torso_height > 0.8 and abs(torso_pitch) < 1.0 :
             done = False
+        else:
+            done = True
 
         return done
 
 
     def _computeReward( self,
-                        previousObservation : Tuple[float,float,float,float,float,float,float,float,float,float],
-                        observation : Tuple[float,float,float,float,float,float,float,float,float,float],
+                        previousState : Tuple[float,float,float,float,float,float,float,float,float,float],
+                        state : Tuple[float,float,float,float,float,float,float,float,float,float],
                         action : Tuple[float,float,float]) -> float:
-        return 1 + 2*observation[self.VEL_X_OBS] - 0.003*(action[0]*action[0] + action[1]*action[1] + action[2]*action[2]) # should be more or less the same as openai's hopper_v3
+        if not self._checkEpisodeEnd(previousState, state):
+            speed = (state[15] - state[16])/self._stepLength_sec
+            # print("Speed: "+str(speed))
+            return 1 + 2*speed # - 0.003*(action[0]*action[0] + action[1]*action[1] + action[2]*action[2]) # should be more or less the same as openai's hopper_v3
+        else:
+            return -1
 
 
     def _onResetDone(self) -> None:
@@ -137,11 +153,15 @@ class HopperEnv(BaseEnv):
                                                      ("hopper","leg_to_foot")])
 
 
+
     def _getCameraToRenderName(self) -> str:
         return "camera"
 
 
-    def _getObservation(self) -> np.ndarray:
+    def _getObservation(self, state) -> np.ndarray:
+        return state[0:-2]
+
+    def _getState(self) -> np.ndarray:
         """Get an observation of the environment.
 
         Returns
@@ -154,28 +174,52 @@ class HopperEnv(BaseEnv):
 
         jointStates = self._simulatorController.getJointsState([("hopper","torso_to_thigh"),
                                                                 ("hopper","thigh_to_leg"),
-                                                                ("hopper","leg_to_foot")])
-        state = self._simulatorController.getLinksState([("hopper","torso"),
-                                                         ("hopper","thigh"),
-                                                         ("hopper","leg"),
-                                                         ("hopper","foot")])
-        avg_vel_x = (   state[("hopper","torso")].twist.linear.x +
-                        state[("hopper","thigh")].twist.linear.x +
-                        state[("hopper","leg")].twist.linear.x   +
-                        state[("hopper","foot")].twist.linear.x)/4
+                                                                ("hopper","leg_to_foot"),
+                                                                ("hopper","torso_pitch_joint")])
+        linksState = self._simulatorController.getLinksState([("hopper","torso"),
+                                                              ("hopper","thigh"),
+                                                              ("hopper","leg"),
+                                                              ("hopper","foot")])
+
+
+        avg_pos_x = (   linksState[("hopper","torso")].pose.position.x +
+                        linksState[("hopper","thigh")].pose.position.x +
+                        linksState[("hopper","leg")].pose.position.x   +
+                        linksState[("hopper","foot")].pose.position.x)/4
+
+        torso_pose = linksState[("hopper","torso")].pose
+
+        if self._framesCounter == 0:
+            self._initial_torso_z = torso_pose.position.z
+            self._previousAvgPosX = avg_pos_x
+
+        #avg_vel_x = (avg_pos_x - self._previousAvgPosX)/self._stepLength_sec
+        #(r,p,y) = tf.transformations.euler_from_quaternion([torso_pose.orientation.x, torso_pose.orientation.y, torso_pose.orientation.z, torso_pose.orientation.w])
         #print("torsoState = ",torsoState)
         #print("you ",jointStates["mid_to_mid2"].position)
-        observation = np.array([state[("hopper","torso")].pose.position.z,
-                                jointStates[("hopper","torso_to_thigh")].position[0],
-                                jointStates[("hopper","thigh_to_leg")].position[0],
-                                jointStates[("hopper","leg_to_foot")].position[0],
-                                avg_vel_x,
-                                state[("hopper","torso")].twist.linear.y,
-                                state[("hopper","torso")].twist.linear.z,
-                                jointStates[("hopper","torso_to_thigh")].rate[0],
-                                jointStates[("hopper","thigh_to_leg")].rate[0],
-                                jointStates[("hopper","leg_to_foot")].rate[0]])
+        state = np.array(  [linksState[("hopper","torso")].pose.position.z - self._initial_torso_z,
+                            1, # for pybullet consistency
+                            0, # for pybullet consistency
+                            linksState[("hopper","torso")].twist.linear.x * 0.3, #0.3 is just to be consistent with pybullet
+                            linksState[("hopper","torso")].twist.linear.y * 0.3, #this will always be zero
+                            linksState[("hopper","torso")].twist.linear.z * 0.3,
+                            0, # roll of torso,for pybullet consistency
+                            jointStates[("hopper","torso_pitch_joint")].position[0],
+                            jointStates[("hopper","torso_to_thigh")].position[0],
+                            jointStates[("hopper","torso_to_thigh")].rate[0],
+                            jointStates[("hopper","thigh_to_leg")].position[0],
+                            jointStates[("hopper","thigh_to_leg")].rate[0],
+                            jointStates[("hopper","leg_to_foot")].position[0],
+                            jointStates[("hopper","leg_to_foot")].rate[0],
+                            0, # should be it touching the ground or not, not used
+                            avg_pos_x,
+                            self._previousAvgPosX])
+        # print("avg_vel_x = "+str(avg_vel_x))
+        # s = ""
+        # for oi in state:
+        #     s+=" {:0.4f}".format(oi)
+        # print("satte = " +s)
+        # time.sleep(1)
+        self._previousAvgPosX = avg_pos_x
 
-        #rospy.loginfo("Observation = " +str(observation))
-
-        return observation
+        return state

@@ -123,15 +123,15 @@ class HopperEnv(BaseEnv):
 
     def _checkEpisodeEnd(self, previousState : Tuple[float,float,float,float,float,float,float,float,float,float],
                          state : Tuple[float,float,float,float,float,float,float,float,float,float]) -> bool:
-        mid_torso_height = state[self.POS_Z_OBS] + 1.25
+        torso_z_displacement = state[self.POS_Z_OBS]
         torso_pitch = state[self.TORSO_PITCH_OBS]
         #rospy.loginfo("height = "+str(mid_torso_height))
 
-        if mid_torso_height > 0.8 and abs(torso_pitch) < 1.0 :
+        if torso_z_displacement > -0.45 and abs(torso_pitch) < 1.0 :
             done = False
         else:
             done = True
-
+        rospy.loginfo("height = {:1.4f}".format(torso_z_displacement)+"\t pitch = {:1.4f}".format(torso_pitch)+"\t done = "+str(done))
         return done
 
 
@@ -193,6 +193,8 @@ class HopperEnv(BaseEnv):
             self._initial_torso_z = torso_pose.position.z
             self._previousAvgPosX = avg_pos_x
 
+        # print("frame "+str(self._framesCounter)+"\t initial_torso_z = "+str(self._initial_torso_z)+"\t torso_z = "+str(linksState[("hopper","torso")].pose.position.z))
+        # time.sleep(1)
         #avg_vel_x = (avg_pos_x - self._previousAvgPosX)/self._stepLength_sec
         #(r,p,y) = tf.transformations.euler_from_quaternion([torso_pose.orientation.x, torso_pose.orientation.y, torso_pose.orientation.z, torso_pose.orientation.w])
         #print("torsoState = ",torsoState)

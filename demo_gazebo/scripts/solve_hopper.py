@@ -37,7 +37,7 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
 
 
     print("Setting up environment...")
-    stepLength_sec = 1/240
+    stepLength_sec = 1/60
     if useHopperBullet:
         env = HopperBulletEnv(render=True)
     else:
@@ -101,6 +101,8 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
         print("Invalid mode")
         exit(1)
 
+    input("Press Enter to continue...")
+    
     print("Computing average reward...")
     t_preVal = time.time()
     rewards=[]

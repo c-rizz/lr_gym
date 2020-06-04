@@ -170,7 +170,7 @@ class GazeboControllerNoPlugin(SimulatorController):
         totalEpRealDuration = time.time() - self._episodeRealStartTime
 
         ret = self._callService(self._resetGazeboService)
-
+        time.sleep(0.01) #VERY ugly
 
         self._lastUnpausedTime = 0
 

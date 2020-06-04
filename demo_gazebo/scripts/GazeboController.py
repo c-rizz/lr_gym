@@ -93,7 +93,6 @@ class GazeboController(GazeboControllerNoPlugin):
 
         """
 
-        self._stepsTaken +=1
         t0_real = time.time()
         #t0 = rospy.get_time()
 
@@ -124,6 +123,7 @@ class GazeboController(GazeboControllerNoPlugin):
         #print("Step request = "+str(request))
 
         response = self._stepGazeboService.call(request)
+        self._stepsTaken +=1
 
         #print("Step response = "+str(response))
 
@@ -178,7 +178,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
 
     def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
-        if self._simulationState.stepNumber<0: #If no step has ever been done
+        if self._simulationState.stepNumber!=self._stepsTaken: #If no step has ever been done
             cameraRenders = self._performRender(requestedCameras)
         else:
             cameraRenders = self._simulationState.cameraRenders
@@ -191,7 +191,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
 
-        if self._simulationState.stepNumber<0: #If no step has ever been done
+        if self._simulationState.stepNumber!=self._stepsTaken: #If no step has ever been done
             return super().getJointsState(requestedJoints)
 
         ret = {}
@@ -206,7 +206,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
     def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],gazebo_msgs.msg.LinkState]:
 
-        if self._simulationState.stepNumber<0: #If no step has ever been done
+        if self._simulationState.stepNumber!=self._stepsTaken: #If no step has ever been done
             return super().getLinksState(requestedLinks)
 
         ret = {}

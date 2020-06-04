@@ -11,7 +11,7 @@ def start():
     This means it uses a MultiBodyDynamicsWorld
     """
     p.connect(p.GUI)
-    #p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+    p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
 
 def buildPlaneWorld():
     # Taken from pybullet's scene_abstract.py

@@ -20,7 +20,7 @@ import pybullet as p
 from stable_baselines.common import env_checker
 from pybullet_envs.gym_locomotion_envs import HopperBulletEnv
 
-def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : str = None, useHopperBullet : bool = False, noControl : bool = False, trainIterations : int = 50000) -> None:
+def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : str = None, useHopperBullet : bool = False, noControl : bool = False, trainIterations : int = 120000) -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
 
     It does not use the rendering at all, it learns from the joint states.
@@ -95,14 +95,14 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
         print("Saved as "+filename)
     elif fileToLoad:
         print("Loading "+fileToLoad+"...")
-        model.load(fileToLoad)
+        model = TD3.load(fileToLoad)
         print("Loaded")
     else:
         print("Invalid mode")
         exit(1)
 
     input("Press Enter to continue...")
-    
+
     print("Computing average reward...")
     t_preVal = time.time()
     rewards=[]
@@ -125,7 +125,7 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
                 action = (0,0,0)
             else:
                 action, _states = model.predict(obs)
-            #print("action = "+str(action))
+            # print("action = "+str(action))
             obs, stepReward, done, info = env.step(action)
             #frames.append(env.render("rgb_array"))
             time.sleep(stepLength_sec)
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     ap.add_argument("--load", default=None, type=str, help="load this model instead of perfomring the training")
     ap.add_argument("--hopperbullet", default=False, action='store_true', help="Use the hopper environment provided by pybullet")
     ap.add_argument("--nocontrol", default=False, action='store_true', help="Don't train, and keep torques at zero")
-    ap.add_argument("--iterations", default=50000, type=int, help="Number of triaiing steps to perform (Default is 50000)")
+    ap.add_argument("--iterations", default=120000, type=int, help="Number of triaiing steps to perform (Default is 120000)")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
     main(usePyBullet = args["pybullet"], useMjcfFile = args["mjcf"], fileToLoad = args["load"], useHopperBullet = args["hopperbullet"], noControl = args["nocontrol"], trainIterations = args["iterations"])

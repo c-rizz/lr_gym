@@ -84,7 +84,7 @@
     </inertial>
   </link>
   <gazebo reference="torso">
-    <material>Gazebo/Red</material>
+    <material>Gazebo/Grey</material>
   </gazebo>
 
 
@@ -154,7 +154,7 @@
     </inertial>
   </link>
   <gazebo reference="thigh">
-    <material>Gazebo/Green</material>
+    <material>Gazebo/Grey</material>
   </gazebo>
   <joint name="torso_to_thigh" type="revolute">
     <origin xyz="0.0 0.0 -${torso_length/2.0}" rpy="0 0 0" /> <!-- joint pose in the parent frame-->
@@ -196,7 +196,7 @@
     </inertial>
   </link>
   <gazebo reference="leg">
-    <material>Gazebo/Blue</material>
+    <material>Gazebo/Grey</material>
   </gazebo>
   <joint name="thigh_to_leg" type="revolute">
     <origin xyz="0.0 0.0 -${thigh_length}" rpy="0 0 0" />

@@ -142,7 +142,7 @@ class HopperEnv(BaseEnv):
         if not self._checkEpisodeEnd(previousState, state):
             speed = (state[15] - state[16])/self._stepLength_sec
             # print("Speed: "+str(speed))
-            return 1 + 2*speed # - 0.003*(action[0]*action[0] + action[1]*action[1] + action[2]*action[2]) # should be more or less the same as openai's hopper_v3
+            return 1 + 2*speed - 0.003*(action[0]*action[0] + action[1]*action[1] + action[2]*action[2]) # should be more or less the same as openai's hopper_v3
         else:
             return -1
 

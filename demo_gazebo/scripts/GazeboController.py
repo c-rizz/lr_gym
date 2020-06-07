@@ -142,7 +142,7 @@ class GazeboController(GazeboControllerNoPlugin):
         if len(self._camerasToRender)>0:
             if not response.render_result.success:
                 rospy.logerr("Error getting renderings: "+response.render_result.error_message)
-            for i in range(len(response.camera_names)):
+            for i in range(len(response.render_result.camera_names)):
                 self._simulationState.cameraRenders[response.render_result.camera_names[i]] = (response.render_result.images[i],response.render_result.camera_infos[i])
 
         if len(self._jointsToObserve)>0:
@@ -174,7 +174,12 @@ class GazeboController(GazeboControllerNoPlugin):
         if not res.render_result.success:
             rospy.logerror("Error rendering cameras: "+res.render_result.error_message)
 
-        return res.render_result
+        renders = {}
+        for i in range(len(res.render_result.camera_names)):
+            renders[res.render_result.camera_names[i]] = (res.render_result.images[i],res.render_result.camera_infos[i])
+
+
+        return renders
 
 
     def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:

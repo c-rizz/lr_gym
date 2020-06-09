@@ -1,7 +1,9 @@
 # Gazebo Gym Environment
 
-This repository provides a demo setup which uses Gazebo and ROS to simulate a cart-pole task that
-implements the python OpenAI gym environment interface.
+This repository provides a demo setup which implements the python OpenAI gym environment
+interface using Gazebo and ROS.
+
+Two different environments are included: a Cartpole environment and a Hopper environment.
 
 ## Setup
 This repository requires ROS Melodic and python3.6 or later.
@@ -16,8 +18,9 @@ pip3 install -r src/gazebo_gym/demo_gazebo/requirements.txt
 
 You can then proceed to build the workspace with catkin_make.
 
-## Usage
-The environment can be launched with:
+## Usage - Cartpole
+
+The cartpole environment can be launched with:
 
 ```
 roslaunch demo_gazebo cartpole_gazebo_sim.launch
@@ -52,10 +55,32 @@ It is also possible to train a basic DQN policy by using the following:
 rosrun demo_gazebo solve_dqn_stable_baselines.py
 ```
 
+## Usage - Hopper
+
+You can launch the hopper Gazebo environment with
+```
+roslaunch demo_gazebo hopper_gazeno_sim.launch
+```
+
+You can execute a pre-trained policy with:
+
+```
+rosrun demo_gazebo solve_hopper.py --load src/demo_gazebo/demo_gazebo/trained_models/td3_hopper_20200605-175927s140000gazebo-urdf-gazeboGym.zip
+```
+
+You can train a new TD3 policy with
+
+```
+rosrun demo_gazebo solve_hopper.py
+```
+
+You can specify the number of timesteps to train for with the --iterations option.
+
+You can also run the hopper environment directlyin pybullet specifynig the --pybullet option, in this mode you can also use an mjcf model (adapted from the OpenAI gym one) instead of the urdf one, using the --mjcf option. Trained models are also provided for these two modes.
 
 
 ## Gazebo Plugin
-To correctly implement OpenAI gym environment interface, it is necessary to execute
+To correctly implement the OpenAI gym environment interface, it is necessary to execute
 simulation steps of precise length and to obtain renderings synchronized with these
 simulation steps. This is needed to accurately implement a Markov Decision Process, which
 is the basic abstraction of the environment used in reinforcement learning.
@@ -68,9 +93,10 @@ The plugin provides two new services:
 - /gazebo/gym_env_interface/step allows to step the simulation of a precise amount
  of iterations or for a specific duration
 - /gazebo/gym_env_interface/render allows to obtain a rendering from the simulated
- cameras within the simulation. This can be called even while the simulation is paused.
+ cameras. This can be called even while the simulation is paused.
  This provides a way to obtain renderings that precisely correspond to the simulation steps.
 
+The step service also allows to obtain observations of joint/link states and renderings. Using this functionality allows to reduce drastically the communication overhead.
 
 Controlling the simulation using these services is not realistic (the real world
 can not be stopped like the step function does), but they allow to closely approximate
@@ -83,20 +109,11 @@ The repository was tested on two laptops:
 1. An Alienware laptop equipped with an Intel i7-6820HK CPU and an Nvidia GeForce GTX 980M GPU.
 2. An HP Omen laptop equipped with an Intel i7-8750H CPU and an NVIDIA GeForce GTX 1050 Ti Mobile GPU.
 
-The performance on the two computers is as follows:
+Here is reported the performance of the test_cartpole_env script.
 
-| Laptop |       No Rendering        | With Rendering          |
-|--------|---------------------------|-------------------------|
-|   1    |  45fps (2.25x real time)  | 23fps (1.17x real time) |
-|   2    |  63fps (3.14x real time)  | 27fps (1.35x real time) |
+| Laptop |       No Rendering        | With Rendering            |
+|--------|---------------------------|---------------------------|
+|   1    |  370fps (15.3x real time) | 41.5fps (2.02x real time) |
+|   2    |  63fps (3.14x real time)  | 27fps (1.35x real time)   |
 
 The simulation step was kept at 0.05s for all the tests.
-
-The Alienware laptop was also used for determining were most of the computation time
-is spent. A simulation speed of 23fps means each step requires about 43ms. The rendering
-requires about 10ms, the physics simulation takes about 15ms. The remaining 18ms are
-consumed by the ROS messaging overhead: about 10ms for the rendered image transfer
-and the rest for gathering the joint states and for sending the joint effort commands.
-So, in the case of the Alienware laptop, 25% of the time is spent in the rendering,
-35% is spent in the physics simulation, the remaining 40% is spent in joint state
-reading, joint effort control, and messaging overhead.

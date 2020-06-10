@@ -14,8 +14,6 @@
 #include "gazebo_gym_env_plugin/RenderCameras.h"
 #include "gazebo_gym_env_plugin/JointInfo.h"
 #include "gazebo_gym_env_plugin/JointEffortRequest.h"
-#include "gazebo_gym_env_plugin/JointInfoArray.h"
-#include "gazebo_gym_env_plugin/GetJointsInfoAction.h"
 
 #include <boost/algorithm/string.hpp>
 #include <thread>

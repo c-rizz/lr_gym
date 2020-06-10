@@ -6,3 +6,4 @@ defusedxml==0.6.0
 gym==0.17.1
 mpi4py==3.0.3
 tqdm
+pybullet==2.8.1

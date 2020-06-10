@@ -114,6 +114,6 @@ Here is reported the performance of the test_cartpole_env script.
 | Laptop |       No Rendering        | With Rendering            |
 |--------|---------------------------|---------------------------|
 |   1    |  370fps (15.3x real time) | 41.5fps (2.02x real time) |
-|   2    |  63fps (3.14x real time)  | 27fps (1.35x real time)   |
+|   2    |  531fps (22.1x real time) | 44.3fps (2.17x real time) |
 
 The simulation step was kept at 0.05s for all the tests.

@@ -59,7 +59,7 @@ rosrun demo_gazebo solve_dqn_stable_baselines.py
 
 You can launch the hopper Gazebo environment with
 ```
-roslaunch demo_gazebo hopper_gazeno_sim.launch
+roslaunch demo_gazebo hopper_gazebo_sim.launch
 ```
 
 You can execute a pre-trained policy with:

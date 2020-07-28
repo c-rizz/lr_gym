@@ -65,8 +65,8 @@ class CartpoleEnvNoPlugin(gym.Env):
         """
         self._maxFramesPerEpisode = maxFramesPerEpisode
         self._framesCounter = 0
-        self._lastStepStartSimTime = -1
-        self._lastStepEndSimTime = -1
+        self._lastStepStartEnvTime = -1
+        self._lastStepEndEnvTime = -1
         self._cumulativeImagesAge = 0
         self._stepLength_sec = stepLength_sec
 
@@ -153,12 +153,12 @@ class CartpoleEnvNoPlugin(gym.Env):
         self._applyJointEffortService.call(request)
 
         #t0 = time.time()
-        self._lastStepStartSimTime = rospy.get_time()
+        self._lastStepStartEnvTime = rospy.get_time()
 
         self._simulatorController.step(self._stepLength_sec)
         observation = self._getObservation()
 
-        self._lastStepEndSimTime = rospy.get_time()
+        self._lastStepEndEnvTime = rospy.get_time()
         #t1 = time.time()
 
 
@@ -208,8 +208,8 @@ class CartpoleEnvNoPlugin(gym.Env):
             rospy.logwarn("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
         self._framesCounter = 0
         self._cumulativeImagesAge = 0
-        self._lastStepStartSimTime = -1
-        self._lastStepEndSimTime = 0
+        self._lastStepStartEnvTime = -1
+        self._lastStepEndEnvTime = 0
 
         self._clearJointEffortService.call("foot_joint")
         self._clearJointEffortService.call("cartpole_joint")
@@ -267,10 +267,10 @@ class CartpoleEnvNoPlugin(gym.Env):
         #rospy.loginfo("render time = {:.4f}s".format(t1-t0)+"  conversion time = {:.4f}s".format(t2-t1))
 
         imageTime = cameraImage.header.stamp.secs + cameraImage.header.stamp.nsecs/1000_000_000.0
-        if imageTime < self._lastStepStartSimTime:
-            rospy.logwarn("render(): The most recent camera image is older than the start of the last step! (by "+str(self._lastStepStartSimTime-imageTime)+"s)")
+        if imageTime < self._lastStepStartEnvTime:
+            rospy.logwarn("render(): The most recent camera image is older than the start of the last step! (by "+str(self._lastStepStartEnvTime-imageTime)+"s)")
 
-        cameraImageAge = self._lastStepEndSimTime - imageTime
+        cameraImageAge = self._lastStepEndEnvTime - imageTime
         rospy.loginfo("Rendering image age = "+str(cameraImageAge)+"s")
         self._cumulativeImagesAge += cameraImageAge
 

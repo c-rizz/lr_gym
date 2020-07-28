@@ -2,7 +2,7 @@
 """
 Class implementing Gazebo-based gym cartpole environment.
 
-Based on BaseEnv
+Based on SimulatedEnv
 """
 
 
@@ -15,9 +15,9 @@ from typing import Tuple
 import time
 
 
-from demo_gazebo.envs.BaseEnv import BaseEnv
+from demo_gazebo.envs.SimulatedEnv import SimulatedEnv
 
-class CartpoleEnv(BaseEnv):
+class CartpoleEnv(SimulatedEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
 
     It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.

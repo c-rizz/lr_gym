@@ -2,7 +2,7 @@
 """
 Class implementing Gazebo-based gym cartpole environment.
 
-Based on BaseEnv
+Based on SimulatedEnv
 """
 
 import rospy
@@ -12,12 +12,12 @@ import gym
 import numpy as np
 from typing import Tuple
 
-from demo_gazebo.envs.BaseEnv import BaseEnv
+from demo_gazebo.envs.SimulatedEnv import SimulatedEnv
 from demo_gazebo.envControllers.SimulatorController import SimulatorController
 from demo_gazebo.envControllers.GazeboController import GazeboController
 #import tf2_py
 
-class HopperEnv(BaseEnv):
+class HopperEnv(SimulatedEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
 
     It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.

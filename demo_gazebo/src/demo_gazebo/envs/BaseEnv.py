@@ -19,7 +19,6 @@ import time
 
 import utils
 
-from demo_gazebo.envControllers.GazeboController import GazeboController
 
 class BaseEnv(gym.Env):
     """This is a base-class for implementing OpenAI-gym environments with Gazebo.
@@ -32,10 +31,8 @@ class BaseEnv(gym.Env):
     observation_space = None
     metadata = None # e.g. {'render.modes': ['rgb_array']}
 
-    def __init__(self, usePersistentConnections : bool = False,
-                 maxFramesPerEpisode : int = 500,
-                 stepLength_sec : float = 0.05,
-                 simulatorController = None):
+    def __init__(self,
+                 maxFramesPerEpisode : int = 500):
         """Short summary.
 
         Parameters
@@ -65,17 +62,12 @@ class BaseEnv(gym.Env):
 
         """
 
-        if simulatorController is None:
-            simulatorController = GazeboController(stepLength_sec = stepLength_sec)
-
         self._maxFramesPerEpisode = maxFramesPerEpisode
         self._framesCounter = 0
-        self._lastStepStartSimTime = -1
-        self._lastStepEndSimTime = -1
+        self._lastStepStartEnvTime = -1
+        self._lastStepEndEnvTime = -1
         self._cumulativeImagesAge = 0
-        self._stepLength_sec = stepLength_sec
-        self._simulatorController = simulatorController
-        self._simTime = 0
+        self._intendedSimTime = 0
         self._lastStepGotState = -1
         self._lastState = None
 
@@ -85,7 +77,7 @@ class BaseEnv(gym.Env):
         self._envStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
         self._actionDurationAverage = utils.AverageKeeper(bufferSize = 100)
         self._observationDurationAverage = utils.AverageKeeper(bufferSize = 100)
-        self._simStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
+        self._wallStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
 
 
 
@@ -125,7 +117,7 @@ class BaseEnv(gym.Env):
             observation = self._getObservation(state)
             reward = 0
             done = True
-            return (observation, reward, done, {"simTime":self._simTime})
+            return (observation, reward, done, {"simTime":self._intendedSimTime})
 
         # Get previous observation
         t0 = time.time()
@@ -137,18 +129,18 @@ class BaseEnv(gym.Env):
         self._actionDurationAverage.addValue(newValue = time.time()-t_preAct)
 
         # Step the environment
-        self._lastStepStartSimTime = rospy.get_time()
+        self._lastStepStartEnvTime = rospy.get_time()
         t_preStep = time.time()
-        self._simulatorController.step()
-        self._simStepDurationAverage.addValue(newValue = time.time()-t_preStep)
+        self._performStep()
+        self._wallStepDurationAverage.addValue(newValue = time.time()-t_preStep)
         self._framesCounter+=1
-        self._simTime += self._stepLength_sec
+        self._intendedSimTime += self._stepLength_sec
 
         #Get new observation
         t_preObs = time.time()
         state = self._getStateCached()
         self._observationDurationAverage.addValue(newValue = time.time()-t_preObs)
-        self._lastStepEndSimTime = rospy.get_time()
+        self._lastStepEndEnvTime = rospy.get_time()
 
         # Assess the situation
         done = self._checkEpisodeEnd(previousState, state)
@@ -158,7 +150,7 @@ class BaseEnv(gym.Env):
 
 
         #rospy.loginfo("step() return")
-        ret = (observation, reward, done, {"simTime":self._simTime})
+        ret = (observation, reward, done, {"simTime":self._intendedSimTime})
 
         self._envStepDurationAverage.addValue(newValue = time.time()-t0)
 
@@ -187,14 +179,14 @@ class BaseEnv(gym.Env):
         #rospy.loginfo("reset()")
 
         #reset simulation state
-        self._simulatorController.resetWorld()
+        self._performReset()
 
         if self._framesCounter!=0 and self._cumulativeImagesAge!=0:
             rospy.logwarn("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
         self._framesCounter = 0
         self._cumulativeImagesAge = 0
-        self._lastStepStartSimTime = -1
-        self._lastStepEndSimTime = 0
+        self._lastStepStartEnvTime = -1
+        self._lastStepEndEnvTime = 0
         self._lastStepGotState = -1
         self._lastState = None
 
@@ -205,18 +197,18 @@ class BaseEnv(gym.Env):
         t = rosgraph_msgs.msg.Clock()
         self._clockPublisher.publish(t)
 
-        self._simTime = 0
+        self._intendedSimTime = 0
 
         rospy.loginfo(" ------- Resetted Environment -------")
         rospy.loginfo(" - Average total step duration  = "+str(self._envStepDurationAverage.getAverage()))
         rospy.loginfo(" - Average action duration      = "+str(self._actionDurationAverage.getAverage()))
-        rospy.loginfo(" - Average sim step duration    = "+str(self._simStepDurationAverage.getAverage()))
+        rospy.loginfo(" - Average sim step duration    = "+str(self._wallStepDurationAverage.getAverage()))
         rospy.loginfo(" - Average observation duration = "+str(self._observationDurationAverage.getAverage()))
 
         self._envStepDurationAverage.reset()
         self._actionDurationAverage.reset()
         self._observationDurationAverage.reset()
-        self._simStepDurationAverage.reset()
+        self._wallStepDurationAverage.reset()
 
         #rospy.loginfo("reset() return")
         observation = self._getObservation(self._getStateCached())
@@ -255,25 +247,12 @@ class BaseEnv(gym.Env):
         if mode!="rgb_array":
             raise NotImplementedError("only rgb_array mode is supported")
 
-        cameraName = self._getCameraToRenderName()
+        npArrImage, imageTime = self._getRendering()
 
-        #t0 = time.time()
-        cameraImage = self._simulatorController.getRenderings([cameraName])[0]
-        if cameraImage is None:
-            rospy.logerr("No camera image received. render() will return and empty image.")
-            return np.empty([0,0,3])
+        if imageTime < self._lastStepStartEnvTime:
+            rospy.logwarn("render(): The most recent camera image is older than the start of the last step! (by "+str(self._lastStepStartEnvTime-imageTime)+"s)")
 
-        #t1 = time.time()
-        npArrImage = utils.image_to_numpy(cameraImage)
-        #t2 = time.time()
-
-        #rospy.loginfo("render time = {:.4f}s".format(t1-t0)+"  conversion time = {:.4f}s".format(t2-t1))
-
-        imageTime = cameraImage.header.stamp.secs + cameraImage.header.stamp.nsecs/1000_000_000.0
-        if imageTime < self._lastStepStartSimTime:
-            rospy.logwarn("render(): The most recent camera image is older than the start of the last step! (by "+str(self._lastStepStartSimTime-imageTime)+"s)")
-
-        cameraImageAge = self._lastStepEndSimTime - imageTime
+        cameraImageAge = self._lastStepEndEnvTime - imageTime
         #rospy.loginfo("Rendering image age = "+str(cameraImageAge)+"s")
         self._cumulativeImagesAge += cameraImageAge
 
@@ -457,4 +436,45 @@ class BaseEnv(gym.Env):
         This method is called by the reset method to allow the sub-class to reset environment-specific details
 
         """
+        raise NotImplementedError()
+
+
+    def _performStep(self) -> None:
+        """To be implemented in subclass.
+
+        This method is called by the step method to perform the stepping of the environment. In the case of
+        simulated environments this means stepping forward the simulated time.
+        It is called after _performAction and before getting the state observation
+
+        """
+        raise NotImplementedError()
+
+
+    def _performReset(self) -> None:
+        """To be implemented in subclass.
+
+        This method is called by the reset method to perform the actual reset of the environment to its initial state
+
+        """
+        raise NotImplementedError()
+
+
+
+    def _getRendering(self) -> Tuple[np.ndarray, float]:
+        """To be implemented in subclass.
+
+        This method is called by the render method to get the environment rendering
+
+        Returns
+        -------
+        Tuple[np.ndarray, float]
+            Description of returned object.
+
+        Raises
+        -------
+        ExceptionName
+            Why the exception is raised.
+
+        """
+
         raise NotImplementedError()

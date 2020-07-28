@@ -50,7 +50,7 @@ class BaseEnv(gym.Env):
             Duration in seconds of each simulation step. Lower values will lead to
             slower simulation. This value should be kept higher than the gazebo
             max_step_size parameter.
-        simulatorController : SimulatorController
+        simulatorController : EnvironmentController
             Specifies which simulator controller to use. By default it connects to Gazebo
 
         Raises

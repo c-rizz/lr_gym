@@ -11,10 +11,10 @@ import geometry_msgs.msg
 import rospy
 from std_srvs.srv import Empty
 
-from demo_gazebo.envControllers.SimulatorController import SimulatorController
+from demo_gazebo.envControllers.EnvironmentController import EnvironmentController
 from demo_gazebo.utils import JointState
 
-class GazeboControllerNoPlugin(SimulatorController):
+class GazeboControllerNoPlugin(EnvironmentController):
     """This class allows to control the execution of a Gazebo simulation.
 
     It only uses the default gazebo plugins which are usually included in the installation.

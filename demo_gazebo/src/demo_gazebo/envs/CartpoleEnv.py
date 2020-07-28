@@ -58,7 +58,7 @@ class CartpoleEnv(SimulatedEnv):
             Duration in seconds of each simulation step. Lower values will lead to
             slower simulation. This value should be kept higher than the gazebo
             max_step_size parameter.
-        simulatorController : SimulatorController
+        simulatorController : EnvironmentController
             Specifies which simulator controller to use. By default it connects to Gazebo
 
         Raises
@@ -79,7 +79,7 @@ class CartpoleEnv(SimulatedEnv):
 
         self._simulatorController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
         if self._renderingEnabled:
-            self._simulatorController.setCamerasToRender(["camera"])
+            self._simulatorController.setCamerasToObserve(["camera"])
 
 
     def _performAction(self, action : int) -> None:

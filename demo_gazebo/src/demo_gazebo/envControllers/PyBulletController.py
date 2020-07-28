@@ -9,10 +9,10 @@ import pybullet as p
 import gazebo_msgs.msg
 
 from demo_gazebo.utils import JointState
-from demo_gazebo.envControllers.SimulatorController import SimulatorController
+from demo_gazebo.envControllers.EnvironmentController import EnvironmentController
 
 
-class PyBulletController(SimulatorController):
+class PyBulletController(EnvironmentController):
     """This class allows to control the execution of a simulation.
 
     It is an abstract class, it is meant to be extended with sub-classes for specific simulators

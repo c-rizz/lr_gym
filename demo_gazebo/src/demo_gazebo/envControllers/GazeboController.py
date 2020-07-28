@@ -100,10 +100,10 @@ class GazeboController(GazeboControllerNoPlugin):
         request = gazebo_gym_env_plugin.srv.StepSimulationRequest()
         request.step_duration_secs = self._stepLength_sec
         request.request_time = time.time()
-        if len(self._camerasToRender)>0:
+        if len(self._camerasToObserve)>0:
             #rospy.loginfo("Performing rendering within step")
             request.render = True
-            request.cameras = self._camerasToRender
+            request.cameras = self._camerasToObserve
         if len(self._jointsToObserve)>0:
             request.requested_joints = []
             for j in self._jointsToObserve:
@@ -139,7 +139,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
         self._simulationState.stepNumber = self._stepsTaken
 
-        if len(self._camerasToRender)>0:
+        if len(self._camerasToObserve)>0:
             if not response.render_result.success:
                 rospy.logerr("Error getting renderings: "+response.render_result.error_message)
             for i in range(len(response.render_result.camera_names)):

@@ -10,7 +10,7 @@ import gazebo_msgs.msg
 from demo_gazebo.utils import JointState
 
 
-class SimulatorController():
+class EnvironmentController():
     """This class allows to control the execution of a simulation.
 
     It is an abstract class, it is meant to be extended with sub-classes for specific simulators
@@ -28,7 +28,7 @@ class SimulatorController():
         self._stepLength_sec = stepLength_sec
         self.setJointsToObserve([])
         self.setLinksToObserve([])
-        self.setCamerasToRender([])
+        self.setCamerasToObserve([])
 
     def setJointsToObserve(self, jointsToObserve : List[Tuple[str,str]]):
         """Set which joints should be observed after each simulation step. This information allows for more efficient communication with the simulator.
@@ -53,7 +53,7 @@ class SimulatorController():
         """
         self._linksToObserve = linksToObserve
 
-    def setCamerasToRender(self, camerasToRender : List[str] = []):
+    def setCamerasToObserve(self, camerasToRender : List[str] = []):
         """Set which camera should be rendered after each simulation step. This information allows for more efficient communication with the simulator.
 
         Parameters
@@ -62,7 +62,7 @@ class SimulatorController():
             List of the names of the cameras
 
         """
-        self._camerasToRender = camerasToRender
+        self._camerasToObserve = camerasToRender
 
 
 

@@ -13,7 +13,7 @@ import numpy as np
 from typing import Tuple
 
 from demo_gazebo.envs.SimulatedEnv import SimulatedEnv
-from demo_gazebo.envControllers.SimulatorController import SimulatorController
+from demo_gazebo.envControllers.EnvironmentController import EnvironmentController
 from demo_gazebo.envControllers.GazeboController import GazeboController
 #import tf2_py
 
@@ -55,7 +55,7 @@ class HopperEnv(SimulatedEnv):
                     maxFramesPerEpisode : int = 500,
                     render : bool = False,
                     stepLength_sec : float = 0.05,
-                    simulatorController : SimulatorController = None):
+                    simulatorController : EnvironmentController = None):
         """Short summary.
 
         Parameters
@@ -76,7 +76,7 @@ class HopperEnv(SimulatedEnv):
             Duration in seconds of each simulation step. Lower values will lead to
             slower simulation. This value should be kept higher than the gazebo
             max_step_size parameter.
-        simulatorController : SimulatorController
+        simulatorController : EnvironmentController
             Specifies which simulator controller to use. By default it connects to Gazebo
 
         Raises
@@ -104,7 +104,7 @@ class HopperEnv(SimulatedEnv):
 
         self._renderingEnabled = render
         if self._renderingEnabled:
-            self._simulatorController.setCamerasToRender(["camera"])
+            self._simulatorController.setCamerasToObserve(["camera"])
 
 
     def _performAction(self, action : Tuple[float,float,float]) -> None:

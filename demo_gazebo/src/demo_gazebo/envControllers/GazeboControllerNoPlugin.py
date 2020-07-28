@@ -11,8 +11,8 @@ import geometry_msgs.msg
 import rospy
 from std_srvs.srv import Empty
 
-from SimulatorController import SimulatorController
-from utils import JointState
+from demo_gazebo.envControllers.SimulatorController import SimulatorController
+from demo_gazebo.utils import JointState
 
 class GazeboControllerNoPlugin(SimulatorController):
     """This class allows to control the execution of a Gazebo simulation.
@@ -259,11 +259,6 @@ class GazeboControllerNoPlugin(SimulatorController):
             res = self._applyJointEffortService.call(request)
             if not res.success:
                 rospy.logerror("Failed applying effort for joint jointName: "+res.status_message)
-
-    def clearJointsEffort(self, joints : List[Tuple[str,str]]) -> None:
-        for j in joints:
-            jointName = j[1]
-            self._clearJointEffortService.call(jointName)
 
 
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:

@@ -5,12 +5,13 @@ import gym
 import time
 import tqdm
 import cv2
-from CartpoleEnv import CartpoleEnv
-from GazeboController import GazeboController
-from PyBulletController import PyBulletController
 import os
 import argparse
 import PyBulletUtils
+
+from demo_gazebo.envs.CartpoleEnv import CartpoleEnv
+from demo_gazebo.envControllers.GazeboController import GazeboController
+from demo_gazebo.envControllers.PyBulletController import PyBulletController
 
 
 def main(simulatorController, doRender : bool = False, noPlugin : bool = False, saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength : float = 0) -> None:

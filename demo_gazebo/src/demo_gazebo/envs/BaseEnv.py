@@ -6,7 +6,6 @@ The provided class must be extended to define a specific environment
 """
 
 import rospy
-from GazeboController import GazeboController
 import rospy.client
 import rosgraph_msgs
 
@@ -19,6 +18,8 @@ from typing import Any
 import time
 
 import utils
+
+from demo_gazebo.envControllers.GazeboController import GazeboController
 
 class BaseEnv(gym.Env):
     """This is a base-class for implementing OpenAI-gym environments with Gazebo.

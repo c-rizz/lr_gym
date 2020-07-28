@@ -2,11 +2,13 @@
 
 import rospy
 import time
-from HopperEnv import HopperEnv
 import PyBulletUtils
-from PyBulletController import PyBulletController
 import os
 import argparse
+import rospkg
+
+from demo_gazebo.envs.HopperEnv import HopperEnv
+from demo_gazebo.PyBulletController import PyBulletController
 
 def main(usePyBullet : bool = False) -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
@@ -23,7 +25,7 @@ def main(usePyBullet : bool = False) -> None:
     #env = gym.make('CartPoleStayUp-v0')
     if usePyBullet:
         stepLength_sec = 0.001
-        PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/hopper.urdf")
+        PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("demo_gazebo")+"/models/hopper.urdf")
         simulatorController = PyBulletController(stepLength_sec = stepLength_sec)
         env = HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, renderInStep=False, maxFramesPerEpisode = 50000)
     else:

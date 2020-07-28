@@ -11,8 +11,8 @@ import sensor_msgs
 import gazebo_msgs
 
 
-from GazeboControllerNoPlugin import GazeboControllerNoPlugin
-from utils import JointState
+from demo_gazebo.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
+from demo_gazebo.utils import JointState
 
 class GazeboController(GazeboControllerNoPlugin):
     """This class allows to control the execution of the Gazebo simulation.

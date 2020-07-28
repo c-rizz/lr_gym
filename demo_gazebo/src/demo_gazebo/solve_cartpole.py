@@ -5,7 +5,7 @@ import time
 import tqdm
 from stable_baselines.deepq.policies import MlpPolicy
 from stable_baselines import DQN
-from CartpoleEnv import CartpoleEnv
+from demo_gazebo.envs.CartpoleEnv import CartpoleEnv
 
 
 def main() -> None:

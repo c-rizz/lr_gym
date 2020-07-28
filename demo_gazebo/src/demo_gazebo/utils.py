@@ -20,14 +20,14 @@ name_to_dtypes = {
     "mono16":  (np.uint16, 1),
 
     # for bayer image (based on cv_bridge.cpp)
-    "bayer_rggb8":	(np.uint8,  1),
-    "bayer_bggr8":	(np.uint8,  1),
-    "bayer_gbrg8":	(np.uint8,  1),
-    "bayer_grbg8":	(np.uint8,  1),
-    "bayer_rggb16":	(np.uint16, 1),
-    "bayer_bggr16":	(np.uint16, 1),
-    "bayer_gbrg16":	(np.uint16, 1),
-    "bayer_grbg16":	(np.uint16, 1),
+    "bayer_rggb8":  (np.uint8,  1),
+    "bayer_bggr8":  (np.uint8,  1),
+    "bayer_gbrg8":  (np.uint8,  1),
+    "bayer_grbg8":  (np.uint8,  1),
+    "bayer_rggb16": (np.uint16, 1),
+    "bayer_bggr16": (np.uint16, 1),
+    "bayer_gbrg16": (np.uint16, 1),
+    "bayer_grbg16": (np.uint16, 1),
 
     # OpenCV CvMat types
     "8UC1":    (np.uint8,   1),
@@ -80,7 +80,7 @@ def image_to_numpy(rosMsg : sensor_msgs.msg.Image) -> np.ndarray:
         If the input image encoding is not supported
 
     """
-    if not rosMsg.encoding in name_to_dtypes:
+    if rosMsg.encoding not in name_to_dtypes:
         raise TypeError('Unrecognized encoding {}'.format(rosMsg.encoding))
 
     dtype_class, channels = name_to_dtypes[rosMsg.encoding]
@@ -101,7 +101,7 @@ def image_to_numpy(rosMsg : sensor_msgs.msg.Image) -> np.ndarray:
         data = cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
 
     if channels == 1:
-            data = data[...,0]
+        data = data[...,0]
     return data
 
 

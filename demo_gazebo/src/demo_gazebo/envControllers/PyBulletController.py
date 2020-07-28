@@ -5,10 +5,11 @@ from typing import Dict
 from typing import Union
 
 import sensor_msgs
-from utils import JointState
 import pybullet as p
-from SimulatorController import SimulatorController
 import gazebo_msgs.msg
+
+from demo_gazebo.utils import JointState
+from demo_gazebo.envControllers.SimulatorController import SimulatorController
 
 
 class PyBulletController(SimulatorController):

@@ -2,16 +2,10 @@
 
 import rospy
 import time
-import tqdm
 from stable_baselines.td3.policies import MlpPolicy
 from stable_baselines import TD3
-from HopperEnv import HopperEnv
 from stable_baselines.ddpg.noise import NormalActionNoise
 import numpy as np
-import PyBulletUtils
-from PyBulletController import PyBulletController
-from GazeboController import GazeboController
-import os
 import argparse
 from datetime import datetime
 import gym
@@ -19,6 +13,13 @@ import pybullet_envs
 import pybullet as p
 from stable_baselines.common import env_checker
 from pybullet_envs.gym_locomotion_envs import HopperBulletEnv
+import rospkg
+
+
+import demo_gazebo.PyBulletUtils as PyBulletUtils
+from demo_gazebo.envs.HopperEnv import HopperEnv
+from demo_gazebo.envControllers.PyBulletController import PyBulletController
+from demo_gazebo.envControllers.GazeboController import GazeboController
 
 def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : str = None, useHopperBullet : bool = False, noControl : bool = False, trainIterations : int = 120000) -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
@@ -43,9 +44,9 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
     else:
         if usePyBullet:
             if useMjcfFile:
-                PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/hopper.xml",fileFormat = "mjcf")
+                PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("demo_gazebo")+"/models/hopper.xml",fileFormat = "mjcf")
             else:
-                PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/hopper_v0.urdf")
+                PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("demo_gazebo")+"/models/hopper_v0.urdf")
             simulatorController = PyBulletController()
         else:
             simulatorController = GazeboController(stepLength_sec = stepLength_sec)

@@ -1,26 +1,23 @@
 #!/usr/bin/env python3
 
 import rospy
-from GazeboControllerNoPlugin import GazeboControllerNoPlugin
 import rospy.client
-import std_msgs.msg
 import sensor_msgs
 import gazebo_msgs
 import gazebo_msgs.srv
 import rosgraph_msgs
-from controller_manager_msgs.srv import LoadController, UnloadController
 
 import gym
 import numpy as np
 from gym.utils import seeding
-import typing
 from typing import Tuple
 from typing import Dict
 from typing import Any
 import time
-import numpy as np
 
 import utils
+
+from demo_gazebo.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
 
 class CartpoleEnvNoPlugin(gym.Env):
     """The class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
@@ -155,14 +152,14 @@ class CartpoleEnvNoPlugin(gym.Env):
         request.duration.nsecs = 1000000 #0.5ms
         self._applyJointEffortService.call(request)
 
-        t0 = time.time()
+        #t0 = time.time()
         self._lastStepStartSimTime = rospy.get_time()
 
         self._simulatorController.step(self._stepLength_sec)
         observation = self._getObservation()
 
         self._lastStepEndSimTime = rospy.get_time()
-        t1 = time.time()
+        #t1 = time.time()
 
 
         cartPosition = observation[0]
@@ -257,15 +254,15 @@ class CartpoleEnvNoPlugin(gym.Env):
         if mode!="rgb_array":
             raise NotImplementedError("only rgb_array mode is supported")
 
-        t0 = time.time()
+        #t0 = time.time()
         cameraImage = self._lastCameraImage
-        if cameraImage == None:
+        if cameraImage is None:
             rospy.logerr("No camera image received. render() will return and empty image.")
             return np.empty([0,0,3])
 
-        t1 = time.time()
+        #t1 = time.time()
         npArrImage = utils.image_to_numpy(self._lastCameraImage)
-        t2 = time.time()
+        #t2 = time.time()
 
         #rospy.loginfo("render time = {:.4f}s".format(t1-t0)+"  conversion time = {:.4f}s".format(t2-t1))
 

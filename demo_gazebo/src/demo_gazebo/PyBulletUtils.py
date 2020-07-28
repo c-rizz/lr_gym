@@ -65,6 +65,6 @@ def buildSimpleEnv(modelFilePath : str, fileFormat : str = "urdf"):
     start()
     print("Started pybullet")
     buildPlaneWorld()
-    print("Built world")
+    print("Loading model "+str(modelFilePath))
     loadModel(modelFilePath, fileFormat)
     print("Loaded model")

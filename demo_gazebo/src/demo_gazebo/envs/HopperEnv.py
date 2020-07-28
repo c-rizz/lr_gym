@@ -6,16 +6,15 @@ Based on BaseEnv
 """
 
 import rospy
-from BaseEnv import BaseEnv
 import rospy.client
 
 import gym
 import numpy as np
 from typing import Tuple
-from SimulatorController import SimulatorController
-from GazeboController import GazeboController
-import time
-from utils import AverageKeeper
+
+from demo_gazebo.envs.BaseEnv import BaseEnv
+from demo_gazebo.envControllers.SimulatorController import SimulatorController
+from demo_gazebo.envControllers.GazeboController import GazeboController
 #import tf2_py
 
 class HopperEnv(BaseEnv):

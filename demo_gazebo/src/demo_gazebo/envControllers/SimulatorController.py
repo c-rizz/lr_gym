@@ -4,10 +4,10 @@ from typing import Tuple
 from typing import Dict
 
 import sensor_msgs
-from utils import JointState
 import gazebo_msgs.msg
 
 
+from demo_gazebo.utils import JointState
 
 
 class SimulatorController():
@@ -72,6 +72,19 @@ class SimulatorController():
         raise NotImplementedError()
 
     def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
+        """Get the images for the specified cameras.
+
+        Parameters
+        ----------
+        requestedCameras : List[str]
+            List containing the names of the cameras to get the images of
+
+        Returns
+        -------
+        List[sensor_msgs.msg.Image]
+            List contyaining the images for the cameras specified in requestedCameras, in the same order
+
+        """
         raise NotImplementedError()
 
     def setJointsEffort(self, jointTorques : List[Tuple[str,str,float]]) -> None:
@@ -95,7 +108,20 @@ class SimulatorController():
         raise NotImplementedError()
 
     def clearJointsEffort(self, jointNames : List[Tuple[str,str]]) -> None:
-        raise NotImplementedError()
+        """Clear the efforts applied to the specified joints.
+
+        Parameters
+        ----------
+        jointNames : List[Tuple[str,str]]
+            List of joints identifiers in the for of string tuples containing (model_name,joint_name)
+
+        Returns
+        -------
+        None
+
+        """
+        command = [(jointName[0],jointName[1],0) for jointName in jointNames]
+        self.setJointsEffort(command)
 
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
         raise NotImplementedError()

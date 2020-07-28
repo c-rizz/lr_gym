@@ -5,17 +5,17 @@ Class implementing Gazebo-based gym cartpole environment.
 Based on BaseEnv
 """
 
+
 import rospy
-from BaseEnv import BaseEnv
 import rospy.client
-import gazebo_msgs
-import gazebo_msgs.srv
 
 import gym
 import numpy as np
 from typing import Tuple
 import time
 
+
+from demo_gazebo.envs.BaseEnv import BaseEnv
 
 class CartpoleEnv(BaseEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.

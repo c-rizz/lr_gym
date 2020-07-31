@@ -1,0 +1,15 @@
+
+#goal definition
+
+# Pose, you can specify the frame of the pose in header.frame_id
+geometry_msgs/PoseStamped pose
+
+#You can specify here the name of the end effector to move. Leave empty to move to the default
+string end_effector_link
+
+---
+#result definition
+bool succeded
+string error_message
+---
+#feedback

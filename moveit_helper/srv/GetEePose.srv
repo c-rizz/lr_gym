@@ -1,0 +1,3 @@
+string end_effector_link_name
+---
+geometry_msgs/PoseStamped pose

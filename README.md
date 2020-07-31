@@ -1,19 +1,55 @@
-# Gazebo Gym Environment
+# Gazebo/ROS Gym
 
-This repository provides a demo setup which implements the python OpenAI gym environment
-interface using Gazebo and ROS.
+This repository implements various Reinforcement Learning environments and provides a framework
+for easily implementing new ones.
 
-Two different environments are included: a Cartpole environment and a Hopper environment.
+Three different ROS packages are included:
+
+* gazebo_gym is the main package, and provides the means to easily implement RL ROS environments,
+and the various demos.
+* gazebo_gym_env_plugin implements a gazebo plugin for controlling gazebo simulations according
+ to the needs of RL methods. In particular it allows to step the simulation of precise durations,
+ to obtain renderings from simulated cameras even while the simulation is stopped and reduces
+ communication overhead making simulation MUCH faster.
+* moveit_helper provides a node that can receive and execute moveit commands via ROS messaging.
+ This is needed as an intermediate node for controlling moveit from python3 code.
+
+
+## The gazebo_gym package
+
+In the gazebo_gym/src/gazebo_gym folder you can find python3 code for implementing ROS-based
+RL environments.
+The implementation of the environments has been split in two logically separated parts.
+
+* The environment classes, derived from envs/BaseEnv, define the environment in its high-level
+ characteristics. Such as the state/observation definition, the reward function definition and
+ the initial state.
+* The environment controllers, derived from EnvironmentController define the low-level, interfacing
+ with the simulators or with the real world.
+
+This is not possible for all cases, but environment contreollers are meant to be interchangeable. This can
+allow to implement an environment at a high abstraction level and run it without changes on different
+simulators, or even in the real world. An example of this is the HopperEnv environment, which can run in
+both Gazebo and PyBullet.
+
+Different environment controllers have been implemented for different simulators and for the real world.
+All of the environments are derived form EnvironmentController
+
+* GazeboController and GazeboControllerNoPlugin provide the means to control a Gazebo simulation
+* PyBulletController allows to control a PyBullet simulation
+* RosEnvController uses ROS to control and observe the environment, this is meant to be usable both for
+simulations and for the real world (but it will be less efficient and "precise" than GazeboController)
+
 
 ## Setup
 This repository requires ROS Melodic and python3.6 or later.
 To set up the project you first of all need to clone the repository in your catkin
 workspace src folder.
 You will also need to install some python3 modules, preferably in a python virtual
-environment. You can use the requirements.txt file in the demo_gazebo folder:
+environment. You can use the requirements.txt file in the gazebo_gym folder:
 
 ```
-pip3 install -r src/gazebo_gym/demo_gazebo/requirements.txt
+pip3 install -r src/gazebo_gym/gazebo_gym/requirements.txt
 ```
 
 You can then proceed to build the workspace with catkin_make.
@@ -23,7 +59,7 @@ You can then proceed to build the workspace with catkin_make.
 The cartpole environment can be launched with:
 
 ```
-roslaunch demo_gazebo cartpole_gazebo_sim.launch
+roslaunch gazebo_gym cartpole_gazebo_sim.launch
 ```
 
 It is possible to specify the argument gui:=false to run the simulation without the
@@ -34,14 +70,14 @@ The environment can be tested using a python script that executes a hard-coded p
 through the python gym interface:
 
 ```
-rosrun demo_gazebo test_cartpole_env.py
+rosrun gazebo_gym test_cartpole_env.py
 ```
 
 By default the script does not use the simulated camera, it is possible to enable
 it with:
 
 ```
-rosrun demo_gazebo test_cartpole_env.py --render
+rosrun gazebo_gym test_cartpole_env.py --render
 ```
 
 The rendered frames can be saved to file by specifying the --saveframes option.
@@ -52,31 +88,42 @@ The simulation step length can be changed using the --steplength option (the def
 It is also possible to train a basic DQN policy by using the following:
 
 ```
-rosrun demo_gazebo solve_dqn_stable_baselines.py
+rosrun gazebo_gym solve_dqn_stable_baselines.py
 ```
 
 ## Usage - Hopper
 
 You can launch the hopper Gazebo environment with
 ```
-roslaunch demo_gazebo hopper_gazebo_sim.launch
+roslaunch gazebo_gym hopper_gazebo_sim.launch
 ```
 
 You can execute a pre-trained policy with:
 
 ```
-rosrun demo_gazebo solve_hopper.py --load src/demo_gazebo/demo_gazebo/trained_models/td3_hopper_20200605-175927s140000gazebo-urdf-gazeboGym.zip
+rosrun gazebo_gym solve_hopper.py --load src/gazebo_gym/gazebo_gym/trained_models/td3_hopper_20200605-175927s140000gazebo-urdf-gazeboGym.zip
 ```
 
 You can train a new TD3 policy with
 
 ```
-rosrun demo_gazebo solve_hopper.py
+rosrun gazebo_gym solve_hopper.py
 ```
 
 You can specify the number of timesteps to train for with the --iterations option.
 
 You can also run the hopper environment directlyin pybullet specifynig the --pybullet option, in this mode you can also use an mjcf model (adapted from the OpenAI gym one) instead of the urdf one, using the --mjcf option. Trained models are also provided for these two modes.
+
+
+## Moveit Panda Reaching Environment
+
+The PandaMoveitReachingEnv.py file implements and environment in which a Panda arm moves using Moveit and has to reach a
+specific pose with its end-effector.
+Right now it has only been tested within a Gazebo simulation but in future it is supposed fto work also in the real.
+It may also be extended to use a camera.
+
+To have the environment working you will need additional ROS packages in your workspace.
+First of all the panda package, which provides the model and controller definitions for the Gazebo simulation.
 
 
 ## Gazebo Plugin

@@ -1,3 +1,4 @@
+"""This file implements the Envitronment controller class, whic is the superclass for all th environment controllers."""
 #!/usr/bin/env python3
 from typing import List
 from typing import Tuple
@@ -65,6 +66,9 @@ class EnvironmentController():
         self._camerasToObserve = camerasToRender
 
 
+    def startController(self):
+        """Start up the controller. This must be called after setCamerasToObserve, setLinksToObserve and setJointsToObserve."""
+        pass
 
     def step(self) -> None:
         """Run the simulation for the specified time."""
@@ -107,27 +111,45 @@ class EnvironmentController():
         """
         raise NotImplementedError()
 
-    def clearJointsEffort(self, jointNames : List[Tuple[str,str]]) -> None:
-        """Clear the efforts applied to the specified joints.
+    def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
+        """Get the state of the requetsed joints.
 
         Parameters
         ----------
-        jointNames : List[Tuple[str,str]]
-            List of joints identifiers in the for of string tuples containing (model_name,joint_name)
+        requestedJoints : List[Tuple[str,str]]
+            Joints to tget the state of. Each element of the list represents a joint in the format [model_name, joint_name]
+
+        Returns
+        -------
+        Dict[Tuple[str,str],JointState]
+            Dictionary containig the state of the joints. The keys are in the format [model_name, joint_name]
+
+        """
+        raise NotImplementedError()
+
+    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],gazebo_msgs.msg.LinkState]:
+        """Get the state of the requested links.
+
+        Parameters
+        ----------
+        linkNames : List[str]
+            Names of the link to get the state of
+
+        Returns
+        -------
+        Dict[str,gazebo_msgs.msg.LinkState]
+            Dictionary, indexed by link name containing the state of each link
+
+        """
+        raise NotImplementedError()
+
+    def resetWorld(self):
+        """Reset the environmnet to its start configuration.
 
         Returns
         -------
         None
+            Nothing is returned
 
         """
-        command = [(jointName[0],jointName[1],0) for jointName in jointNames]
-        self.setJointsEffort(command)
-
-    def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
-        raise NotImplementedError()
-
-    def getLinksState(self, linkNames : List[str]) -> Dict[str,gazebo_msgs.msg.LinkState]:
-        raise NotImplementedError()
-
-    def resetWorld(self):
         raise NotImplementedError()

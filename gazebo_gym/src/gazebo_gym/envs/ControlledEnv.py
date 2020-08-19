@@ -14,17 +14,16 @@ import utils
 from gazebo_gym.envControllers.GazeboController import GazeboController
 from gazebo_gym.envs.BaseEnv import BaseEnv
 
-class SimulatedEnv(BaseEnv):
-    """This is a base-class for implementing OpenAI-gym environments with Simulators.
+class ControlledEnv(BaseEnv):
+    """This is a base-class for implementing OpenAI-gym environments using environment controllers derived from EnvironmentController.
 
     It implements part of the methods defined in BaseEnv relying on an EnvironmentController
     (not all methods are available on non-simulated EnvironmentControllers like RosEnvController, at least for now).
 
     The idea is that environments created from this will be able to run on different simulators simply by using specifying
-    simulatorController objects in the constructor
+    environmentController objects in the constructor
 
     You can extend this class with a sub-class to implement specific environments.
-    This class makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering
     """
 
     action_space = None
@@ -34,7 +33,7 @@ class SimulatedEnv(BaseEnv):
     def __init__(self,
                  maxFramesPerEpisode : int = 500,
                  stepLength_sec : float = 0.05,
-                 simulatorController = None):
+                 environmentController = None):
         """Short summary.
 
         Parameters
@@ -46,7 +45,7 @@ class SimulatedEnv(BaseEnv):
             Duration in seconds of each simulation step. Lower values will lead to
             slower simulation. This value should be kept higher than the gazebo
             max_step_size parameter.
-        simulatorController : EnvironmentController
+        environmentController : EnvironmentController
             Specifies which simulator controller to use. By default it connects to Gazebo
 
         Raises
@@ -61,24 +60,24 @@ class SimulatedEnv(BaseEnv):
 
         super().__init__()
 
-        if simulatorController is None:
-            simulatorController = GazeboController(stepLength_sec = stepLength_sec)
+        if environmentController is None:
+            environmentController = GazeboController(stepLength_sec = stepLength_sec)
 
         self._stepLength_sec = stepLength_sec
-        self._simulatorController = simulatorController
+        self._environmentController = environmentController
         self._intendedSimTime = 0
 
 
 
 
     def _performStep(self) -> None:
-        self._simulatorController.step()
+        self._environmentController.step()
         self._intendedSimTime += self._stepLength_sec
 
 
 
     def _performReset(self):
-        self._simulatorController.resetWorld()
+        self._environmentController.resetWorld()
         self._intendedSimTime = 0
 
     def _getRendering(self) -> np.ndarray:
@@ -86,7 +85,7 @@ class SimulatedEnv(BaseEnv):
         cameraName = self._getCameraToRenderName()
 
         #t0 = time.time()
-        cameraImage = self._simulatorController.getRenderings([cameraName])[0]
+        cameraImage = self._environmentController.getRenderings([cameraName])[0]
         if cameraImage is None:
             rospy.logerr("No camera image received. render() will return and empty image.")
             return np.empty([0,0,3])

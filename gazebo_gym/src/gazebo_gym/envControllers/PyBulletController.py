@@ -122,12 +122,6 @@ class PyBulletController(EnvironmentController):
                                         forces=requests[bodyId][1])
 
 
-    def clearJointsEffort(self, joints : List[Tuple[str,str]]) -> None:
-        jointTorques = []
-        for j in joints:
-            jointTorques.append((j[0],j[1],0))
-        self.setJointsEffort(jointTorques)
-
 
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
         jointNames = [x[1] for x in requestedJoints] ## TODO: actually search for the body name
@@ -144,9 +138,7 @@ class PyBulletController(EnvironmentController):
             bodyStates = p.getJointStates(bodyId,requests[bodyId])
             for i in range(len(requests[bodyId])):#put the responses of this bodyId in allStates
                 jointId = requests[bodyId][i]
-                jointState = JointState()
-                jointState.position = [bodyStates[i][0]]
-                jointState.rate = [bodyStates[i][1]]
+                jointState = JointState([bodyStates[i][0]], [bodyStates[i][1]], [bodyStates[i][3]]) #NOTE: effort may not be reported when using torque control
                 bodyName = p.getBodyInfo(bodyId)[1].decode("utf-8")
                 allStates[(bodyName,self._getJointName(bodyId,jointId))] = jointState
 

@@ -2,6 +2,7 @@ import typing
 import numpy as np
 import rospy
 import sensor_msgs
+import geometry_msgs
 import sensor_msgs.msg
 import time
 import cv2
@@ -108,10 +109,15 @@ def image_to_numpy(rosMsg : sensor_msgs.msg.Image) -> np.ndarray:
 class JointState:
     position = []
     rate = []
+    effort = []
+
+    def __init__(self, position, rate, effort):
+        self.position = position
+        self.rate = rate
 
     def __str__(self):
         #print("I'm magic")
-        return "JointState("+str(self.position)+","+str(self.rate)+")"
+        return "JointState("+str(self.position)+","+str(self.rate)+","+str(self.effort)+")"
 
 class AverageKeeper:
     def __init__(self, bufferSize = 100):
@@ -128,3 +134,15 @@ class AverageKeeper:
     def reset(self):
         self._buffer = collections.deque(maxlen=self._bufferSize)
         self._avg = 0
+
+def buildPoseStamped(position_xyz, orientation_xyzw, frame_id):
+    pose = geometry_msgs.msg.PoseStamped()
+    pose.header.frame_id = frame_id
+    pose.pose.position.x = position_xyz[0]
+    pose.pose.position.y = position_xyz[1]
+    pose.pose.position.z = position_xyz[2]
+    pose.pose.orientation.x = orientation_xyzw[0]
+    pose.pose.orientation.y = orientation_xyzw[1]
+    pose.pose.orientation.z = orientation_xyzw[2]
+    pose.pose.orientation.w = orientation_xyzw[3]
+    return pose

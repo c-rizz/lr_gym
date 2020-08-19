@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""This file implements PandaMoveitReachingEnv."""
+"""This file implements PandaEffortKeepPoseEnvironment."""
 
 import rospy
 import rospy.client
@@ -11,36 +11,27 @@ from nptyping import NDArray
 import quaternion
 import moveit_helper.msg
 import moveit_helper.srv
-from geometry_msgs.msg import PoseStamped
 import actionlib
 
-from gazebo_gym.envs.BaseEnv import BaseEnv
-from gazebo_gym.envControllers.RosEnvController import RosEnvController
+from gazebo_gym.envs.ControlledEnv import ControlledEnv
+from gazebo_gym.envControllers.EffortRosControlController import EffortRosControlController
 
 
-def _buildPoseStamped(position_xyz, orientation_xyzw, frame_id):
-    pose = PoseStamped()
-    pose.header.frame_id = frame_id
-    pose.pose.position.x = position_xyz[0]
-    pose.pose.position.y = position_xyz[1]
-    pose.pose.position.z = position_xyz[2]
-    pose.pose.orientation.x = orientation_xyzw[0]
-    pose.pose.orientation.y = orientation_xyzw[1]
-    pose.pose.orientation.z = orientation_xyzw[2]
-    pose.pose.orientation.w = orientation_xyzw[3]
-    return pose
 
 
-class PandaMoveitReachingEnv(BaseEnv):
-    """This class represents and environment in which a Panda arm is controlled with Moveit to reach a goal pose.
 
-    As moveit_commander is not working with python3 this environment relies on an intermediate ROS node for sending moveit commands.
+class PandaMoveitReachingEnv(ControlledEnv):
+    """This class represents an environment in which a Panda arm is controlled with torque control to keep an end-effector pose.
     """
 
-    action_space_high = np.array([  0.1,
-                                    0.1,
-                                    0.1])
-    action_space = gym.spaces.Box(-action_space_high,action_space_high) # 3D translatiomn vector, maximum 10cm
+    action_space_high = np.array([  10,
+                                    10,
+                                    10,
+                                    10,
+                                    10,
+                                    10,
+                                    10])
+    action_space = gym.spaces.Box(-action_space_high,action_space_high) # 7 joints, torque controlled
 
 
     observation_space_high = np.array([ np.finfo(np.float32).max, # end-effector x position
@@ -90,7 +81,7 @@ class PandaMoveitReachingEnv(BaseEnv):
 
 
         super().__init__( maxFramesPerEpisode = maxFramesPerEpisode)
-        self._envController = RosEnvController()
+        self._envController = EffortRosControlController()
 
         self._renderingEnabled = render
         if self._renderingEnabled:
@@ -99,81 +90,26 @@ class PandaMoveitReachingEnv(BaseEnv):
         self._goalPose = goalPose
         self._goalTolerancePosition = goalTolerancePosition
         self._goalToleranceOrientation_rad = goalToleranceOrientation_rad
-        self._lastMoveFailed = False
-
-
-        self._moveEeClient = actionlib.SimpleActionClient('/move_helper/move_to_ee_pose', moveit_helper.msg.MoveToEePoseAction)
-        rospy.loginfo("Waiting for action "+self._moveEeClient.action_client.ns+"...")
-        self._moveEeClient.wait_for_server()
-        rospy.loginfo("Connected.")
-
-
-        self._moveJointClient = actionlib.SimpleActionClient('/move_helper/move_to_joint_pose', moveit_helper.msg.MoveToJointPoseAction)
-        rospy.loginfo("Waiting for action "+self._moveJointClient.action_client.ns+"...")
-        self._moveJointClient.wait_for_server()
-        rospy.loginfo("Connected.")
-
-        eeServiceName = "/move_helper/get_ee_pose"
-        rospy.loginfo("Waiting for service "+eeServiceName+"...")
-        rospy.wait_for_service(eeServiceName)
-        self._getEePoseService = rospy.ServiceProxy(eeServiceName, moveit_helper.srv.GetEePose)
-        rospy.loginfo("Connected.")
-
-        jointServiceName = "/move_helper/get_joint_state"
-        rospy.loginfo("Waiting for service "+jointServiceName+"...")
-        rospy.wait_for_service(jointServiceName)
-        self._getJointStateService = rospy.ServiceProxy(jointServiceName, moveit_helper.srv.GetJointState)
-        rospy.loginfo("Connected.")
 
         self._initialJointState = [0, 0, 0, -1, 0, 1, 0] # self._getJointStateService()
 
 
 
 
-    def _startAction(self, action : Tuple[float, float, float]) -> None:
-        """Plan and execute moveit movement without blocking.
+    def _startAction(self, action : Tuple[float, float, float, float, float, float, float]) -> None:
+        """Send the joint torque command.
 
         Parameters
         ----------
-        action : Tuple[float, float, float]
-            Relative end-effector movement in cartesian space
+        action : Tuple[float, float, float, float, float, float, float]
+            torque control command
 
         """
-        clippedAction = np.clip(np.array(action, dtype=np.float32),-0.1,0.1)
+        clippedAction = np.clip(np.array(action, dtype=np.float32),10,10)
 
+        jointTorques = [("panda","panda_joint"+str(i+1),clippedAction[i]) for i in range(7)]
+        self._envController.setJointsEffort(jointTorques)
 
-        goal = moveit_helper.msg.MoveToEePoseGoal()
-        goal.pose = _buildPoseStamped(clippedAction,[0,0,0,1],"panda_link8") #move 10cm back
-        goal.end_effector_link = "panda_link8"
-        self._moveEeClient.send_goal(goal)
-        #rospy.loginfo("Moving Ee of "+str(clippedAction))
-
-
-
-    def _performStep(self) -> None:
-        """Short summary.
-
-        Returns
-        -------
-        None
-            Description of returned object.
-
-        Raises
-        -------
-        ExceptionName
-            Why the exception is raised.
-
-        """
-        r = self._moveEeClient.wait_for_result()
-        if not r:
-            rospy.logerr("Action failed to complete with result:"+str(self._moveEeClient.get_result()))
-        else:
-            res = self._moveEeClient.get_result()
-            if not res.succeded:
-                rospy.loginfo("Move failed with message: "+str(res.error_message))
-                self._lastMoveFailed = True
-                return
-        self._lastMoveFailed = False
 
     def _getDist2goal(self, state : NDArray[(15,), np.float32]):
         position = state[0:3]
@@ -188,7 +124,6 @@ class PandaMoveitReachingEnv(BaseEnv):
         return position_dist2goal, orientation_dist2goal
 
 
-
     def _checkGoalReached(self,state):
         #print("getting distance for state ",state)
         position_dist2goal, orientation_dist2goal = self._getDist2goal(state)
@@ -197,11 +132,7 @@ class PandaMoveitReachingEnv(BaseEnv):
 
 
 
-
     def _checkEpisodeEnd(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32]) -> bool:
-        unrecoverableFailure = state[14]
-        if unrecoverableFailure:
-            return True
 
         isdone = bool(self._checkGoalReached(state))
         #print("isdone = ",isdone)
@@ -209,14 +140,6 @@ class PandaMoveitReachingEnv(BaseEnv):
 
 
     def _computeReward(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32], action : int) -> float:
-
-        lastStepFailed = state[13]
-        if lastStepFailed:
-            return -0.5
-
-        unrecoverableFailure = state[14]
-        if unrecoverableFailure:
-            return -1000
 
         posDist_new, orientDist_new = self._getDist2goal(state)
         posDist_old, orientDist_old = self._getDist2goal(previousState)
@@ -229,33 +152,17 @@ class PandaMoveitReachingEnv(BaseEnv):
         else:
             finishBonus = 0
 
-        if self._getDist2goal(state)[0]<self._goalTolerancePosition*2:
-            almostFinishBonus = 10
-        else:
-            almostFinishBonus = 0
+        # if self._getDist2goal(state)[0]<self._goalTolerancePosition*2:
+        #     almostFinishBonus = 10
+        # else:
+        #     almostFinishBonus = 0
 
         #closenessBonus = 1-posDist_new
 
-        reward = posImprovement + orientImprovement + finishBonus + almostFinishBonus# + closenessBonus
+        reward = posImprovement + orientImprovement + finishBonus # + almostFinishBonus# + closenessBonus
         rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
         return reward
 
-
-    def _onResetDone(self) -> None:
-        return
-
-
-    def _performReset(self) -> None:
-        goal = moveit_helper.msg.MoveToJointPoseGoal()
-        goal.pose = self._initialJointState
-        self._moveJointClient.send_goal(goal)
-        rospy.loginfo("Moving to initial position...")
-        r = self._moveJointClient.wait_for_result()
-        if r:
-            if self._moveJointClient.get_result().succeded:
-                return
-        else:
-            raise RuntimeError("Failed ot reset environment: "+str(self._moveJointClient.get_result()))
 
 
     def _getObservation(self, state) -> np.ndarray:
@@ -271,8 +178,15 @@ class PandaMoveitReachingEnv(BaseEnv):
 
         """
 
-        eePose = self._getEePoseService("panda_link8").pose.pose
-        jointState = self._getJointStateService().joint_poses
+        jointStates = self._envController.getJointsState([("panda","panda_joint1"),
+                                                         ("panda","panda_joint2"),
+                                                         ("panda","panda_joint3"),
+                                                         ("panda","panda_joint4"),
+                                                         ("panda","panda_joint5"),
+                                                         ("panda","panda_joint6"),
+                                                         ("panda","panda_joint7")])
+
+        eePose = self.getLinksState(["panda","panda_joint7"])[("panda","panda_joint7")].pose
 
         quat = quaternion.from_float_array([eePose.orientation.w,eePose.orientation.x,eePose.orientation.y,eePose.orientation.z])
         eeOrientation_rpy = quaternion.as_euler_angles(quat)
@@ -289,14 +203,14 @@ class PandaMoveitReachingEnv(BaseEnv):
                     eeOrientation_rpy[0],
                     eeOrientation_rpy[1],
                     eeOrientation_rpy[2],
-                    jointState[0],
-                    jointState[1],
-                    jointState[2],
-                    jointState[3],
-                    jointState[4],
-                    jointState[5],
-                    jointState[6],
-                    1.0 if self._lastMoveFailed else 0.0,
+                    jointStates("panda","panda_joint1").position,
+                    jointStates("panda","panda_joint2").position,
+                    jointStates("panda","panda_joint3").position,
+                    jointStates("panda","panda_joint4").position,
+                    jointStates("panda","panda_joint5").position,
+                    jointStates("panda","panda_joint6").position,
+                    jointStates("panda","panda_joint7").position,
+                    0.0,
                     0.0] # No unrecoverable failure states
 
         return np.array(state,dtype=np.float32)

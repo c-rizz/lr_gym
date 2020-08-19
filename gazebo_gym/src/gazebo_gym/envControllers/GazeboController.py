@@ -202,9 +202,7 @@ class GazeboController(GazeboControllerNoPlugin):
         ret = {}
         for rj in requestedJoints:
             jointInfo = self._simulationState.jointsState[rj]
-            jointState = JointState()
-            jointState.position = list(jointInfo.position)
-            jointState.rate = list(jointInfo.rate)
+            jointState = JointState(list(jointInfo.position),list(jointInfo.rate), None) #TODO: get effort info
             ret[rj] = jointState
         return ret
 

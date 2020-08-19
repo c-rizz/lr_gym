@@ -268,9 +268,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
             modelName = requestedJoints[i][0]
             jointProp = self._getJointPropertiesService.call(jointName) ## TODO: this ignores the model name!
             #print("Got joint prop for "+jointName+" =",jointProp)
-            jointState = JointState()
-            jointState.position = list(jointProp.position)
-            jointState.rate = list(jointProp.rate)
+            jointState = JointState(list(jointProp.position), list(jointProp.rate), None) #NOTE: effort is not returned by the gazeoo service
             ret[(modelName,jointName)] = jointState
 
         return ret

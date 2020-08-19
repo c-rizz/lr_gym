@@ -15,6 +15,7 @@ from gym.utils import seeding
 from typing import Tuple
 from typing import Dict
 from typing import Any
+from typing import Sequence
 import time
 
 import utils
@@ -28,7 +29,6 @@ class BaseEnv(gym.Env):
     of some useful metrics.
 
     You can extend this class with a sub-class to implement specific environments.
-    This class makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering
     """
 
     action_space = None
@@ -41,28 +41,9 @@ class BaseEnv(gym.Env):
 
         Parameters
         ----------
-        usePersistentConnections : bool
-            Controls wheter to use persistent connections for the gazebo services.
-            IMPORTANT: enabling this seems to create problems with the synchronization
-            of the service calls. It may lead to deadlocks
-            In theory it should have been fine as long as there are no connection
-            problems and gazebo does not restart.
         maxFramesPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
-        stepLength_sec : float
-            Duration in seconds of each simulation step. Lower values will lead to
-            slower simulation. This value should be kept higher than the gazebo
-            max_step_size parameter.
-        simulatorController : EnvironmentController
-            Specifies which simulator controller to use. By default it connects to Gazebo
-
-        Raises
-        -------
-        rospy.ROSException
-            In cause it fails to find the required ROS services
-        ROSInterruptException
-            In case it gets interrupted while waiting for ROS servics
 
         """
 
@@ -86,7 +67,7 @@ class BaseEnv(gym.Env):
 
 
 
-    def step(self, action) -> Tuple[Tuple[float,float,float,float], int, bool, Dict[str,Any]]:
+    def step(self, action) -> Tuple[Sequence, int, bool, Dict[str,Any]]:
         """Run one step of the environment's dynamics.
 
         When end of episode is reached, you are responsible for calling `reset()`
@@ -100,8 +81,8 @@ class BaseEnv(gym.Env):
 
         Returns
         -------
-        Tuple[Tuple[float,float,float,float], int, bool, Dict[str,Any]]
-            The first element is the observatio. See the environment implementation to know its format
+        Tuple[Sequence, int, bool, Dict[str,Any]]
+            The first element is the observation. See the environment implementation to know its format
             The second element is the reward. See the environment implementation to know its format
             The third is True if the episode finished, False if it isn't
             The fourth is a dict containing auxiliary info. It contains the "simTime" element,
@@ -397,27 +378,27 @@ class BaseEnv(gym.Env):
         raise NotImplementedError()
 
 
-    def _getObservation(self) -> Tuple[float,float,float,float]:
+    def _getObservation(self) -> Sequence:
         """To be implemented in subclass.
 
         Get an observation of the environment.
 
         Returns
         -------
-        Any
+        Sequence
             An observation of the environment. See the environment implementation for details on its format
 
         """
         raise NotImplementedError()
 
-    def _getState(self) -> Tuple[float,float,float,float]:
+    def _getState(self) -> Sequence:
         """To be implemented in subclass.
 
         Get the state of the environment form the simulation
 
         Returns
         -------
-        Any
+        Sequence
             An observation of the environment. See the environment implementation for details on its format
 
         """
@@ -435,7 +416,7 @@ class BaseEnv(gym.Env):
             The name of the camera to be rendered, as define in the environment sdf or urdf file
 
         """
-        raise NotImplementedError()
+        raise NotImplementedError() #TODO: This is super wierd, need to rethink it
 
 
     def _onResetDone(self) -> None:
@@ -444,7 +425,7 @@ class BaseEnv(gym.Env):
         This method is called by the reset method to allow the sub-class to reset environment-specific details
 
         """
-        raise NotImplementedError()
+        pass
 
 
     def _performStep(self) -> None:

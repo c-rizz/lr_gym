@@ -2,7 +2,7 @@
 """
 Class implementing Gazebo-based gym cartpole environment.
 
-Based on SimulatedEnv
+Based on ControlledEnv
 """
 
 
@@ -15,9 +15,9 @@ from typing import Tuple
 import time
 
 
-from gazebo_gym.envs.SimulatedEnv import SimulatedEnv
+from gazebo_gym.envs.ControlledEnv import ControlledEnv
 
-class CartpoleEnv(SimulatedEnv):
+class CartpoleEnv(ControlledEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
 
     It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
@@ -106,7 +106,7 @@ class CartpoleEnv(SimulatedEnv):
 
 
     def _onResetDone(self) -> None:
-        self._simulatorController.clearJointsEffort([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
+        self._simulatorController.setJointsEffort([("cartpole_v0","foot_joint",0),("cartpole_v0","cartpole_joint",0)])
 
 
     def _getCameraToRenderName(self) -> str:

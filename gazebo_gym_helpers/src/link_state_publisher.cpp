@@ -5,20 +5,27 @@
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/chainfksolver.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
+#include <kdl/chainfksolvervel_recursive.hpp>
 #include <kdl_conversions/kdl_msg.h>
-#include <gazebo_gym_helpers/LinkPoses.h>
+#include <gazebo_gym_helpers/LinkStates.h>
 #include <geometry_msgs/PoseArray.h>
 
 
 std::vector<KDL::Chain> chains;
-ros::Publisher linkPosesPublisher;
-ros::Publisher linkPosesDbgPublisher;
+ros::Publisher linkStatesPublisher;
+ros::Publisher linkStatesDbgPublisher;
 std::string rootLinkName;
+
+struct FkResult
+{
+  KDL::Frame pose;
+  KDL::Twist twist;
+};
 
 void jointStatesCallback(const sensor_msgs::JointStateConstPtr& msg)
 {
   //ROS_INFO("got joints");
-  std::map<std::string,KDL::Frame> linkCartesianPoses;
+  std::map<std::string,FkResult> fkResults;
 
   // See: https://www.orocos.org/kdl/examples#comment-964
   for(KDL::Chain chain : chains)
@@ -26,10 +33,10 @@ void jointStatesCallback(const sensor_msgs::JointStateConstPtr& msg)
     //ROS_DEBUG_STREAM("Computing FK");
     std::string tipName = chain.segments.back().getName();
     //ROS_DEBUG_STREAM("Computing pose for link "<<tipName);
-    KDL::ChainFkSolverPos_recursive fksolver = KDL::ChainFkSolverPos_recursive(chain);
 
     unsigned int nrOfJoints = chain.getNrOfJoints();
     KDL::JntArray jointPositions = KDL::JntArray(nrOfJoints);
+    KDL::JntArray jointVelocities = KDL::JntArray(nrOfJoints);
 
     //ROS_DEBUG_STREAM("Getting joint positions");
     unsigned int foundJoints = 0;
@@ -48,8 +55,10 @@ void jointStatesCallback(const sensor_msgs::JointStateConstPtr& msg)
         if(jointIt != msg->name.end())
         {
           double jointPosition = msg->position.at(jointIt - msg->name.begin());
+          double jointVelocity = msg->velocity.at(jointIt - msg->name.begin());
           //ROS_DEBUG_STREAM("Got joint position ("<<foundJoints<<" of "<<nrOfJoints<<")");
           jointPositions(foundJoints) = jointPosition;
+          jointVelocities(foundJoints) = jointVelocity;
           foundJoints++;
         }
         else
@@ -64,28 +73,15 @@ void jointStatesCallback(const sensor_msgs::JointStateConstPtr& msg)
       ROS_WARN_STREAM("Couldn't find all joint positions, skipping chain for "<<tipName);
       continue;
     }
+    KDL::JntArrayVel jointPosAndVel(jointPositions,jointVelocities);
 
 
-    {
-      std::string linkNamesStr = "";
-      std::string jointNamesStr = "";
-      for(KDL::Segment& seg : chain.segments)
-      {
-        linkNamesStr += seg.getName() + ", ";
-        jointNamesStr += seg.getJoint().getName() + ", ";
-      }
-      std::string jointPositionsStr = "";
-      for(unsigned int i = 0; i<nrOfJoints; i++)
-      {
-        jointPositionsStr += std::to_string(jointPositions(i)) + ", ";
-      }
-      //ROS_DEBUG_STREAM("computing forward kinematics. \n Links: ("+linkNamesStr+")\n Joints: ("+jointNamesStr+")\n Positions: ("+jointPositionsStr+")");
-    }
 
     //ROS_DEBUG_STREAM("Computing forward kinematics");
     KDL::Frame cartesianPosition;
-    int kinematics_status = fksolver.JntToCart(jointPositions,cartesianPosition);
-    if(kinematics_status<0)
+    KDL::ChainFkSolverPos_recursive fksolver = KDL::ChainFkSolverPos_recursive(chain);
+    int ret = fksolver.JntToCart(jointPositions,cartesianPosition);
+    if(ret<0)
     {
       std::string linkNamesStr = "";
       std::string jointNamesStr = "";
@@ -96,38 +92,62 @@ void jointStatesCallback(const sensor_msgs::JointStateConstPtr& msg)
       }
       std::string jointPositionsStr = "";
       for(unsigned int i = 0; i<nrOfJoints; i++)
-      {
         jointPositionsStr += std::to_string(jointPositions(i)) + ", ";
-      }
       ROS_WARN_STREAM("Forward kinematics for chain failed. Will skip chain for link "<<tipName<<". \n Links: ("+linkNamesStr+")\n Joints: ("+jointNamesStr+")\n Positions: ("+jointPositionsStr+")");
+      continue;
+    }
+
+    KDL::ChainFkSolverVel_recursive fkVelSolver = KDL::ChainFkSolverVel_recursive(chain);
+    KDL::FrameVel cartesianVelocity;
+    ret = fkVelSolver.JntToCart(jointPosAndVel, cartesianVelocity);
+    if(ret<0)
+    {
+      std::string linkNamesStr = "";
+      std::string jointNamesStr = "";
+      for(KDL::Segment& seg : chain.segments)
+      {
+        linkNamesStr += seg.getName() + ", ";
+        jointNamesStr += seg.getJoint().getName() + ", ";
+      }
+      std::string jointPositionsStr = "";
+      for(unsigned int i = 0; i<nrOfJoints; i++)
+        jointPositionsStr += std::to_string(jointPositions(i)) + ", ";
+      ROS_WARN_STREAM("Forward kinematics velocity computation for chain failed. Will skip chain for link "<<tipName<<". \n Links: ("+linkNamesStr+")\n Joints: ("+jointNamesStr+")\n Positions: ("+jointPositionsStr+")");
       continue;
     }
     //ROS_DEBUG_STREAM("Computed forward kinematics");
 
-    linkCartesianPoses.insert(std::pair<std::string,KDL::Frame>(tipName,cartesianPosition));
-
+    FkResult res;
+    res.pose = cartesianPosition;
+    res.twist = cartesianVelocity.GetTwist();
+    fkResults.insert(std::pair<std::string,FkResult>(tipName, res));
     //ROS_DEBUG_STREAM("Saved result");
   }
 
   //ROS_DEBUG_STREAM("Computed forward kinematics for "<<linkCartesianPoses.size()<<" links");
-  gazebo_gym_helpers::LinkPoses linkPoses;
+  gazebo_gym_helpers::LinkStates linkStates;
   geometry_msgs::PoseArray poseArrayDbg;
 
-  for(std::pair<std::string,KDL::Frame> fkResult : linkCartesianPoses)
+  for(std::pair<std::string,FkResult> fkResult : fkResults)
   {
     geometry_msgs::PoseStamped linkPose;
-    tf::poseKDLToMsg(fkResult.second,linkPose.pose);
+    tf::poseKDLToMsg(fkResult.second.pose,linkPose.pose);
     linkPose.header.frame_id = rootLinkName;
     linkPose.header.stamp = msg->header.stamp;
-    linkPoses.link_names.push_back(fkResult.first);
-    linkPoses.link_poses.push_back(linkPose);
+    geometry_msgs::Twist linkTwist;
+    tf::twistKDLToMsg(fkResult.second.twist,linkTwist);
+
+    linkStates.link_names.push_back(fkResult.first);
+    linkStates.link_poses.push_back(linkPose);
+    linkStates.link_twists.push_back(linkTwist);
+
     poseArrayDbg.poses.push_back(linkPose.pose);
   }
   poseArrayDbg.header.frame_id = rootLinkName;
   poseArrayDbg.header.stamp = msg->header.stamp;
 
-  linkPosesPublisher.publish(linkPoses);
-  linkPosesDbgPublisher.publish(poseArrayDbg);
+  linkStatesPublisher.publish(linkStates);
+  linkStatesDbgPublisher.publish(poseArrayDbg);
 }
 
 std::vector<KDL::Chain> treeToChains(const KDL::Tree& tree)
@@ -199,8 +219,8 @@ int main(int argc, char** argv)
 
   ros::Subscriber jointStatesSub = node_handle.subscribe("joint_states", 1, jointStatesCallback);
 
-  linkPosesPublisher = node_handle.advertise<gazebo_gym_helpers::LinkPoses>("link_states", 1);
-  linkPosesDbgPublisher = node_handle.advertise<geometry_msgs::PoseArray>("link_poses_dbg", 1);
+  linkStatesPublisher = node_handle.advertise<gazebo_gym_helpers::LinkStates>("link_states", 1);
+  linkStatesDbgPublisher = node_handle.advertise<geometry_msgs::PoseArray>("link_poses_dbg", 1);
 
   ROS_INFO("Link state publisher started");
   ros::spin();

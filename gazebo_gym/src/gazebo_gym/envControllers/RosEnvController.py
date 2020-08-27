@@ -9,6 +9,7 @@ from threading import Lock
 
 from gazebo_gym.utils import JointState
 from gazebo_gym.envControllers.EnvironmentController import EnvironmentController
+from gazebo_gym_helpers.msg import LinkStates
 
 import rospy
 
@@ -33,8 +34,10 @@ class RosEnvController(EnvironmentController):
 
         self._lastImagesReceived = {}
         self._lastJointStatesReceived = {}
+        self._lastLinkStatesReceived = {}
 
         self._jointStatesMutex = Lock() #To sinchrnoized _jointStateCallback with getJointsState
+        self._linkStatesMutex = Lock() #To sinchrnoized _jointStateCallback with getJointsState
 
 
     def step(self) -> None:
@@ -56,6 +59,15 @@ class RosEnvController(EnvironmentController):
         self._jointStatesMutex.acquire()
         self._lastJointStatesReceived[modelName] = msg
         self._jointStatesMutex.release()
+
+
+    def _linkStatesCallback(msg,args):
+        self = args[0]
+        modelName = args[1]
+
+        self._linkStatesMutex.acquire()
+        self._lastLinkStatesReceived[modelName] = msg
+        self._linkStatesMutex.release()
 
 
     def startController(self):
@@ -85,6 +97,14 @@ class RosEnvController(EnvironmentController):
             jointName = joint[1]
             self._lastJointStatesReceived[modelName] = None
             self._jointStateSubscribers.append(rospy.Subscriber("/"+modelName+"/joint_states", sensor_msgs.JointState, self._jointStateCallback, callback_args=(self,modelName)))
+
+
+        for link in self._linksToObserve:
+            modelName = link[0]
+            linkName = link[1]
+            self._lastLinkStatesReceived[modelName] = None
+            self._linkStatesSubscribers.append(rospy.Subscriber("/"+modelName+"/link_states", LinkStates, self._linkStatesCallback, callback_args=(self,modelName)))
+
 
         self._listenersStarted = True
 
@@ -125,12 +145,11 @@ class RosEnvController(EnvironmentController):
 
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
         if not self._listenersStarted:
-            raise RuntimeError("called getJointsState without having called startController. The proper way to initialize the controller is to first build the controller, then call setCamerasToObserve, and then call startController")
+            raise RuntimeError("called getJointsState without having called startController. The proper way to initialize the controller is to first build the controller, then call setJointsToObserve, and then call startController")
 
         for j in requestedJoints:
-            modelName = j[0]
-            if modelName not in self._jointsToObserve:
-                raise RuntimeError("Requested image form a camera that was not requested in setCamerasToObserve")
+            if j not in self._jointsToObserve:
+                raise RuntimeError("Requested joint that was not requested in setJointsToObserve")
 
         ret = {}
 
@@ -141,7 +160,7 @@ class RosEnvController(EnvironmentController):
             modelName = j[0]
             jointName = j[1]
             modelStateMsg = self._lastJointStatesReceived[modelName]
-            jointIndex = modelStateMsg.name.index(modelName)
+            jointIndex = modelStateMsg.name.index(jointName)
             ret[j] = JointState(modelStateMsg.position, modelStateMsg.velocity, modelStateMsg.effort)
 
         self._jointStatesMutex.release()
@@ -149,9 +168,38 @@ class RosEnvController(EnvironmentController):
         return ret
 
     def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],gazebo_msgs.msg.LinkState]:
+        if not self._listenersStarted:
+            raise RuntimeError("called getLinksState without having called startController. The proper way to initialize the controller is to first build the controller, then call setLinksToObserve, and then call startController")
+
+        for l in requestedLinks:
+            if l not in self._linksToObserve:
+                raise RuntimeError("Requested link that was not requested in setLinksToObserve")
+
+        ret = {}
         # It would be best to use the joint_state and compute link poses with kdl.
         # But this is a problem in python3
         # For now I have to rely on another node do the forward kinematics
+
+
+
+
+        self._linkStatesMutex.acquire()
+
+        for l in requestedLinks:
+            modelName = l[0]
+            linkName = l[1]
+            linkStatesMsg = self._lastLinkStatesReceived[modelName]
+            linkIndex = linkStatesMsg.link_names.index(linkName)
+
+            linkState = gazebo_msgs.msg.LinkState()
+            linkState.pose = linkStatesMsg.link_poses[linkIndex]
+            linkState.twist = linkStatesMsg.link_twists[linkIndex]
+
+            ret[l] = linkState
+
+        self._linkStatesMutex.release()
+
+
         raise NotImplementedError()
 
     def resetWorld(self):

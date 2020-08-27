@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>moveit_helper</name>
+  <name>gazebo_gym_helpers</name>
   <version>0.0.0</version>
-  <description>The moveit_helper package</description>
+  <description>The gazebo_gym_helpers package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/moveit_helper</url> -->
+  <!-- <url type="website">http://wiki.ros.org/gazebo_gym_helpers</url> -->
 
 
   <!-- Author tags are optional, multiple are allowed, one per tag -->
@@ -60,12 +60,19 @@
   <depend>tf2_ros</depend>
   <depend>tf2</depend>
   <depend>tf2_geometry_msgs</depend>
-
+  <depend>sensor_msgs</depend>
+  <depend>kdl_parser</depend>
+  <depend>kdl_conversions</depend>
 
   <depend>moveit_core</depend>
   <depend>moveit_visual_tools</depend>
   <depend>moveit_ros_planning_interface</depend>
   <depend>interactive_markers</depend>
+
+
+
+
+
   <!-- The export tag contains other, unspecified, tags -->
   <export>
     <!-- Other tools can request additional information be placed here -->

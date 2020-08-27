@@ -2,8 +2,8 @@
 
 import rospy
 import actionlib
-import moveit_helper.msg
-import moveit_helper.srv
+import gazebo_gym_helpers.msg
+import gazebo_gym_helpers.srv
 from geometry_msgs.msg import PoseStamped
 import time
 
@@ -22,18 +22,18 @@ def buildPoseStamped(position_xyz, orientation_xyzw, frame_id):
 
 
 
-rospy.init_node('moveit_helper_test_python3', anonymous=True)
+rospy.init_node('gazebo_gym_helpers_test_python3', anonymous=True)
 
-moveEeClient = actionlib.SimpleActionClient('/move_helper/move_to_ee_pose', moveit_helper.msg.MoveToEePoseAction)
-moveJointsClient = actionlib.SimpleActionClient('/move_helper/move_to_joint_pose', moveit_helper.msg.MoveToJointPoseAction)
+moveEeClient = actionlib.SimpleActionClient('/move_helper/move_to_ee_pose', gazebo_gym_helpers.msg.MoveToEePoseAction)
+moveJointsClient = actionlib.SimpleActionClient('/move_helper/move_to_joint_pose', gazebo_gym_helpers.msg.MoveToJointPoseAction)
 
 moveEeClient.wait_for_server()
 moveJointsClient.wait_for_server()
 
 rospy.wait_for_service("/move_helper/get_ee_pose")
-getEePoseService = rospy.ServiceProxy('/move_helper/get_ee_pose', moveit_helper.srv.GetEePose)
+getEePoseService = rospy.ServiceProxy('/move_helper/get_ee_pose', gazebo_gym_helpers.srv.GetEePose)
 rospy.wait_for_service("/move_helper/get_joint_state")
-getJointStateService = rospy.ServiceProxy('/move_helper/get_joint_state', moveit_helper.srv.GetJointState)
+getJointStateService = rospy.ServiceProxy('/move_helper/get_joint_state', gazebo_gym_helpers.srv.GetJointState)
 
 
 
@@ -47,7 +47,7 @@ print("Joint state = "+str(jointPose))
 
 time.sleep(3)
 
-goal = moveit_helper.msg.MoveToEePoseGoal()
+goal = gazebo_gym_helpers.msg.MoveToEePoseGoal()
 goal.pose = buildPoseStamped([-0.1,0,0],[0,0,0,1],"panda_link8") #move 10cm back
 goal.end_effector_link = "panda_link8"
 moveEeClient.send_goal(goal)
@@ -64,7 +64,7 @@ time.sleep(3)
 
 
 
-goal = moveit_helper.msg.MoveToJointPoseGoal()
+goal = gazebo_gym_helpers.msg.MoveToJointPoseGoal()
 goal.pose = [0, 0, 0, -1, 0, 1, 0]
 moveJointsClient.send_goal(goal)
 print("Moving joints...")

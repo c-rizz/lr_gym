@@ -9,8 +9,8 @@ import numpy as np
 from typing import Tuple
 from nptyping import NDArray
 import quaternion
-import moveit_helper.msg
-import moveit_helper.srv
+import gazebo_gym_helpers.msg
+import gazebo_gym_helpers.srv
 import actionlib
 
 from gazebo_gym.envs.ControlledEnv import ControlledEnv

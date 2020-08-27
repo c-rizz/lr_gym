@@ -11,7 +11,7 @@ and the various demos.
  to the needs of RL methods. In particular it allows to step the simulation of precise durations,
  to obtain renderings from simulated cameras even while the simulation is stopped and reduces
  communication overhead making simulation MUCH faster.
-* moveit_helper provides a node that can receive and execute moveit commands via ROS messaging.
+* gazebo_gym_helpers provides a node that can receive and execute moveit commands via ROS messaging.
  This is needed as an intermediate node for controlling moveit from python3 code.
 
 
@@ -133,19 +133,19 @@ git clone -b crzz-dev https://gitlab.idiap.ch/learn-real/panda.git
 You will also need the panda moveit configuration. You can get it by cloning:
 
 ```
-git clone https://github.com/erdalpekel/panda_moveit_config.git
+git clone https://github.com/erdalpekel/simple_panda_moveit_config.git
 ```
 
 At this point, after compiling with catkin, you can run the environment.
 
-First launch:
+First, launch:
 ```
-roslaunch panda roslaunch panda panda_generic_control.launch simulated:=true
+roslaunch panda panda_generic_control.launch simulated:=true
 ```
 
 Then, in a separate terminal:
 ```
-roslaunch panda_moveit_config move_group.launch
+roslaunch simple_panda_moveit_config move_group.launch
 ```
 At this point if you want you can start rviz and control the robot with moveit with rviz -d src/panda/config/moveit.rviz
 If the robot is in collision with itself, you can move it to a safe pose with (kill it with ctrl-c after the robot has moved):
@@ -155,7 +155,7 @@ rosrun panda move_to_start_pose_raw.sh
 
 Then, in another separate terminal:
 ```
-rosrun moveit_helper move_helper
+rosrun gazebo_gym_helpers move_helper
 ```
 
 Finally, you can start training the RL policy with:

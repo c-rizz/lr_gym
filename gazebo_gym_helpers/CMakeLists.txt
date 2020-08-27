@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(moveit_helper)
+project(gazebo_gym_helpers)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11 -Wall)
@@ -25,12 +25,17 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_kdl
   tf2_msgs
   tf2_py
+  kdl_parser
+  kdl_conversions
 )
 
 ## System dependencies are found with CMake's conventions
 
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
+
+find_package(orocos_kdl REQUIRED)
+find_package(urdfdom_headers REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -62,11 +67,10 @@ find_package(Boost REQUIRED COMPONENTS system)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  LinkPoses.msg
+)
 
 ## Generate services in the 'srv' folder
 add_service_files(
@@ -117,8 +121,13 @@ catkin_package(
     rviz_visual_tools
     tf2
     tf2_ros
+	  kdl_parser
+	  kdl_conversions
+
   DEPENDS
     EIGEN3
+	  orocos_kdl
+	  urdfdom_headers
 )
 
 ###########
@@ -132,8 +141,15 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-include_directories(${Boost_INCLUDE_DIR} ${EIGEN3_INCLUDE_DIRS})
+include_directories(${Boost_INCLUDE_DIR} ${EIGEN3_INCLUDE_DIRS} ${orocos_kdl_INCLUDE_DIRS} ${urdfdom_headers_INCLUDE_DIRS})
+link_directories(${orocos_kdl_LIBRARY_DIRS})
+
+
 
 add_executable(move_helper src/move_helper.cpp)
 add_dependencies(move_helper ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(move_helper ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+
+add_executable(link_state_publisher src/link_state_publisher.cpp)
+add_dependencies(link_state_publisher ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(link_state_publisher ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES})

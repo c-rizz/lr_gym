@@ -9,8 +9,8 @@ import numpy as np
 from typing import Tuple
 from nptyping import NDArray
 import quaternion
-import moveit_helper.msg
-import moveit_helper.srv
+import gazebo_gym_helpers.msg
+import gazebo_gym_helpers.srv
 from geometry_msgs.msg import PoseStamped
 import actionlib
 
@@ -102,13 +102,13 @@ class PandaMoveitReachingEnv(BaseEnv):
         self._lastMoveFailed = False
 
 
-        self._moveEeClient = actionlib.SimpleActionClient('/move_helper/move_to_ee_pose', moveit_helper.msg.MoveToEePoseAction)
+        self._moveEeClient = actionlib.SimpleActionClient('/move_helper/move_to_ee_pose', gazebo_gym_helpers.msg.MoveToEePoseAction)
         rospy.loginfo("Waiting for action "+self._moveEeClient.action_client.ns+"...")
         self._moveEeClient.wait_for_server()
         rospy.loginfo("Connected.")
 
 
-        self._moveJointClient = actionlib.SimpleActionClient('/move_helper/move_to_joint_pose', moveit_helper.msg.MoveToJointPoseAction)
+        self._moveJointClient = actionlib.SimpleActionClient('/move_helper/move_to_joint_pose', gazebo_gym_helpers.msg.MoveToJointPoseAction)
         rospy.loginfo("Waiting for action "+self._moveJointClient.action_client.ns+"...")
         self._moveJointClient.wait_for_server()
         rospy.loginfo("Connected.")
@@ -116,13 +116,13 @@ class PandaMoveitReachingEnv(BaseEnv):
         eeServiceName = "/move_helper/get_ee_pose"
         rospy.loginfo("Waiting for service "+eeServiceName+"...")
         rospy.wait_for_service(eeServiceName)
-        self._getEePoseService = rospy.ServiceProxy(eeServiceName, moveit_helper.srv.GetEePose)
+        self._getEePoseService = rospy.ServiceProxy(eeServiceName, gazebo_gym_helpers.srv.GetEePose)
         rospy.loginfo("Connected.")
 
         jointServiceName = "/move_helper/get_joint_state"
         rospy.loginfo("Waiting for service "+jointServiceName+"...")
         rospy.wait_for_service(jointServiceName)
-        self._getJointStateService = rospy.ServiceProxy(jointServiceName, moveit_helper.srv.GetJointState)
+        self._getJointStateService = rospy.ServiceProxy(jointServiceName, gazebo_gym_helpers.srv.GetJointState)
         rospy.loginfo("Connected.")
 
         self._initialJointState = [0, 0, 0, -1, 0, 1, 0] # self._getJointStateService()
@@ -142,7 +142,7 @@ class PandaMoveitReachingEnv(BaseEnv):
         clippedAction = np.clip(np.array(action, dtype=np.float32),-0.1,0.1)
 
 
-        goal = moveit_helper.msg.MoveToEePoseGoal()
+        goal = gazebo_gym_helpers.msg.MoveToEePoseGoal()
         goal.pose = _buildPoseStamped(clippedAction,[0,0,0,1],"panda_link8") #move 10cm back
         goal.end_effector_link = "panda_link8"
         self._moveEeClient.send_goal(goal)
@@ -246,7 +246,7 @@ class PandaMoveitReachingEnv(BaseEnv):
 
 
     def _performReset(self) -> None:
-        goal = moveit_helper.msg.MoveToJointPoseGoal()
+        goal = gazebo_gym_helpers.msg.MoveToJointPoseGoal()
         goal.pose = self._initialJointState
         self._moveJointClient.send_goal(goal)
         rospy.loginfo("Moving to initial position...")

@@ -25,9 +25,9 @@ class EffortRosControlController(RosEnvController):
     """
 
     def __init__(self,
-                 effortControllersInfos = Dict[str,Tuple[str,str,Tuple[str]]],
-                 trajectoryControllersInfos = Dict[str,Tuple[str,str,Tuple[str]]],
-                 initialJointPositions = List[Tuple[str,str,float]],
+                 effortControllersInfos : Dict[str,Tuple[str,str,Tuple[str]]],
+                 trajectoryControllersInfos : Dict[str,Tuple[str,str,Tuple[str]]],
+                 initialJointPositions : List[Tuple[str,str,float]],
                  stepLength_sec : float = 0.001):
         """Initialize the environment controller.
 
@@ -65,8 +65,9 @@ class EffortRosControlController(RosEnvController):
 
         usedInitialpositions = [] #just for a safety check
 
-        for tch in self._trajectoryControllerHelpers:
-            controllerInfo = self._trajectoryControllersInfos[tch.getControllerName()]
+        print(str(type(self._trajectoryControllersInfos)))
+        for controllerName in self._trajectoryControllersInfos:
+            controllerInfo = self._trajectoryControllersInfos[controllerName]
             jointNames = []
             positions = []
             for jointName in controllerInfo[2]:
@@ -76,10 +77,10 @@ class EffortRosControlController(RosEnvController):
                         position = initialPosition[2]
                         usedInitialpositions.append(initialPosition)
                 if position is None:
-                    raise RuntimeError("No initial position was specified for joint "+jointName)
+                    raise RuntimeError("No initial position was specified for joint '"+jointName+"' of controller "+controllerName)
                 positions.append(position)
                 jointNames.append(jointName)
-            self._initialTrajectoryControllersSetup[tch.getControllerName()] = (jointNames,positions)
+            self._initialTrajectoryControllersSetup[controllerName] = (jointNames,positions)
 
         for initialPosition in self._initialJointPositions:
             if initialPosition not in usedInitialpositions:
@@ -138,16 +139,19 @@ class EffortRosControlController(RosEnvController):
 
     def resetWorld(self):
         rospy.loginfo("EffortRosControlController: switching to trajectory controllers")
-        self._controllerManagementHelper.switchControllers(self._trajectoryControllersInfos.keys(), self._effortControllersInfos.keys())
-        self._controllerManagementHelper.waitForControllersStart(self._trajectoryControllersInfos.keys())
+        trajectoryControllers = list(self._trajectoryControllersInfos.keys())
+        effortControllers = list(self._effortControllersInfos.keys())
+        self._controllerManagementHelper.switchControllers(trajectoryControllers, effortControllers)
+        self._controllerManagementHelper.waitForControllersStart(trajectoryControllers)
         rospy.loginfo("EffortRosControlController: trajectory controllers started")
 
-        for tch in self._trajectoryControllerHelpers:
+        
+        for tch in self._trajectoryControllerHelpers.values():
             setup = self._initialTrajectoryControllersSetup[tch.getControllerName()]
             tch.moveToJointPosition(setup[0],setup[1], 1)
 
 
         rospy.loginfo("EffortRosControlController: switching to effort controllers")
-        self._controllerManagementHelper.switchControllers(self._effortControllersInfos.keys(), self._trajectoryControllersInfos.keys())
-        self._controllerManagementHelper.waitForControllersStart(self._effortControllersInfos.keys())
+        self._controllerManagementHelper.switchControllers(effortControllers, trajectoryControllers)
+        self._controllerManagementHelper.waitForControllersStart(effortControllers)
         rospy.loginfo("EffortRosControlController: effort controllers started")

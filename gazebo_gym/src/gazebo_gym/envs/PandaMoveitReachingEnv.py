@@ -63,7 +63,7 @@ class PandaMoveitReachingEnv(BaseEnv):
     metadata = {'render.modes': ['rgb_array']}
 
     def __init__(   self,
-                    goalPose : Tuple[float,float,float,float,float,float,float],
+                    goalPose : Tuple[float,float,float,float,float,float,float] = (0,0,0, 0,0,0,0),
                     maxFramesPerEpisode : int = 500,
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
@@ -94,7 +94,7 @@ class PandaMoveitReachingEnv(BaseEnv):
 
         self._renderingEnabled = render
         if self._renderingEnabled:
-            self._simulatorController.setCamerasToObserve(["camera"]) #TODO: fix the camera topic
+            self._envController.setCamerasToObserve(["camera"]) #TODO: fix the camera topic
 
         self._goalPose = goalPose
         self._goalTolerancePosition = goalTolerancePosition

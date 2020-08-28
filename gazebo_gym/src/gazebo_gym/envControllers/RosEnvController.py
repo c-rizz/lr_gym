@@ -90,15 +90,17 @@ class RosEnvController(EnvironmentController):
         self._imageSubscribers = []
         for cam_topic in self._camerasToObserve:
             self._lastImagesReceived[cam_topic] = None
-            self._imageSubscribers.append(rospy.Subscriber("cam_topic", sensor_msgs.Image, self._imagesCallback, callback_args=(self,cam_topic)))
+            self._imageSubscribers.append(rospy.Subscriber("cam_topic", sensor_msgs.msg.Image, self._imagesCallback, callback_args=(self,cam_topic)))
 
+        self._jointStateSubscribers = []
         for joint in self._jointsToObserve:
             modelName = joint[0]
             jointName = joint[1]
             self._lastJointStatesReceived[modelName] = None
-            self._jointStateSubscribers.append(rospy.Subscriber("/"+modelName+"/joint_states", sensor_msgs.JointState, self._jointStateCallback, callback_args=(self,modelName)))
+            self._jointStateSubscribers.append(rospy.Subscriber("/"+modelName+"/joint_states", sensor_msgs.msg.JointState, self._jointStateCallback, callback_args=(self,modelName)))
 
 
+        self._linkStatesSubscribers = []
         for link in self._linksToObserve:
             modelName = link[0]
             linkName = link[1]
@@ -120,7 +122,7 @@ class RosEnvController(EnvironmentController):
         Returns
         -------
         List[sensor_msgs.msg.Image]
-            List contyaining the images for the cameras specified in requestedCameras, in the same order
+            List containing the images for the cameras specified in requestedCameras, in the same order
 
         """
         if not self._listenersStarted:
@@ -159,9 +161,13 @@ class RosEnvController(EnvironmentController):
         for j in requestedJoints:
             modelName = j[0]
             jointName = j[1]
-            modelStateMsg = self._lastJointStatesReceived[modelName]
-            jointIndex = modelStateMsg.name.index(jointName)
-            ret[j] = JointState(modelStateMsg.position, modelStateMsg.velocity, modelStateMsg.effort)
+            jointStatesMsg = self._lastJointStatesReceived[modelName]
+            if jointStatesMsg is None:
+                err = "Requested joint state for model '"+str(modelName)+"' but no message was ever received about it"
+                rospy.logerr(err)
+                raise RuntimeError(err)
+            jointIndex = jointStatesMsg.name.index(jointName)
+            ret[j] = JointState(jointStatesMsg.position[jointIndex], jointStatesMsg.velocity[jointIndex], jointStatesMsg.effort[jointIndex])
 
         self._jointStatesMutex.release()
 
@@ -189,6 +195,10 @@ class RosEnvController(EnvironmentController):
             modelName = l[0]
             linkName = l[1]
             linkStatesMsg = self._lastLinkStatesReceived[modelName]
+            if linkStatesMsg is None:
+                err = "Requested link state for model '"+str(modelName)+"' but no message was ever received about it"
+                rospy.logerr(err)
+                raise RuntimeError(err)
             linkIndex = linkStatesMsg.link_names.index(linkName)
 
             linkState = gazebo_msgs.msg.LinkState()

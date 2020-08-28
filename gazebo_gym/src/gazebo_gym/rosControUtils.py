@@ -1,5 +1,3 @@
-
-
 #!/usr/bin/env python
 
 import rospy
@@ -12,6 +10,8 @@ from trajectory_msgs.msg import JointTrajectoryPoint
 from controller_manager_msgs.srv import ListControllers
 from controller_manager_msgs.srv import SwitchControllerRequest
 from controller_manager_msgs.srv import SwitchController
+
+from typing import List
 
 def buildServiceProxy(serviceName, msgType):
     rospy.wait_for_service(serviceName)
@@ -37,7 +37,7 @@ class ControllerManagementHelper:
         if response.ok:
             return True
         else:
-            rospy.logerror("Failed to switch controllers (controllersToTurnOn="+str(controllersToTurnOn)+", controllersToTurnOff="+str(controllersToTurnOff)+")")
+            rospy.logerr("Failed to switch controllers (controllersToTurnOn="+str(controllersToTurnOn)+", controllersToTurnOff="+str(controllersToTurnOff)+") response = "+str(response))
             return False
 
     def waitForControllersLoad(self, controllerNames, timeout_sec : float = 0):

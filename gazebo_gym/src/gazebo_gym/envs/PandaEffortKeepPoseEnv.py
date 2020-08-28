@@ -9,9 +9,6 @@ import numpy as np
 from typing import Tuple
 from nptyping import NDArray
 import quaternion
-import gazebo_gym_helpers.msg
-import gazebo_gym_helpers.srv
-import actionlib
 
 from gazebo_gym.envs.ControlledEnv import ControlledEnv
 from gazebo_gym.envControllers.EffortRosControlController import EffortRosControlController
@@ -20,9 +17,8 @@ from gazebo_gym.envControllers.EffortRosControlController import EffortRosContro
 
 
 
-class PandaMoveitReachingEnv(ControlledEnv):
-    """This class represents an environment in which a Panda arm is controlled with torque control to keep an end-effector pose.
-    """
+class PandaEffortKeepPoseEnv(ControlledEnv):
+    """This class represents an environment in which a Panda arm is controlled with torque control to keep an end-effector pose."""
 
     action_space_high = np.array([  10,
                                     10,
@@ -54,7 +50,7 @@ class PandaMoveitReachingEnv(ControlledEnv):
     metadata = {'render.modes': ['rgb_array']}
 
     def __init__(   self,
-                    goalPose : Tuple[float,float,float,float,float,float,float],
+                    goalPose : Tuple[float,float,float,float,float,float,float] = (0,0,0, 0,0,0,0),
                     maxFramesPerEpisode : int = 500,
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
@@ -80,18 +76,63 @@ class PandaMoveitReachingEnv(ControlledEnv):
         """
 
 
-        super().__init__( maxFramesPerEpisode = maxFramesPerEpisode)
-        self._envController = EffortRosControlController()
+        super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
+                         environmentController = EffortRosControlController(
+                             effortControllersInfos = { "panda_arm_effort_effort_controller" : ("panda_arm_effort_effort_controller",
+                                                                                                "panda",
+                                                                                                ("panda_joint1",
+                                                                                                 "panda_joint2",
+                                                                                                 "panda_joint3",
+                                                                                                 "panda_joint4",
+                                                                                                 "panda_joint5",
+                                                                                                 "panda_joint6",
+                                                                                                 "panda_joint7"))},
+                             trajectoryControllersInfos = {"panda_arm_effort_trajectory_controller" :   ("panda_arm_effort_trajectory_controller",
+                                                                                                         "panda",
+                                                                                                         ("panda_joint1",
+                                                                                                          "panda_joint2",
+                                                                                                          "panda_joint3",
+                                                                                                          "panda_joint4",
+                                                                                                          "panda_joint5",
+                                                                                                          "panda_joint6",
+                                                                                                          "panda_joint7"))},
+                             initialJointPositions = [  ("panda","panda_joint1", 0),
+                                                        ("panda","panda_joint2", 0),
+                                                        ("panda","panda_joint3", 0),
+                                                        ("panda","panda_joint4", -1),
+                                                        ("panda","panda_joint5", 0),
+                                                        ("panda","panda_joint6", 1),
+                                                        ("panda","panda_joint7", 0)]))
+
+
 
         self._renderingEnabled = render
         if self._renderingEnabled:
-            self._simulatorController.setCamerasToObserve(["camera"]) #TODO: fix the camera topic
+            self._environmentController.setCamerasToObserve(["camera"]) #TODO: fix the camera topic
+
+        self._environmentController.setJointsToObserve( [("panda","panda_joint1"),
+                                                        ("panda","panda_joint2"),
+                                                        ("panda","panda_joint3"),
+                                                        ("panda","panda_joint4"),
+                                                        ("panda","panda_joint5"),
+                                                        ("panda","panda_joint6"),
+                                                        ("panda","panda_joint7")])
+
+
+        self._environmentController.setLinksToObserve( [("panda","panda_link1"),
+                                                        ("panda","panda_link2"),
+                                                        ("panda","panda_link3"),
+                                                        ("panda","panda_link4"),
+                                                        ("panda","panda_link5"),
+                                                        ("panda","panda_link6"),
+                                                        ("panda","panda_link7")])
+
+        self._environmentController.startController()
 
         self._goalPose = goalPose
         self._goalTolerancePosition = goalTolerancePosition
         self._goalToleranceOrientation_rad = goalToleranceOrientation_rad
 
-        self._initialJointState = [0, 0, 0, -1, 0, 1, 0] # self._getJointStateService()
 
 
 
@@ -108,7 +149,7 @@ class PandaMoveitReachingEnv(ControlledEnv):
         clippedAction = np.clip(np.array(action, dtype=np.float32),10,10)
 
         jointTorques = [("panda","panda_joint"+str(i+1),clippedAction[i]) for i in range(7)]
-        self._envController.setJointsEffort(jointTorques)
+        self._environmentController.setJointsEffort(jointTorques)
 
 
     def _getDist2goal(self, state : NDArray[(15,), np.float32]):
@@ -178,13 +219,13 @@ class PandaMoveitReachingEnv(ControlledEnv):
 
         """
 
-        jointStates = self._envController.getJointsState([("panda","panda_joint1"),
-                                                         ("panda","panda_joint2"),
-                                                         ("panda","panda_joint3"),
-                                                         ("panda","panda_joint4"),
-                                                         ("panda","panda_joint5"),
-                                                         ("panda","panda_joint6"),
-                                                         ("panda","panda_joint7")])
+        jointStates = self._environmentController.getJointsState([  ("panda","panda_joint1"),
+                                                                    ("panda","panda_joint2"),
+                                                                    ("panda","panda_joint3"),
+                                                                    ("panda","panda_joint4"),
+                                                                    ("panda","panda_joint5"),
+                                                                    ("panda","panda_joint6"),
+                                                                    ("panda","panda_joint7")])
 
         eePose = self.getLinksState(["panda","panda_joint7"])[("panda","panda_joint7")].pose
 

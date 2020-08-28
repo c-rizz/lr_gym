@@ -66,12 +66,12 @@ class CartpoleEnv(ControlledEnv):
 
         super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
                          stepLength_sec = stepLength_sec,
-                         simulatorController = simulatorController)
+                         environmentController = simulatorController)
         self._renderingEnabled = render
 
-        self._simulatorController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
+        self._environmentController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
         if self._renderingEnabled:
-            self._simulatorController.setCamerasToObserve(["camera"])
+            self._environmentController.setCamerasToObserve(["camera"])
 
 
     def _startAction(self, action : int) -> None:
@@ -82,7 +82,7 @@ class CartpoleEnv(ControlledEnv):
         else:
             raise AttributeError("action can only be 1 or 0")
 
-        self._simulatorController.setJointsEffort(jointTorques = [("cartpole_v0","foot_joint", direction * 20)])
+        self._environmentController.setJointsEffort(jointTorques = [("cartpole_v0","foot_joint", direction * 20)])
 
 
 
@@ -106,7 +106,7 @@ class CartpoleEnv(ControlledEnv):
 
 
     def _onResetDone(self) -> None:
-        self._simulatorController.setJointsEffort([("cartpole_v0","foot_joint",0),("cartpole_v0","cartpole_joint",0)])
+        self._environmentController.setJointsEffort([("cartpole_v0","foot_joint",0),("cartpole_v0","cartpole_joint",0)])
 
 
     def _getCameraToRenderName(self) -> str:
@@ -128,7 +128,7 @@ class CartpoleEnv(ControlledEnv):
 
 
         t0 = time.time()
-        states = self._simulatorController.getJointsState(requestedJoints=[("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
+        states = self._environmentController.getJointsState(requestedJoints=[("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
         #print("states['foot_joint'] = "+str(states["foot_joint"]))
         #print("Got joint state "+str(states))
         t1 = time.time()

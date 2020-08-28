@@ -85,18 +85,18 @@ class HopperEnv(ControlledEnv):
         #print("HopperEnv: action_space = "+str(self.action_space))
         super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
                          stepLength_sec = stepLength_sec,
-                         simulatorController = simulatorController)
+                         environmentController = simulatorController)
         #print("HopperEnv: action_space = "+str(self.action_space))
-        self._simulatorController.setJointsToObserve([  ("hopper","torso_to_thigh"),
+        self._environmentController.setJointsToObserve([("hopper","torso_to_thigh"),
                                                         ("hopper","thigh_to_leg"),
                                                         ("hopper","leg_to_foot"),
                                                         ("hopper","torso_pitch_joint")])
 
-        self._simulatorController.setLinksToObserve([("hopper","torso"),("hopper","thigh"),("hopper","leg"),("hopper","foot")])
+        self._environmentController.setLinksToObserve([("hopper","torso"),("hopper","thigh"),("hopper","leg"),("hopper","foot")])
 
         self._renderingEnabled = render
         if self._renderingEnabled:
-            self._simulatorController.setCamerasToObserve(["camera"])
+            self._environmentController.setCamerasToObserve(["camera"])
 
 
     def _startAction(self, action : Tuple[float,float,float]) -> None:
@@ -107,7 +107,7 @@ class HopperEnv(ControlledEnv):
         unnormalizedAction = (  float(np.clip(action[0],-1,1))*self.MAX_TORQUE,
                                 float(np.clip(action[1],-1,1))*self.MAX_TORQUE,
                                 float(np.clip(action[2],-1,1))*self.MAX_TORQUE)
-        self._simulatorController.setJointsEffort([ ("hopper","torso_to_thigh",unnormalizedAction[0]),
+        self._environmentController.setJointsEffort([ ("hopper","torso_to_thigh",unnormalizedAction[0]),
                                                     ("hopper","thigh_to_leg",unnormalizedAction[1]),
                                                     ("hopper","leg_to_foot",unnormalizedAction[2])])
 
@@ -139,9 +139,9 @@ class HopperEnv(ControlledEnv):
 
 
     def _onResetDone(self) -> None:
-        self._simulatorController.setJointsEffort([("hopper","torso_to_thigh",0),
-                                                   ("hopper","thigh_to_leg",0),
-                                                   ("hopper","leg_to_foot",0)])
+        self._environmentController.setJointsEffort([  ("hopper","torso_to_thigh",0),
+                                                       ("hopper","thigh_to_leg",0),
+                                                       ("hopper","leg_to_foot",0)])
 
 
 
@@ -163,14 +163,14 @@ class HopperEnv(ControlledEnv):
         """
 
 
-        jointStates = self._simulatorController.getJointsState([("hopper","torso_to_thigh"),
-                                                                ("hopper","thigh_to_leg"),
-                                                                ("hopper","leg_to_foot"),
-                                                                ("hopper","torso_pitch_joint")])
-        linksState = self._simulatorController.getLinksState([("hopper","torso"),
-                                                              ("hopper","thigh"),
-                                                              ("hopper","leg"),
-                                                              ("hopper","foot")])
+        jointStates = self._environmentController.getJointsState([("hopper","torso_to_thigh"),
+                                                                  ("hopper","thigh_to_leg"),
+                                                                  ("hopper","leg_to_foot"),
+                                                                  ("hopper","torso_pitch_joint")])
+        linksState = self._environmentController.getLinksState([("hopper","torso"),
+                                                                ("hopper","thigh"),
+                                                                ("hopper","leg"),
+                                                                ("hopper","foot")])
 
 
         avg_pos_x = (   linksState[("hopper","torso")].pose.position.x +

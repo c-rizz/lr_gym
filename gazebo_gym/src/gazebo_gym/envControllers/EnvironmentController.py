@@ -6,7 +6,7 @@ from typing import Dict
 
 import sensor_msgs
 import gazebo_msgs.msg
-
+import rospy
 
 from gazebo_gym.utils import JointState
 
@@ -27,6 +27,7 @@ class EnvironmentController():
 
         """
         self._stepLength_sec = stepLength_sec
+        rospy.loginfo("stepLength_sec set to "+str(self._stepLength_sec))
         self.setJointsToObserve([])
         self.setLinksToObserve([])
         self.setCamerasToObserve([])
@@ -153,3 +154,6 @@ class EnvironmentController():
 
         """
         raise NotImplementedError()
+
+    def getStepLength(self):
+        return self._stepLength_sec

@@ -55,7 +55,8 @@ class EffortRosControlController(RosEnvController):
             If it fails to find required services or topics
 
         """
-        super().__init__(stepLength_sec)
+        rospy.loginfo("setting stepLength_sec to "+str(stepLength_sec))
+        super().__init__(stepLength_sec = stepLength_sec)
 
         self._effortControllersInfos = effortControllersInfos
         self._trajectoryControllersInfos = trajectoryControllersInfos
@@ -117,7 +118,7 @@ class EffortRosControlController(RosEnvController):
         self._effortControllerPubs = {}
         for controllerName in self._effortControllersInfos.keys():
             controllerInfo = self._effortControllersInfos[controllerName]
-            self._effortControllerPubs[controllerName] = rospy.Publisher(controllerInfo[0], std_msgs.msg.Float64MultiArray, queue_size=1)
+            self._effortControllerPubs[controllerName] = rospy.Publisher(controllerInfo[0]+"/command", std_msgs.msg.Float64MultiArray, queue_size=1)
 
 
     def setJointsEffort(self, jointTorques : List[Tuple[str,str,float]]) -> None:
@@ -135,6 +136,7 @@ class EffortRosControlController(RosEnvController):
                 command.append(val)
             commandMsg = std_msgs.msg.Float64MultiArray()
             commandMsg.data = command
+            rospy.loginfo("Commanding effort "+str(command)+" to controller "+controllerName)
             self._effortControllerPubs[controllerName].publish(commandMsg)
 
     def resetWorld(self):
@@ -145,7 +147,7 @@ class EffortRosControlController(RosEnvController):
         self._controllerManagementHelper.waitForControllersStart(trajectoryControllers)
         rospy.loginfo("EffortRosControlController: trajectory controllers started")
 
-        
+
         for tch in self._trajectoryControllerHelpers.values():
             setup = self._initialTrajectoryControllersSetup[tch.getControllerName()]
             tch.moveToJointPosition(setup[0],setup[1], 1)

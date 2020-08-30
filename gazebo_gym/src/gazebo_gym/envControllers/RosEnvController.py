@@ -29,21 +29,23 @@ class RosEnvController(EnvironmentController):
             If it fails to find the gazebo services
 
         """
-        super().__init__(stepLength_sec)
+        super().__init__(stepLength_sec = stepLength_sec)
         self._listenersStarted = False
 
         self._lastImagesReceived = {}
-        self._lastJointStatesReceived = {}
-        self._lastLinkStatesReceived = {}
+        self._lastJointStatesReceived = None
+        self._lastLinkStatesReceived = None
 
-        self._jointStatesMutex = Lock() #To sinchrnoized _jointStateCallback with getJointsState
-        self._linkStatesMutex = Lock() #To sinchrnoized _jointStateCallback with getJointsState
+        self._jointStatesMutex = Lock() #To synchronize _jointStateCallback with getJointsState
+        self._linkStatesMutex = Lock() #To synchronize _jointStateCallback with getJointsState
 
 
     def step(self) -> None:
-        """Wait for the step time to pass"""
+        """Wait for the step time to pass."""
         #TODO: it may make sense to keep track of the time spend in the rest of the processing
-        rospy.sleep(self.stepLength_sec)
+        rospy.loginfo("Sleeping "+str(self._stepLength_sec))
+        rospy.sleep(self._stepLength_sec)
+        rospy.loginfo("Sleept")
 
     def _imagesCallback(msg,args):
         self = args[0]
@@ -52,21 +54,16 @@ class RosEnvController(EnvironmentController):
         self._lastImagesReceived[cam_topic] = msg
 
 
-    def _jointStateCallback(msg,args):
-        self = args[0]
-        modelName = args[1]
+    def _jointStateCallback(self,msg):
 
         self._jointStatesMutex.acquire()
-        self._lastJointStatesReceived[modelName] = msg
+        self._lastJointStatesReceived = msg
         self._jointStatesMutex.release()
 
 
-    def _linkStatesCallback(msg,args):
-        self = args[0]
-        modelName = args[1]
-
+    def _linkStatesCallback(self, msg):
         self._linkStatesMutex.acquire()
-        self._lastLinkStatesReceived[modelName] = msg
+        self._lastLinkStatesReceived = msg
         self._linkStatesMutex.release()
 
 
@@ -92,20 +89,13 @@ class RosEnvController(EnvironmentController):
             self._lastImagesReceived[cam_topic] = None
             self._imageSubscribers.append(rospy.Subscriber("cam_topic", sensor_msgs.msg.Image, self._imagesCallback, callback_args=(self,cam_topic)))
 
-        self._jointStateSubscribers = []
-        for joint in self._jointsToObserve:
-            modelName = joint[0]
-            jointName = joint[1]
-            self._lastJointStatesReceived[modelName] = None
-            self._jointStateSubscribers.append(rospy.Subscriber("/"+modelName+"/joint_states", sensor_msgs.msg.JointState, self._jointStateCallback, callback_args=(self,modelName)))
+        if len(self._jointsToObserve)>0:
+            self._jointStateSubscriber = rospy.Subscriber("joint_states", sensor_msgs.msg.JointState, self._jointStateCallback)
+
+        if len(self._linksToObserve)>0:
+            self._linkStatesSubscriber = rospy.Subscriber("link_states", LinkStates, self._linkStatesCallback)
 
 
-        self._linkStatesSubscribers = []
-        for link in self._linksToObserve:
-            modelName = link[0]
-            linkName = link[1]
-            self._lastLinkStatesReceived[modelName] = None
-            self._linkStatesSubscribers.append(rospy.Subscriber("/"+modelName+"/link_states", LinkStates, self._linkStatesCallback, callback_args=(self,modelName)))
 
 
         self._listenersStarted = True
@@ -161,12 +151,17 @@ class RosEnvController(EnvironmentController):
         for j in requestedJoints:
             modelName = j[0]
             jointName = j[1]
-            jointStatesMsg = self._lastJointStatesReceived[modelName]
+            jointStatesMsg = self._lastJointStatesReceived
             if jointStatesMsg is None:
-                err = "Requested joint state for model '"+str(modelName)+"' but no message was ever received about it"
+                err = "Requested joint state for joint '"+str(jointName)+"' of model '"+str(modelName)+"' but no joint_states message was ever received"
                 rospy.logerr(err)
                 raise RuntimeError(err)
-            jointIndex = jointStatesMsg.name.index(jointName)
+            try:
+                jointIndex = jointStatesMsg.name.index(jointName)
+            except ValueError:
+                err = "Requested joint state for joint '"+str(jointName)+"' of model '"+str(modelName)+"' but the joint_states message does not contain this link"
+                rospy.logerr(err)
+                raise RuntimeError(err)
             ret[j] = JointState(jointStatesMsg.position[jointIndex], jointStatesMsg.velocity[jointIndex], jointStatesMsg.effort[jointIndex])
 
         self._jointStatesMutex.release()
@@ -177,9 +172,10 @@ class RosEnvController(EnvironmentController):
         if not self._listenersStarted:
             raise RuntimeError("called getLinksState without having called startController. The proper way to initialize the controller is to first build the controller, then call setLinksToObserve, and then call startController")
 
+        #print("self._linksToObserve = "+str(self._linksToObserve))
         for l in requestedLinks:
             if l not in self._linksToObserve:
-                raise RuntimeError("Requested link that was not requested in setLinksToObserve")
+                raise RuntimeError("Requested link '"+str(l)+"' that was not requested in setLinksToObserve")
 
         ret = {}
         # It would be best to use the joint_state and compute link poses with kdl.
@@ -194,12 +190,17 @@ class RosEnvController(EnvironmentController):
         for l in requestedLinks:
             modelName = l[0]
             linkName = l[1]
-            linkStatesMsg = self._lastLinkStatesReceived[modelName]
+            linkStatesMsg = self._lastLinkStatesReceived
             if linkStatesMsg is None:
-                err = "Requested link state for model '"+str(modelName)+"' but no message was ever received about it"
+                err = "Requested link state for link '"+str(linkName)+"' of model '"+str(modelName)+"' but no link_states message was ever received"
                 rospy.logerr(err)
                 raise RuntimeError(err)
-            linkIndex = linkStatesMsg.link_names.index(linkName)
+            try:
+                linkIndex = linkStatesMsg.link_names.index(linkName)
+            except ValueError:
+                err = "Requested link state for link '"+str(linkName)+"' of model '"+str(modelName)+"' but the link_states message does not contain this link"
+                rospy.logerr(err)
+                raise RuntimeError(err)
 
             linkState = gazebo_msgs.msg.LinkState()
             linkState.pose = linkStatesMsg.link_poses[linkIndex]
@@ -208,9 +209,7 @@ class RosEnvController(EnvironmentController):
             ret[l] = linkState
 
         self._linkStatesMutex.release()
-
-
-        raise NotImplementedError()
+        return ret
 
     def resetWorld(self):
         raise NotImplementedError()

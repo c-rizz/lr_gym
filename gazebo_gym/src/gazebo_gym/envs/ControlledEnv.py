@@ -63,7 +63,6 @@ class ControlledEnv(BaseEnv):
         if environmentController is None:
             environmentController = GazeboController(stepLength_sec = stepLength_sec)
 
-        self._stepLength_sec = stepLength_sec
         self._environmentController = environmentController
         self._intendedSimTime = 0
 
@@ -72,7 +71,7 @@ class ControlledEnv(BaseEnv):
 
     def _performStep(self) -> None:
         self._environmentController.step()
-        self._intendedSimTime += self._stepLength_sec
+        self._intendedSimTime += self._environmentController.getStepLength()
 
 
 

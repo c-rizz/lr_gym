@@ -20,13 +20,14 @@ from gazebo_gym.envControllers.EffortRosControlController import EffortRosContro
 class PandaEffortKeepPoseEnv(ControlledEnv):
     """This class represents an environment in which a Panda arm is controlled with torque control to keep an end-effector pose."""
 
-    action_space_high = np.array([  10,
-                                    10,
-                                    10,
-                                    10,
-                                    10,
-                                    10,
-                                    10])
+    maxTorque = 1000
+    action_space_high = np.array([  maxTorque,
+                                    maxTorque,
+                                    maxTorque,
+                                    maxTorque,
+                                    maxTorque,
+                                    maxTorque,
+                                    maxTorque])
     action_space = gym.spaces.Box(-action_space_high,action_space_high) # 7 joints, torque controlled
 
 
@@ -102,7 +103,8 @@ class PandaEffortKeepPoseEnv(ControlledEnv):
                                                         ("panda","panda_joint4", -1),
                                                         ("panda","panda_joint5", 0),
                                                         ("panda","panda_joint6", 1),
-                                                        ("panda","panda_joint7", 0)]))
+                                                        ("panda","panda_joint7", 0)],
+                             stepLength_sec = 1))
 
 
 
@@ -146,7 +148,7 @@ class PandaEffortKeepPoseEnv(ControlledEnv):
             torque control command
 
         """
-        clippedAction = np.clip(np.array(action, dtype=np.float32),10,10)
+        clippedAction = np.clip(np.array(action, dtype=np.float32),-self.maxTorque,self.maxTorque)
 
         jointTorques = [("panda","panda_joint"+str(i+1),clippedAction[i]) for i in range(7)]
         self._environmentController.setJointsEffort(jointTorques)
@@ -227,7 +229,7 @@ class PandaEffortKeepPoseEnv(ControlledEnv):
                                                                     ("panda","panda_joint6"),
                                                                     ("panda","panda_joint7")])
 
-        eePose = self.getLinksState(["panda","panda_joint7"])[("panda","panda_joint7")].pose
+        eePose = self._environmentController.getLinksState([("panda","panda_link7")])[("panda","panda_link7")].pose.pose
 
         quat = quaternion.from_float_array([eePose.orientation.w,eePose.orientation.x,eePose.orientation.y,eePose.orientation.z])
         eeOrientation_rpy = quaternion.as_euler_angles(quat)
@@ -244,13 +246,13 @@ class PandaEffortKeepPoseEnv(ControlledEnv):
                     eeOrientation_rpy[0],
                     eeOrientation_rpy[1],
                     eeOrientation_rpy[2],
-                    jointStates("panda","panda_joint1").position,
-                    jointStates("panda","panda_joint2").position,
-                    jointStates("panda","panda_joint3").position,
-                    jointStates("panda","panda_joint4").position,
-                    jointStates("panda","panda_joint5").position,
-                    jointStates("panda","panda_joint6").position,
-                    jointStates("panda","panda_joint7").position,
+                    jointStates["panda","panda_joint1"].position,
+                    jointStates["panda","panda_joint2"].position,
+                    jointStates["panda","panda_joint3"].position,
+                    jointStates["panda","panda_joint4"].position,
+                    jointStates["panda","panda_joint5"].position,
+                    jointStates["panda","panda_joint6"].position,
+                    jointStates["panda","panda_joint7"].position,
                     0.0,
                     0.0] # No unrecoverable failure states
 

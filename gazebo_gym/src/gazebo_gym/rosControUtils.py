@@ -20,7 +20,7 @@ def buildServiceProxy(serviceName, msgType):
 
 
 class ControllerManagementHelper:
-    def __init__(self : str, controllerManagerNs : str = "/controller_manager"):
+    def __init__(self : str, controllerManagerNs : str = "controller_manager"):
 
         self._listControllers_service = buildServiceProxy(controllerManagerNs+"/list_controllers", ListControllers)
         self._switchController_service = buildServiceProxy(controllerManagerNs+"/switch_controller", SwitchController)

@@ -81,7 +81,7 @@ def main(fileToLoad : str = None):
 
     env = PandaEffortKeepPoseEnv(   goalPose = (0.3,0.3,0.3, 0,0,0,1),
                                     maxFramesPerEpisode = 5000)
-    model = trainOrLoad(env,1000, fileToLoad = fileToLoad)
+    model = trainOrLoad(env,1000000, fileToLoad = fileToLoad)
     input("Press Enter to continue...")
     run(env,model)
 

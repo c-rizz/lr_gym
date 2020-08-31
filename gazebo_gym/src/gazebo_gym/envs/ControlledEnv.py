@@ -58,7 +58,7 @@ class ControlledEnv(BaseEnv):
         """
 
 
-        super().__init__()
+        super().__init__(maxFramesPerEpisode = maxFramesPerEpisode)
 
         if environmentController is None:
             environmentController = GazeboController(stepLength_sec = stepLength_sec)

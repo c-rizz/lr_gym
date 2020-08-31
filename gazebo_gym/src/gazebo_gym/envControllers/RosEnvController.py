@@ -38,14 +38,15 @@ class RosEnvController(EnvironmentController):
 
         self._jointStatesMutex = Lock() #To synchronize _jointStateCallback with getJointsState
         self._linkStatesMutex = Lock() #To synchronize _jointStateCallback with getJointsState
+        self._simTimeStart = rospy.get_time()
 
 
     def step(self) -> None:
         """Wait for the step time to pass."""
         #TODO: it may make sense to keep track of the time spend in the rest of the processing
-        rospy.loginfo("Sleeping "+str(self._stepLength_sec))
+        #rospy.loginfo("Sleeping "+str(self._stepLength_sec))
         rospy.sleep(self._stepLength_sec)
-        rospy.loginfo("Sleept")
+        #rospy.loginfo("Slept")
 
     def _imagesCallback(msg,args):
         self = args[0]
@@ -212,4 +213,10 @@ class RosEnvController(EnvironmentController):
         return ret
 
     def resetWorld(self):
-        raise NotImplementedError()
+        self._simTimeStart = rospy.get_time()
+
+
+    def getEnvSimTimeFromStart(self) -> float:
+        t = rospy.get_time() - self._simTimeStart
+        rospy.loginfo("t = "+str(t)+" ("+str(rospy.get_time())+"-"+str(self._simTimeStart)+")")
+        return t

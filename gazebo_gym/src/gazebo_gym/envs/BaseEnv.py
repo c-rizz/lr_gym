@@ -7,7 +7,6 @@ The provided class must be extended to define a specific environment
 
 import rospy
 import rospy.client
-import rosgraph_msgs
 
 import gym
 import numpy as np
@@ -56,8 +55,6 @@ class BaseEnv(gym.Env):
         self._lastState = None
         self._totalEpisodeReward = 0
 
-        # Crete a publisher to manually send clock messages (used in reset, very ugly, sorry)
-        self._clockPublisher = rospy.Publisher("/clock", rosgraph_msgs.msg.Clock, queue_size=1)
 
         self._envStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
         self._startActionDurationAverage = utils.AverageKeeper(bufferSize = 100)
@@ -165,12 +162,31 @@ class BaseEnv(gym.Env):
 
         """
         #rospy.loginfo("reset()")
-        finishedEpisodeTotReward = self._totalEpisodeReward
+        if self._framesCounter>0:
+            avgSimTimeStepDuration = self._environmentController.getEnvSimTimeFromStart()/self._framesCounter
+        else:
+            avgSimTimeStepDuration = 0
+
+
+        rospy.loginfo(" ------- Resetting Environment -------")
+        if self._framesCounter == 0:
+            rospy.loginfo("No step executed in this episode")
+        else:
+            rospy.loginfo(" - Average env step wall-time duration  = "+str(self._envStepDurationAverage.getAverage()))
+            rospy.loginfo(" - Average action duration              = "+str(self._startActionDurationAverage.getAverage()))
+            rospy.loginfo(" - Average sim step wall-time duration  = "+str(self._wallStepDurationAverage.getAverage()))
+            rospy.loginfo(" - Average observation duration         = "+str(self._observationDurationAverage.getAverage()))
+            rospy.loginfo(" - Average sim time step duration       = "+str(avgSimTimeStepDuration))
+            rospy.loginfo(" - Frames count                         = "+str(self._framesCounter))
+            rospy.loginfo(" - Total episode reward                 = "+str(self._totalEpisodeReward))
+            rospy.loginfo(" - Wall fps                             = "+str(self._framesCounter/(time.time()-self._envResetTime)))
+
         #reset simulation state
         self._performReset()
 
         if self._framesCounter!=0 and self._cumulativeImagesAge!=0:
             rospy.logwarn("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
+
         self._framesCounter = 0
         self._cumulativeImagesAge = 0
         self._lastStepStartEnvTime = -1
@@ -178,21 +194,14 @@ class BaseEnv(gym.Env):
         self._lastStepGotState = -1
         self._lastState = None
         self._totalEpisodeReward = 0
+        self._envResetTime = time.time()
 
         self._onResetDone()
         #time.sleep(1)
 
-        # Reset the time manually. Incredibly ugly, incredibly effective
-        t = rosgraph_msgs.msg.Clock()
-        self._clockPublisher.publish(t)
 
 
-        rospy.loginfo(" ------- Resetted Environment -------")
-        rospy.loginfo(" - Average total step duration  = "+str(self._envStepDurationAverage.getAverage()))
-        rospy.loginfo(" - Average action duration      = "+str(self._startActionDurationAverage.getAverage()))
-        rospy.loginfo(" - Average sim step duration    = "+str(self._wallStepDurationAverage.getAverage()))
-        rospy.loginfo(" - Average observation duration = "+str(self._observationDurationAverage.getAverage()))
-        rospy.loginfo(" - Total episode reward         = "+str(finishedEpisodeTotReward))
+
 
         self._envStepDurationAverage.reset()
         self._startActionDurationAverage.reset()

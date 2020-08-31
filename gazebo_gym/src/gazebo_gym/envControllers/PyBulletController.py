@@ -54,6 +54,7 @@ class PyBulletController(EnvironmentController):
         print("self._bodyAndJointIdToJointName = "+str(self._bodyAndJointIdToJointName))
         print("self._jointNamesToBodyAndJointId = "+str(self._jointNamesToBodyAndJointId))
         self._startStateId = p.saveState()
+        self._simTime = 0
 
 
     def _getJointName(self, bodyId, jointIndex):
@@ -74,6 +75,7 @@ class PyBulletController(EnvironmentController):
 
     def resetWorld(self):
         p.restoreState(self._startStateId)
+        self._simTime = 0
 
     def step(self, performRendering : bool = False, camerasToRender : List[str] = []) -> None:
         """Run the simulation for the specified time.
@@ -98,6 +100,7 @@ class PyBulletController(EnvironmentController):
 
         #p.setTimeStep(self._stepLength_sec) #This is here, but still, as stated in the pybulelt quickstart guide this should not be changed often
         p.stepSimulation()
+        self._simTime += self._stepLength_sec
 
 
     def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
@@ -183,3 +186,7 @@ class PyBulletController(EnvironmentController):
         #print("returning "+str(allStates))
 
         return allStates
+
+
+    def getEnvSimTimeFromStart(self) -> float:
+        return self._simTime

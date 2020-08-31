@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import traceback
 from typing import List
 from typing import Tuple
@@ -6,6 +7,7 @@ from typing import Dict
 import time
 import gazebo_msgs
 import gazebo_msgs.srv
+import rosgraph_msgs
 
 import rospy
 from std_srvs.srv import Empty
@@ -87,6 +89,9 @@ class GazeboControllerNoPlugin(EnvironmentController):
         self._resetGazeboService        = rospy.ServiceProxy(serviceNames["reset"], Empty, persistent=usePersistentConnections)
 
         #self._setGazeboPhysics = rospy.ServiceProxy(self._setGazeboPhysics, SetPhysicsProperties, persistent=usePersistentConnections)
+
+        # Crete a publisher to manually send clock messages (used in reset, very ugly, sorry)
+        self._clockPublisher = rospy.Publisher("/clock", rosgraph_msgs.msg.Clock, queue_size=1)
 
         self.pauseSimulation()
         self.resetWorld()
@@ -198,6 +203,10 @@ class GazeboControllerNoPlugin(EnvironmentController):
         self._totalRenderTime = 0
         self._stepsTaken = 0
 
+        # Reset the time manually. Incredibly ugly, incredibly effective
+        t = rosgraph_msgs.msg.Clock()
+        self._clockPublisher.publish(t)
+
         rospy.loginfo("resetted sim")
         return ret
 
@@ -282,3 +291,6 @@ class GazeboControllerNoPlugin(EnvironmentController):
             resp = self._getLinkStateService.call(link_name=linkName)
             ret[link] = resp.link_state
         return ret
+
+    def getEnvSimTimeFromStart(self) -> float:
+        return rospy.get_time()

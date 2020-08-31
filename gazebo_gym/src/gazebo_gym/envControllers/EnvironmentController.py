@@ -155,5 +155,10 @@ class EnvironmentController():
         """
         raise NotImplementedError()
 
-    def getStepLength(self):
+    def getStepLength(self) -> float:
+        """Get the configured step length used by the step() function."""
         return self._stepLength_sec
+
+    def getEnvSimTimeFromStart(self) -> float:
+        """Get the current time within the simulation."""
+        raise NotImplementedError()

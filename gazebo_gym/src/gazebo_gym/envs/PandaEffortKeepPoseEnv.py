@@ -104,7 +104,7 @@ class PandaEffortKeepPoseEnv(ControlledEnv):
                                                         ("panda","panda_joint5", 0),
                                                         ("panda","panda_joint6", 1),
                                                         ("panda","panda_joint7", 0)],
-                             stepLength_sec = 1))
+                             stepLength_sec = 0.01))
 
 
 
@@ -203,7 +203,7 @@ class PandaEffortKeepPoseEnv(ControlledEnv):
         #closenessBonus = 1-posDist_new
 
         reward = posImprovement + orientImprovement + finishBonus # + almostFinishBonus# + closenessBonus
-        rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
+        #rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
         return reward
 
 

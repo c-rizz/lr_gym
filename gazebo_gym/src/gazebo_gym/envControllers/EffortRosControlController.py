@@ -136,7 +136,7 @@ class EffortRosControlController(RosEnvController):
                 command.append(val)
             commandMsg = std_msgs.msg.Float64MultiArray()
             commandMsg.data = command
-            rospy.loginfo("Commanding effort "+str(command)+" to controller "+controllerName)
+            #rospy.loginfo("Commanding effort "+str(command)+" to controller "+controllerName)
             self._effortControllerPubs[controllerName].publish(commandMsg)
 
     def resetWorld(self):
@@ -157,3 +157,5 @@ class EffortRosControlController(RosEnvController):
         self._controllerManagementHelper.switchControllers(effortControllers, trajectoryControllers)
         self._controllerManagementHelper.waitForControllersStart(effortControllers)
         rospy.loginfo("EffortRosControlController: effort controllers started")
+
+        self._simTimeStart = rospy.get_time()

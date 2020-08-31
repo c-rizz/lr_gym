@@ -5,13 +5,13 @@ import time
 from stable_baselines.td3.policies import MlpPolicy
 from stable_baselines import TD3
 from stable_baselines.ddpg.noise import NormalActionNoise
+from stable_baselines.common import env_checker
 import numpy as np
 import argparse
 from datetime import datetime
 import gym
 import pybullet_envs
 import pybullet as p
-from stable_baselines.common import env_checker
 from pybullet_envs.gym_locomotion_envs import HopperBulletEnv
 import rospkg
 
@@ -70,7 +70,7 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
     elif fileToLoad is None:
         print("Learning...")
         t_preLearn = time.time()
-        trainIterations
+
         model.learn(total_timesteps=trainIterations, log_interval=10)
         duration_learn = time.time() - t_preLearn
         print("Learned. Took "+str(duration_learn)+" seconds.")

@@ -14,7 +14,7 @@ import datetime
 import numpy as np
 
 import gazebo_gym
-from gazebo_gym.envs.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
+from gazebo_gym.envs.PandaEffortStayUpEnv import PandaEffortStayUpEnv
 
 def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, numEpisodes : int = -1):
     #frames = []
@@ -50,14 +50,14 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     print("Checked environment gym compliance :)")
 
     n_actions = env.action_space.shape[-1]
-    action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+    action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1*np.ones(n_actions))
 
     #hyperparameters taken by the RL baslines zoo repo
     model = TD3( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
                  buffer_size=1000000, gamma=0.99, gradient_steps=1000,
                  learning_rate=0.001, learning_starts=10000, policy_kwargs=dict(layers=[400, 300]), train_freq=env.getMaxFramesPerEpisode(),
                  seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
-                 tensorboard_log="./solve_panda_effort_keep_tensorboard/")
+                 tensorboard_log="./solve_panda_effort_stayup_tensorboard/")
 
 
     if fileToLoad is None:
@@ -67,7 +67,7 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
         duration_learn = time.time() - t_preLearn
         print("Learned. Took "+str(duration_learn)+" seconds.")
 
-        filename = "td3_pandaEffortKeep_"+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+"s"+str(trainIterations)
+        filename = "td3_pandaEfforStayUp_"+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+"s"+str(trainIterations)
         model.save(filename)
         print("Saved as "+filename)
     else:
@@ -80,9 +80,8 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
 
 def main(fileToLoad : str = None):
 
-    env = PandaEffortKeepPoseEnv(   goalPose = (0.4,0.4,0.6, 1,0,0,0),
-                                    maxFramesPerEpisode = 5000,
-                                    maxTorques = [87, 87, 87, 87, 12, 12, 12])
+    env = PandaEffortStayUpEnv( maxFramesPerEpisode = 5000,
+                                maxTorques = [87, 87, 87, 87, 12, 12, 12])
     model = trainOrLoad(env,1000000, fileToLoad = fileToLoad)
     input("Press Enter to continue...")
     run(env,model)

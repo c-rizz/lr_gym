@@ -28,7 +28,8 @@ class EffortRosControlController(RosEnvController):
                  effortControllersInfos : Dict[str,Tuple[str,str,Tuple[str]]],
                  trajectoryControllersInfos : Dict[str,Tuple[str,str,Tuple[str]]],
                  initialJointPositions : List[Tuple[str,str,float]],
-                 stepLength_sec : float = 0.001):
+                 stepLength_sec : float = 0.001,
+                 ros_master_uri : str = None):
         """Initialize the environment controller.
 
         Parameters
@@ -56,7 +57,7 @@ class EffortRosControlController(RosEnvController):
 
         """
         rospy.loginfo("setting stepLength_sec to "+str(stepLength_sec))
-        super().__init__(stepLength_sec = stepLength_sec)
+        super().__init__(stepLength_sec = stepLength_sec, ros_master_uri = ros_master_uri)
 
         self._effortControllersInfos = effortControllersInfos
         self._trajectoryControllersInfos = trajectoryControllersInfos
@@ -140,12 +141,12 @@ class EffortRosControlController(RosEnvController):
             self._effortControllerPubs[controllerName].publish(commandMsg)
 
     def resetWorld(self):
-        rospy.loginfo("EffortRosControlController: switching to trajectory controllers")
+        rospy.logdebug("EffortRosControlController: switching to trajectory controllers")
         trajectoryControllers = list(self._trajectoryControllersInfos.keys())
         effortControllers = list(self._effortControllersInfos.keys())
         self._controllerManagementHelper.switchControllers(trajectoryControllers, effortControllers)
         self._controllerManagementHelper.waitForControllersStart(trajectoryControllers)
-        rospy.loginfo("EffortRosControlController: trajectory controllers started")
+        rospy.logdebug("EffortRosControlController: trajectory controllers started")
 
 
         for tch in self._trajectoryControllerHelpers.values():
@@ -153,9 +154,9 @@ class EffortRosControlController(RosEnvController):
             tch.moveToJointPosition(setup[0],setup[1], 1)
 
 
-        rospy.loginfo("EffortRosControlController: switching to effort controllers")
+        rospy.logdebug("EffortRosControlController: switching to effort controllers")
         self._controllerManagementHelper.switchControllers(effortControllers, trajectoryControllers)
         self._controllerManagementHelper.waitForControllersStart(effortControllers)
-        rospy.loginfo("EffortRosControlController: effort controllers started")
+        rospy.logdebug("EffortRosControlController: effort controllers started")
 
         self._simTimeStart = rospy.get_time()

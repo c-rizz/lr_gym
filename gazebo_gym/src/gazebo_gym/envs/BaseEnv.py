@@ -54,6 +54,7 @@ class BaseEnv(gym.Env):
         self._lastStepGotState = -1
         self._lastState = None
         self._totalEpisodeReward = 0
+        self._resetCount = 0
 
 
         self._envStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
@@ -162,27 +163,29 @@ class BaseEnv(gym.Env):
 
         """
         #rospy.loginfo("reset()")
-        if self._framesCounter>0:
-            avgSimTimeStepDuration = self._environmentController.getEnvSimTimeFromStart()/self._framesCounter
-        else:
-            avgSimTimeStepDuration = 0
-
-
-        rospy.loginfo(" ------- Resetting Environment -------")
+        self._resetCount += 1
+        rospy.loginfo(" ------- Resetting Environment (#"+str(self._resetCount)+")-------")
         if self._framesCounter == 0:
             rospy.loginfo("No step executed in this episode")
         else:
+            avgSimTimeStepDuration = self._environmentController.getEnvSimTimeFromStart()/self._framesCounter
+            totEpisodeWallDuration = time.time() - self._lastResetTime
+            resetWallDuration = self._lastPostResetTime-self._lastResetTime
             rospy.loginfo(" - Average env step wall-time duration  = "+str(self._envStepDurationAverage.getAverage()))
-            rospy.loginfo(" - Average action duration              = "+str(self._startActionDurationAverage.getAverage()))
             rospy.loginfo(" - Average sim step wall-time duration  = "+str(self._wallStepDurationAverage.getAverage()))
+            rospy.loginfo(" - Average action duration              = "+str(self._startActionDurationAverage.getAverage()))
             rospy.loginfo(" - Average observation duration         = "+str(self._observationDurationAverage.getAverage()))
             rospy.loginfo(" - Average sim time step duration       = "+str(avgSimTimeStepDuration))
+            rospy.loginfo(" - Total episode wall duration          = "+str(totEpisodeWallDuration))
+            rospy.loginfo(" - Reset wall duration                  = "+str(resetWallDuration) +" ({:.2f}%)".format(resetWallDuration/totEpisodeWallDuration*100))
             rospy.loginfo(" - Frames count                         = "+str(self._framesCounter))
             rospy.loginfo(" - Total episode reward                 = "+str(self._totalEpisodeReward))
             rospy.loginfo(" - Wall fps                             = "+str(self._framesCounter/(time.time()-self._envResetTime)))
 
+        self._lastResetTime = time.time()
         #reset simulation state
         self._performReset()
+        self._lastPostResetTime = time.time()
 
         if self._framesCounter!=0 and self._cumulativeImagesAge!=0:
             rospy.logwarn("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
@@ -474,3 +477,7 @@ class BaseEnv(gym.Env):
 
         """
         return {}
+
+    def getMaxFramesPerEpisode(self):
+        """Get the maximum number of frames of one episode, as set by the constructor."""
+        return self._maxFramesPerEpisode

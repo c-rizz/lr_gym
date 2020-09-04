@@ -114,7 +114,7 @@ class TrajectoryControllerHelper:
 
         self._controllerClient.send_goal(goal)
         timeoutDuration = point.time_from_start+rospy.Duration.from_sec(5)
-        rospy.loginfo("Waiting for action completion (timeout at "+str(timeoutDuration)+")...")
+        rospy.logdebug("Waiting for trajectory controller action completion (timeout at "+str(timeoutDuration)+")...")
         didFinish = self._controllerClient.wait_for_result(timeoutDuration)
         if not didFinish:
             rospy.logerr("Action timed out befor finishing")
@@ -122,12 +122,12 @@ class TrajectoryControllerHelper:
         r = self._controllerClient.get_result()
 
 
-        rospy.loginfo("waiting 10s")
+        #rospy.logdebug("waiting 10s")
         rospy.sleep(rospy.Duration(10))
-        rospy.loginfo("waited")
+        #rospy.logdebug("waited")
 
         if r.error_code == FollowJointTrajectoryResult.SUCCESSFUL:
-            rospy.loginfo("Moved successfully to joint pose")
+            rospy.logdebug("Moved successfully to joint pose")
             return True
         else:
             rospy.logerr("Failed to move to joint pose. Action result is: "+str(r))

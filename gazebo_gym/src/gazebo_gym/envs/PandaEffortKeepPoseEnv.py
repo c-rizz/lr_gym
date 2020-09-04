@@ -2,60 +2,27 @@
 """This file implements PandaEffortKeepPoseEnvironment."""
 
 import rospy
-import rospy.client
 
-import gym
 import numpy as np
 from typing import Tuple
 from nptyping import NDArray
 import quaternion
+import math
 
-from gazebo_gym.envs.ControlledEnv import ControlledEnv
-from gazebo_gym.envControllers.EffortRosControlController import EffortRosControlController
+from gazebo_gym.envs.PandaEffortBaseEnv import PandaEffortBaseEnv
+import gazebo_gym
 
-
-
-
-
-class PandaEffortKeepPoseEnv(ControlledEnv):
+class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
     """This class represents an environment in which a Panda arm is controlled with torque control to keep an end-effector pose."""
-
-    maxTorque = 1000
-    action_space_high = np.array([  maxTorque,
-                                    maxTorque,
-                                    maxTorque,
-                                    maxTorque,
-                                    maxTorque,
-                                    maxTorque,
-                                    maxTorque])
-    action_space = gym.spaces.Box(-action_space_high,action_space_high) # 7 joints, torque controlled
-
-
-    observation_space_high = np.array([ np.finfo(np.float32).max, # end-effector x position
-                                        np.finfo(np.float32).max, # end-effector y position
-                                        np.finfo(np.float32).max, # end-effector z position
-                                        np.finfo(np.float32).max, # end-effector roll position
-                                        np.finfo(np.float32).max, # end-effector pitch position
-                                        np.finfo(np.float32).max, # end-effector yaw position
-                                        np.finfo(np.float32).max, # joint 1 position
-                                        np.finfo(np.float32).max, # joint 2 position
-                                        np.finfo(np.float32).max, # joint 3 position
-                                        np.finfo(np.float32).max, # joint 4 position
-                                        np.finfo(np.float32).max, # joint 5 position
-                                        np.finfo(np.float32).max, # joint 6 position
-                                        np.finfo(np.float32).max, # joint 7 position
-                                        np.finfo(np.float32).max, # 1 if last move failed
-                                        np.finfo(np.float32).max  # 1 if we reached non-recoverable failure state
-                                        ])
-    observation_space = gym.spaces.Box(-observation_space_high, observation_space_high)
-    metadata = {'render.modes': ['rgb_array']}
 
     def __init__(   self,
                     goalPose : Tuple[float,float,float,float,float,float,float] = (0,0,0, 0,0,0,0),
                     maxFramesPerEpisode : int = 500,
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
-                    goalToleranceOrientation_rad : float = 0.0175*5):
+                    goalToleranceOrientation_rad : float = 0.0175*5,
+                    maxTorques = [100, 100, 100, 100, 100, 100, 100],
+                    environmentController : gazebo_gym.envControllers.EnvironmentController = None):
         """Short summary.
 
         Parameters
@@ -72,64 +39,18 @@ class PandaEffortKeepPoseEnv(ControlledEnv):
             Position tolerance under which the goal is considered reached, in meters
         goalToleranceOrientation_rad : float
             Orientation tolerance under which the goal is considered reached, in radiants
-
+        maxTorques : Tuple[float, float, float, float, float, float, float]
+            Maximum torque that can be applied ot each joint
+        environmentController : gazebo_gym.envControllers.EnvironmentController
+            The contorller to be used to interface with the environment. If left to None an EffortRosControlController will be used.
 
         """
 
 
         super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
-                         environmentController = EffortRosControlController(
-                             effortControllersInfos = { "panda_arm_effort_effort_controller" : ("panda_arm_effort_effort_controller",
-                                                                                                "panda",
-                                                                                                ("panda_joint1",
-                                                                                                 "panda_joint2",
-                                                                                                 "panda_joint3",
-                                                                                                 "panda_joint4",
-                                                                                                 "panda_joint5",
-                                                                                                 "panda_joint6",
-                                                                                                 "panda_joint7"))},
-                             trajectoryControllersInfos = {"panda_arm_effort_trajectory_controller" :   ("panda_arm_effort_trajectory_controller",
-                                                                                                         "panda",
-                                                                                                         ("panda_joint1",
-                                                                                                          "panda_joint2",
-                                                                                                          "panda_joint3",
-                                                                                                          "panda_joint4",
-                                                                                                          "panda_joint5",
-                                                                                                          "panda_joint6",
-                                                                                                          "panda_joint7"))},
-                             initialJointPositions = [  ("panda","panda_joint1", 0),
-                                                        ("panda","panda_joint2", 0),
-                                                        ("panda","panda_joint3", 0),
-                                                        ("panda","panda_joint4", -1),
-                                                        ("panda","panda_joint5", 0),
-                                                        ("panda","panda_joint6", 1),
-                                                        ("panda","panda_joint7", 0)],
-                             stepLength_sec = 0.01))
-
-
-
-        self._renderingEnabled = render
-        if self._renderingEnabled:
-            self._environmentController.setCamerasToObserve(["camera"]) #TODO: fix the camera topic
-
-        self._environmentController.setJointsToObserve( [("panda","panda_joint1"),
-                                                        ("panda","panda_joint2"),
-                                                        ("panda","panda_joint3"),
-                                                        ("panda","panda_joint4"),
-                                                        ("panda","panda_joint5"),
-                                                        ("panda","panda_joint6"),
-                                                        ("panda","panda_joint7")])
-
-
-        self._environmentController.setLinksToObserve( [("panda","panda_link1"),
-                                                        ("panda","panda_link2"),
-                                                        ("panda","panda_link3"),
-                                                        ("panda","panda_link4"),
-                                                        ("panda","panda_link5"),
-                                                        ("panda","panda_link6"),
-                                                        ("panda","panda_link7")])
-
-        self._environmentController.startController()
+                         render = render,
+                         maxTorques = maxTorques,
+                         environmentController = environmentController)
 
         self._goalPose = goalPose
         self._goalTolerancePosition = goalTolerancePosition
@@ -138,23 +59,7 @@ class PandaEffortKeepPoseEnv(ControlledEnv):
 
 
 
-
-    def _startAction(self, action : Tuple[float, float, float, float, float, float, float]) -> None:
-        """Send the joint torque command.
-
-        Parameters
-        ----------
-        action : Tuple[float, float, float, float, float, float, float]
-            torque control command
-
-        """
-        clippedAction = np.clip(np.array(action, dtype=np.float32),-self.maxTorque,self.maxTorque)
-
-        jointTorques = [("panda","panda_joint"+str(i+1),clippedAction[i]) for i in range(7)]
-        self._environmentController.setJointsEffort(jointTorques)
-
-
-    def _getDist2goal(self, state : NDArray[(15,), np.float32]):
+    def _getDist2goal(self, state : NDArray[(20,), np.float32]):
         position = state[0:3]
         orientation_quat = quaternion.from_euler_angles(state[3:6])
 
@@ -167,93 +72,29 @@ class PandaEffortKeepPoseEnv(ControlledEnv):
         return position_dist2goal, orientation_dist2goal
 
 
-    def _checkGoalReached(self,state):
-        #print("getting distance for state ",state)
-        position_dist2goal, orientation_dist2goal = self._getDist2goal(state)
-        #print(position_dist2goal,",",orientation_dist2goal)
-        return position_dist2goal < self._goalTolerancePosition and orientation_dist2goal < self._goalToleranceOrientation_rad
+    def _checkEpisodeEnd(self, previousState : NDArray[(20,), np.float32], state : NDArray[(20,), np.float32]) -> bool:
+        return False # Only stops at the maximum frame number
 
 
-
-    def _checkEpisodeEnd(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32]) -> bool:
-
-        isdone = bool(self._checkGoalReached(state))
-        #print("isdone = ",isdone)
-        return isdone
-
-
-    def _computeReward(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32], action : int) -> float:
+    def _computeReward(self, previousState : NDArray[(20,), np.float32], state : NDArray[(20,), np.float32], action : int) -> float:
 
         posDist_new, orientDist_new = self._getDist2goal(state)
         posDist_old, orientDist_old = self._getDist2goal(previousState)
 
-        posImprovement = posDist_old-posDist_new
-        orientImprovement = orientDist_old-orientDist_new
+        posDistImprovement  = posDist_old - posDist_new
+        orientDistImprovement = orientDist_old - orientDist_new
 
-        if self._checkGoalReached(state):
-            finishBonus = 100
-        else:
-            finishBonus = 0
+        # make the malus for going farther worse then the bonus for improving
+        # Having them asymmetric should avoid oscillations around the target
+        if posDistImprovement<0:
+            posDistImprovement*=2
+        if orientDistImprovement<0:
+            orientDistImprovement*=2
 
-        # if self._getDist2goal(state)[0]<self._goalTolerancePosition*2:
-        #     almostFinishBonus = 10
-        # else:
-        #     almostFinishBonus = 0
+        positionClosenessBonus    = math.pow((2-posDist_new)/2, 2)
+        orientationClosenessBonus = math.pow(0.1*(math.pi-orientDist_new)/math.pi, 2)
 
-        #closenessBonus = 1-posDist_new
 
-        reward = posImprovement + orientImprovement + finishBonus # + almostFinishBonus# + closenessBonus
+        reward = positionClosenessBonus + orientationClosenessBonus + posDistImprovement + orientDistImprovement
         #rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
         return reward
-
-
-
-    def _getObservation(self, state) -> np.ndarray:
-        return state
-
-    def _getState(self) -> NDArray[(15,), np.float32]:
-        """Get an observation of the environment.
-
-        Returns
-        -------
-        NDArray[(15,), np.float32]
-            numpy ndarray. The content of each field is specified at the self.observation_space_high definition
-
-        """
-
-        jointStates = self._environmentController.getJointsState([  ("panda","panda_joint1"),
-                                                                    ("panda","panda_joint2"),
-                                                                    ("panda","panda_joint3"),
-                                                                    ("panda","panda_joint4"),
-                                                                    ("panda","panda_joint5"),
-                                                                    ("panda","panda_joint6"),
-                                                                    ("panda","panda_joint7")])
-
-        eePose = self._environmentController.getLinksState([("panda","panda_link7")])[("panda","panda_link7")].pose.pose
-
-        quat = quaternion.from_float_array([eePose.orientation.w,eePose.orientation.x,eePose.orientation.y,eePose.orientation.z])
-        eeOrientation_rpy = quaternion.as_euler_angles(quat)
-
-        #print("got ee pose "+str(eePose))
-
-
-
-
-
-        state = [   eePose.position.x,
-                    eePose.position.y,
-                    eePose.position.z,
-                    eeOrientation_rpy[0],
-                    eeOrientation_rpy[1],
-                    eeOrientation_rpy[2],
-                    jointStates["panda","panda_joint1"].position,
-                    jointStates["panda","panda_joint2"].position,
-                    jointStates["panda","panda_joint3"].position,
-                    jointStates["panda","panda_joint4"].position,
-                    jointStates["panda","panda_joint5"].position,
-                    jointStates["panda","panda_joint6"].position,
-                    jointStates["panda","panda_joint7"].position,
-                    0.0,
-                    0.0] # No unrecoverable failure states
-
-        return np.array(state,dtype=np.float32)

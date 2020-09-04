@@ -7,6 +7,7 @@ import sensor_msgs.msg
 import time
 import cv2
 import collections
+from typing import List
 
 name_to_dtypes = {
     "rgb8":    (np.uint8,  3),
@@ -107,11 +108,12 @@ def image_to_numpy(rosMsg : sensor_msgs.msg.Image) -> np.ndarray:
 
 
 class JointState:
+    # These are lists because the joint may have multiple DOF
     position = []
     rate = []
     effort = []
 
-    def __init__(self, position, rate, effort):
+    def __init__(self, position : List[float], rate : List[float], effort : List[float]):
         self.position = position
         self.rate = rate
 

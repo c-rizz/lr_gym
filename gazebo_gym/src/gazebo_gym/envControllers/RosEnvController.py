@@ -12,6 +12,8 @@ from gazebo_gym.envControllers.EnvironmentController import EnvironmentControlle
 from gazebo_gym_helpers.msg import LinkStates
 
 import rospy
+import gazebo_gym
+import os
 
 class RosEnvController(EnvironmentController):
     """This class allows to control the execution of a ROS-based environment.
@@ -20,7 +22,7 @@ class RosEnvController(EnvironmentController):
 
     """
 
-    def __init__(   self, stepLength_sec : float = 0.001):
+    def __init__(   self, stepLength_sec : float = 0.001, ros_master_uri : str = None):
         """Initialize the Simulator controller.
 
         Raises
@@ -30,6 +32,10 @@ class RosEnvController(EnvironmentController):
 
         """
         super().__init__(stepLength_sec = stepLength_sec)
+        if ros_master_uri is not None:
+            os.environ['ROS_MASTER_URI'] = ros_master_uri
+        rospy.init_node('ros_env_controller', anonymous=True)
+
         self._listenersStarted = False
 
         self._lastImagesReceived = {}
@@ -40,6 +46,9 @@ class RosEnvController(EnvironmentController):
         self._linkStatesMutex = Lock() #To synchronize _jointStateCallback with getJointsState
         self._simTimeStart = rospy.get_time()
 
+        self._jointStateMsgAgeAvg = gazebo_gym.utils.AverageKeeper(bufferSize = 100)
+        self._linkStateMsgAgeAvg = gazebo_gym.utils.AverageKeeper(bufferSize = 100)
+        self._cameraMsgAgeAvg = gazebo_gym.utils.AverageKeeper(bufferSize = 100)
 
     def step(self) -> None:
         """Wait for the step time to pass."""
@@ -130,7 +139,11 @@ class RosEnvController(EnvironmentController):
                 rospy.logerr("An image from "+c+" was requested to RosEnvcontroller, but no image has been received yet. Will return None")
                 ret.append(None)
             else:
-                ret.append(self._lastImagesReceived[c])
+                lastImg = self._lastImagesReceived[c]
+
+                msgDelay = lastImg.header.stamp.to_sec() - rospy.get_time()
+                self._cameraMsgAgeAvg.addValue(msgDelay)
+                ret.append(lastImg)
 
 
         return ret
@@ -149,6 +162,7 @@ class RosEnvController(EnvironmentController):
 
         self._jointStatesMutex.acquire()
 
+
         for j in requestedJoints:
             modelName = j[0]
             jointName = j[1]
@@ -163,7 +177,10 @@ class RosEnvController(EnvironmentController):
                 err = "Requested joint state for joint '"+str(jointName)+"' of model '"+str(modelName)+"' but the joint_states message does not contain this link"
                 rospy.logerr(err)
                 raise RuntimeError(err)
-            ret[j] = JointState(jointStatesMsg.position[jointIndex], jointStatesMsg.velocity[jointIndex], jointStatesMsg.effort[jointIndex])
+            ret[j] = JointState([jointStatesMsg.position[jointIndex]], [jointStatesMsg.velocity[jointIndex]], [jointStatesMsg.effort[jointIndex]])
+
+        msgDelay = jointStatesMsg.header.stamp.to_sec() - rospy.get_time()
+        self._jointStateMsgAgeAvg.addValue(msgDelay)
 
         self._jointStatesMutex.release()
 
@@ -203,8 +220,11 @@ class RosEnvController(EnvironmentController):
                 rospy.logerr(err)
                 raise RuntimeError(err)
 
+            msgDelay = linkStatesMsg.header.stamp.to_sec() - rospy.get_time()
+            self._linkStateMsgAgeAvg.addValue(msgDelay)
+
             linkState = gazebo_msgs.msg.LinkState()
-            linkState.pose = linkStatesMsg.link_poses[linkIndex]
+            linkState.pose = linkStatesMsg.link_poses[linkIndex].pose
             linkState.twist = linkStatesMsg.link_twists[linkIndex]
 
             ret[l] = linkState
@@ -213,10 +233,13 @@ class RosEnvController(EnvironmentController):
         return ret
 
     def resetWorld(self):
+        rospy.loginfo("Average link_state age ="+str(self._linkStateMsgAgeAvg.getAverage()))
+        rospy.loginfo("Average joint_state age ="+str(self._jointStateMsgAgeAvg.getAverage()))
+        rospy.loginfo("Average camera image age ="+str(self._cameraMsgAgeAvg.getAverage()))
         self._simTimeStart = rospy.get_time()
 
 
     def getEnvSimTimeFromStart(self) -> float:
         t = rospy.get_time() - self._simTimeStart
-        rospy.loginfo("t = "+str(t)+" ("+str(rospy.get_time())+"-"+str(self._simTimeStart)+")")
+        #rospy.loginfo("t = "+str(t)+" ("+str(rospy.get_time())+"-"+str(self._simTimeStart)+")")
         return t

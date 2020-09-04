@@ -28,8 +28,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
     def __init__(   self,
                     usePersistentConnections : bool = False,
-                    stepLength_sec : float = 0.001,
-                    camerasToRender : List[str] = []):
+                    stepLength_sec : float = 0.001):
         """Initialize the Gazebo controller.
 
         Parameters
@@ -88,8 +87,6 @@ class GazeboController(GazeboControllerNoPlugin):
         ----------
         performRendering : bool
             Set to true to get camera renderings
-        camerasToRender : List[str]
-            Names of the cameras to get renderings of
 
         """
 

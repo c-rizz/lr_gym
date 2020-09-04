@@ -143,6 +143,8 @@ void jointStatesCallback(const sensor_msgs::JointStateConstPtr& msg)
 
     poseArrayDbg.poses.push_back(linkPose.pose);
   }
+  linkStates.header.stamp = msg->header.stamp;
+
   poseArrayDbg.header.frame_id = rootLinkName;
   poseArrayDbg.header.stamp = msg->header.stamp;
 

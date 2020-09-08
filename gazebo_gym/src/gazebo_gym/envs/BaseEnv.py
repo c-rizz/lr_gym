@@ -94,7 +94,7 @@ class BaseEnv(gym.Env):
         """
         #rospy.loginfo("step()")
 
-        if self._framesCounter>=self._maxFramesPerEpisode:
+        if self._framesCounter>=self._maxFramesPerEpisode-1:
             rospy.loginfo("Environment reached max duration")
             state = self._getStateCached()
             observation = self._getObservation(state)

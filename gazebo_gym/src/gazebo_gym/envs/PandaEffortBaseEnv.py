@@ -68,7 +68,8 @@ class PandaEffortBaseEnv(ControlledEnv):
                     render : bool = False,
                     maxTorques : Tuple[float, float, float, float, float, float, float] = [87, 87, 87, 87, 12, 12, 12],
                     environmentController : gazebo_gym.envControllers.EnvironmentController = None,
-                    ros_master_uri : str = None):
+                    ros_master_uri : str = None,
+                    stepLength_sec : float = 0.01):
         """Short summary.
 
         Parameters
@@ -112,7 +113,7 @@ class PandaEffortBaseEnv(ControlledEnv):
                                                         ("panda","panda_joint5", 0),
                                                         ("panda","panda_joint6", 1),
                                                         ("panda","panda_joint7", 0)],
-                             stepLength_sec = 0.01,
+                             stepLength_sec = stepLength_sec,
                              ros_master_uri = ros_master_uri)
 
         super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
@@ -139,7 +140,8 @@ class PandaEffortBaseEnv(ControlledEnv):
                                                         ("panda","panda_link4"),
                                                         ("panda","panda_link5"),
                                                         ("panda","panda_link6"),
-                                                        ("panda","panda_link7")])
+                                                        ("panda","panda_link7"),
+                                                        ("panda","panda_link8")])
 
         self._environmentController.startController()
 
@@ -182,7 +184,7 @@ class PandaEffortBaseEnv(ControlledEnv):
                                                                     ("panda","panda_joint6"),
                                                                     ("panda","panda_joint7")])
 
-        eePose = self._environmentController.getLinksState([("panda","panda_link7")])[("panda","panda_link7")].pose
+        eePose = self._environmentController.getLinksState([("panda","panda_link8")])[("panda","panda_link8")].pose
 
         quat = quaternion.from_float_array([eePose.orientation.w,eePose.orientation.x,eePose.orientation.y,eePose.orientation.z])
         eeOrientation_rpy = quaternion.as_euler_angles(quat)

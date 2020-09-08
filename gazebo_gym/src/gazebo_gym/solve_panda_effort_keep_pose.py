@@ -5,8 +5,9 @@ import time
 import argparse
 import gym
 
-from stable_baselines.td3.policies import MlpPolicy
+from stable_baselines.sac.policies import MlpPolicy
 from stable_baselines import TD3
+from stable_baselines import SAC
 from stable_baselines.ddpg.noise import NormalActionNoise
 from stable_baselines.common import env_checker
 import stable_baselines
@@ -15,6 +16,7 @@ import numpy as np
 
 import gazebo_gym
 from gazebo_gym.envs.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
+from stable_baselines.common.callbacks import CheckpointCallback
 
 def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, numEpisodes : int = -1):
     #frames = []
@@ -52,28 +54,54 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     n_actions = env.action_space.shape[-1]
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
+    filename = "sac_pandaEffortKeep_"+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+"s"+str(trainIterations)
+
+    checkpoint_callback = CheckpointCallback(save_freq=100000, save_path='./solve_panda_effort_keep_tensorboard/checkpoints/',
+                                             name_prefix=filename)
+
+
     #hyperparameters taken by the RL baslines zoo repo
-    model = TD3( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
-                 buffer_size=1000000, gamma=0.99, gradient_steps=1000,
-                 learning_rate=0.001, learning_starts=10000, policy_kwargs=dict(layers=[400, 300]), train_freq=env.getMaxFramesPerEpisode(),
+    model = SAC( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
+                 buffer_size=200000, gamma=0.99, gradient_steps=1000,
+                 learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[200, 150]), train_freq=env.getMaxFramesPerEpisode(),
                  seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
                  tensorboard_log="./solve_panda_effort_keep_tensorboard/")
 
-
+    env.reset()
     if fileToLoad is None:
         print("Learning...")
         t_preLearn = time.time()
-        model.learn(total_timesteps=trainIterations, log_interval=10)
+        model.learn(total_timesteps=trainIterations, log_interval=10, callback=checkpoint_callback)
         duration_learn = time.time() - t_preLearn
         print("Learned. Took "+str(duration_learn)+" seconds.")
 
-        filename = "td3_pandaEffortKeep_"+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+"s"+str(trainIterations)
         model.save(filename)
         print("Saved as "+filename)
     else:
         print("Loading "+fileToLoad+"...")
-        model = TD3.load(fileToLoad)
-        print("Loaded")
+        model = SAC.load(fileToLoad)
+        print("Loaded model has hyperparameters:")
+        print("policy:                 "+str(model.policy))
+        #print("env:                    "+str(model.env))
+        print("gamma:                  "+str(model.gamma))
+        print("learning_rate:          "+str(model.learning_rate))
+        print("buffer_size:            "+str(model.buffer_size))
+        print("batch_size:             "+str(model.batch_size))
+        print("tau:                    "+str(model.tau))
+        print("ent_coef:               "+str(model.ent_coef))
+        print("train_freq:             "+str(model.train_freq))
+        print("learning_starts:        "+str(model.learning_starts))
+        print("target_update_interval: "+str(model.target_update_interval))
+        print("gradient_steps:         "+str(model.gradient_steps))
+        print("target_entropy:         "+str(model.target_entropy))
+        print("action_noise:           "+str(model.action_noise))
+        print("random_exploration:     "+str(model.random_exploration))
+        #print("verbose:                "+str(model.verbose))
+        #print("tensorboard_log:        "+str(model.tensorboard_log))
+        print("policy_kwargs:          "+str(model.policy_kwargs))
+        #print("full_tensorboard_log:   "+str(model.full_tensorboard_log))
+        print("seed:                   "+str(model.seed))
+        print("n_cpu_tf_sess:          "+str(model.n_cpu_tf_sess))
 
     return model
 
@@ -81,7 +109,7 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
 def main(fileToLoad : str = None):
 
     env = PandaEffortKeepPoseEnv(   goalPose = (0.4,0.4,0.6, 1,0,0,0),
-                                    maxFramesPerEpisode = 5000,
+                                    maxFramesPerEpisode = 2000,
                                     maxTorques = [87, 87, 87, 87, 12, 12, 12])
     model = trainOrLoad(env,1000000, fileToLoad = fileToLoad)
     input("Press Enter to continue...")

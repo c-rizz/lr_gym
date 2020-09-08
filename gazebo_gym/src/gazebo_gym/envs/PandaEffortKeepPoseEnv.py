@@ -50,7 +50,8 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
         super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
                          render = render,
                          maxTorques = maxTorques,
-                         environmentController = environmentController)
+                         environmentController = environmentController,
+                         stepLength_sec = 0.033)
 
         self._goalPose = goalPose
         self._goalTolerancePosition = goalTolerancePosition
@@ -86,12 +87,13 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
 
         # make the malus for going farther worse then the bonus for improving
         # Having them asymmetric should avoid oscillations around the target
+        # Intuitively, with this correction the agent cannot go away, come back, and get the reward again
         if posDistImprovement<0:
             posDistImprovement*=2
         if orientDistImprovement<0:
             orientDistImprovement*=2
 
-        positionClosenessBonus    = math.pow((2-posDist_new)/2, 2)
+        positionClosenessBonus    = math.pow(2*(2-posDist_new)/2, 2)
         orientationClosenessBonus = math.pow(0.1*(math.pi-orientDist_new)/math.pi, 2)
 
 

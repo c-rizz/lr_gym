@@ -15,6 +15,7 @@ import numpy as np
 
 import gazebo_gym
 from gazebo_gym.envs.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
+from gazebo_gym.envs.PandaEffortKeepVarPoseEnv import PandaEffortKeepVarPoseEnv
 from stable_baselines.common.callbacks import CheckpointCallback
 
 def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, numEpisodes : int = -1):
@@ -53,18 +54,19 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     n_actions = env.action_space.shape[-1]
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
-    filename = "sac_pandaEffortKeep_"+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+"s"+str(trainIterations)
+    filename = "sac_pandaEffortKeep_var_"+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+"s"+str(trainIterations)
 
-    checkpoint_callback = CheckpointCallback(save_freq=100000, save_path='./solve_panda_effort_keep_tensorboard/checkpoints/',
+    folderName = "./solve_panda_effort_keep_var_tensorboard"
+    checkpoint_callback = CheckpointCallback(save_freq=100000, save_path=folderName+'/checkpoints/',
                                              name_prefix=filename)
 
 
     #hyperparameters taken by the RL baslines zoo repo
     model = SAC( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
                  buffer_size=200000, gamma=0.99, gradient_steps=1000,
-                 learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[200, 150]), train_freq=env.getMaxFramesPerEpisode(),
+                 learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=env.getMaxFramesPerEpisode(),
                  seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
-                 tensorboard_log="./solve_panda_effort_keep_tensorboard/")
+                 tensorboard_log=folderName)
 
     env.reset()
     if fileToLoad is None:
@@ -107,10 +109,9 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
 
 def main(fileToLoad : str = None):
 
-    env = PandaEffortKeepPoseEnv(   goalPose = (0.4,0.4,0.6, 1,0,0,0),
-                                    maxFramesPerEpisode = 2000)
+    env = PandaEffortKeepVarPoseEnv(maxFramesPerEpisode = 2000)
 
-    model = trainOrLoad(env,1000000, fileToLoad = fileToLoad)
+    model = trainOrLoad(env,2500000, fileToLoad = fileToLoad)
     input("Press Enter to continue...")
     run(env,model)
 

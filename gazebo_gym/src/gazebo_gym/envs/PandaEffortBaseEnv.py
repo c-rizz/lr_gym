@@ -29,7 +29,7 @@ class PandaEffortBaseEnv(ControlledEnv):
                                     1,
                                     1,
                                     1])
-    action_space = gym.spaces.Box(-action_space_high,action_space_high) # 7 joints, torque controlled
+    action_space = gym.spaces.Box(-action_space_high,action_space_high) # 7 joints, torque controlled, normalized
 
 
 

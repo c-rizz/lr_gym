@@ -32,7 +32,7 @@
           <arg name="paused" value="$(arg paused)"/>
           <arg name="world_name" value="$(find gazebo_gym)/worlds/fixed_camera_world_plugin.world"/>
           <arg name="verbose" value="True"/>
-          <!--<arg name="physics" value="bullet"/>-->
+          <arg name="physics" value="bullet"/>
           <arg name="gui" value="$(arg gui)"/>
 
           <env name="GAZEBO_MODEL_PATH" value="$(find gazebo_gym)/models:$(optenv GAZEBO_MODEL_PATH)"/>

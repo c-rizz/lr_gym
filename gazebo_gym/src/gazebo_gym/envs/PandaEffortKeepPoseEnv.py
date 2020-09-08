@@ -21,7 +21,7 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 0.0175*5,
-                    maxTorques = [100, 100, 100, 100, 100, 100, 100],
+                    maxTorques = [87, 87, 87, 87, 12, 12, 12],
                     environmentController : gazebo_gym.envControllers.EnvironmentController = None):
         """Short summary.
 
@@ -69,7 +69,6 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
         # print("orientation_quat =",orientation_quat)
         # print("goal_quat =",goalQuat)
         orientation_dist2goal = quaternion.rotation_intrinsic_distance(orientation_quat,goalQuat)
-
         return position_dist2goal, orientation_dist2goal
 
 

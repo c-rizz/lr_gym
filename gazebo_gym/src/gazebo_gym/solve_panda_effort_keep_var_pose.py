@@ -6,7 +6,7 @@ import argparse
 import gym
 
 from stable_baselines.sac.policies import MlpPolicy
-from stable_baselines import SAC
+from stable_baselines import SAC, HER
 from stable_baselines.ddpg.noise import NormalActionNoise
 from stable_baselines.common import env_checker
 import stable_baselines
@@ -16,6 +16,7 @@ import numpy as np
 import gazebo_gym
 from gazebo_gym.envs.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
 from gazebo_gym.envs.PandaEffortKeepVarPoseEnv import PandaEffortKeepVarPoseEnv
+from gazebo_gym.envs.ToGoalEnvWrapper import ToGoalEnvWrapper
 from stable_baselines.common.callbacks import CheckpointCallback
 
 def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, numEpisodes : int = -1):
@@ -48,11 +49,10 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
 
-    env_checker.check_env(env)
+    env_checker.check_env(env.getBaseEnv())
+
     print("Checked environment gym compliance :)")
 
-    n_actions = env.action_space.shape[-1]
-    action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
     filename = "sac_pandaEffortKeep_var_"+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+"s"+str(trainIterations)
 
@@ -62,11 +62,19 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
 
 
     #hyperparameters taken by the RL baslines zoo repo
-    model = SAC( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
-                 buffer_size=200000, gamma=0.99, gradient_steps=1000,
-                 learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=env.getMaxFramesPerEpisode(),
-                 seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
-                 tensorboard_log=folderName)
+    # n_actions = env.action_space.shape[-1]
+    # action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+    # sacModel = SAC( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
+    #              buffer_size=200000, gamma=0.99, gradient_steps=1000,
+    #              learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=env.getBaseEnv().getMaxFramesPerEpisode(),
+    #              seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
+    #              tensorboard_log=folderName)
+
+    model = HER('MlpPolicy', env, SAC, n_sampled_goal=4, goal_selection_strategy="future", verbose=1, batch_size=100,
+                buffer_size=200000, gamma=0.99, gradient_steps=1000,
+                learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=env.getBaseEnv().getMaxFramesPerEpisode(),
+                seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
+                tensorboard_log=folderName)
 
     env.reset()
     if fileToLoad is None:
@@ -109,7 +117,10 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
 
 def main(fileToLoad : str = None):
 
-    env = PandaEffortKeepVarPoseEnv(maxFramesPerEpisode = 2000)
+    env = ToGoalEnvWrapper( PandaEffortKeepVarPoseEnv(maxFramesPerEpisode = 2000),
+                            observationMask  = (1,1,1,1,1,1, 1,1,1,1,1,1,1, 1,1,1,1,1,1,1, 0,0,0,0,0,0),
+                            desiredGoalMask  = (0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 1,1,1,1,1,1),
+                            achievedGoalMask = (1,1,1,1,1,1, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0))
 
     model = trainOrLoad(env,2500000, fileToLoad = fileToLoad)
     input("Press Enter to continue...")

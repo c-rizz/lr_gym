@@ -13,7 +13,7 @@
     <include file="$(find gazebo_gym)/launch/fixed_camera_gazebo_sim.launch" >
         <arg name="gui" value="$(arg gui)"/>
         <arg name="noplugin" value="$(arg noplugin)"/>
-        <arg name="model_name" value="panda"/>
+        <arg name="paused" value="false"/>
     </include>
 
     <!-- Spawn and setup the panda robot -->

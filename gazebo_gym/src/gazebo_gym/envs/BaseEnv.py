@@ -130,7 +130,9 @@ class BaseEnv(gym.Env):
         done = self._checkEpisodeEnd(previousState, state)
         reward = self._computeReward(previousState, state, action)
         observation = self._getObservation(state)
-        info = {}
+        info = {"gz_gym_base_env_reached_state" : state,
+                "gz_gym_base_env_previous_state" : previousState,
+                "gz_gym_base_env_action" : action}
         info.update(self._getInfo())
 
         self._totalEpisodeReward += reward

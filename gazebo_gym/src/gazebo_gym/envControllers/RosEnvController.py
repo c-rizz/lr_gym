@@ -9,7 +9,7 @@ from threading import Lock
 
 from gazebo_gym.utils import JointState
 from gazebo_gym.envControllers.EnvironmentController import EnvironmentController
-from gazebo_gym_helpers.msg import LinkStates
+from gazebo_gym_utils.msg import LinkStates
 
 import rospy
 import gazebo_gym

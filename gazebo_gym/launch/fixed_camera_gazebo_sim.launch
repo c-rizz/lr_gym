@@ -13,31 +13,19 @@
     <arg name="xacro" default="false"/>
     <arg name="model_name" default=""/> <!-- must correspond with the robot name in the urdf/xacro file -->
     <arg name="paused" default="true"/> <!-- must correspond with the robot name in the urdf/xacro file -->
+    <arg name="physics_engine" default="bullet"/>
 
-    <group if="$(arg noplugin)">
-      <include file="$(find gazebo_ros)/launch/empty_world.launch" >
-          <arg name="paused" value="$(arg paused)"/>
-          <arg name="world_name" value="$(find gazebo_gym)/worlds/fixed_camera_world.world"/>
-          <arg name="verbose" value="True"/>
-          <arg name="physics" value="bullet"/>
-          <arg name="gui" value="$(arg gui)"/>
-          <arg name="extre_gazebo_args" value="--seed 20200413"/>
-
-          <env name="GAZEBO_MODEL_PATH" value="$(find gazebo_gym)/models:$(optenv GAZEBO_MODEL_PATH)"/>
-      </include>
-    </group>
-    <group unless="$(arg noplugin)">
-      <!-- launch the custom world -->
-      <include file="$(find gazebo_ros)/launch/empty_world.launch" >
-          <arg name="paused" value="$(arg paused)"/>
-          <arg name="world_name" value="$(find gazebo_gym)/worlds/fixed_camera_world_plugin.world"/>
-          <arg name="verbose" value="True"/>
-          <arg name="physics" value="bullet"/>
-          <arg name="gui" value="$(arg gui)"/>
-
-          <env name="GAZEBO_MODEL_PATH" value="$(find gazebo_gym)/models:$(optenv GAZEBO_MODEL_PATH)"/>
-      </include>
-    </group>
+    <include file="$(find gazebo_ros)/launch/empty_world.launch" >
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="world_name" value="$(find gazebo_gym)/worlds/fixed_camera_world.world" if="$(eval arg('noplugin'))"/>
+        <arg name="world_name" value="$(find gazebo_gym)/worlds/fixed_camera_world_plugin.world" if="$(eval not arg('noplugin'))"/>
+        <arg name="verbose" value="True"/>
+        <arg name="physics" value="$(arg physics_engine)"/>
+        <arg name="gui" value="$(arg gui)"/>
+        <arg name="extra_gazebo_args" value="--seed 20200413  -o bullet_default" if="$(eval arg('physics_engine') == 'bullet')"/>
+        <arg name="extra_gazebo_args" value="--seed 20200413  -o ode_default" if="$(eval arg('physics_engine') == 'ode')"/>
+        <env name="GAZEBO_MODEL_PATH" value="$(find gazebo_gym)/models:$(optenv GAZEBO_MODEL_PATH)"/>
+    </include>
 
 
     <group unless="$(eval model_name == '')">

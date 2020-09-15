@@ -12,6 +12,7 @@ from gazebo_gym.envs.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
 import gazebo_gym
 from nptyping import NDArray
 import random
+from geometry_msgs.msg import PoseStamped
 
 
 class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
@@ -84,6 +85,8 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
         self._goalTolerancePosition = goalTolerancePosition
         self._goalToleranceOrientation_rad = goalToleranceOrientation_rad
 
+        self._dbgGoalpublisher = rospy.Publisher('~/goal_pose', PoseStamped, queue_size=10)
+
 
 
     def _onResetDone(self) -> None:
@@ -107,6 +110,17 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
         #                                   0.2])
         # goal_pos_space = gym.spaces.Box(goal_pos_space_low,goal_pos_space_high).sample()
         # self._goalPose = (goal_pos_space[0],goal_pos_space[1],goal_pos_space[2],1,0,0,0)
+        #
+        goalPoseStamped = PoseStamped()
+        goalPoseStamped.header.frame_id = "world"
+        goalPoseStamped.pose.position.x = self._goalPose[0]
+        goalPoseStamped.pose.position.y = self._goalPose[1]
+        goalPoseStamped.pose.position.z = self._goalPose[2]
+        goalPoseStamped.pose.orientation.x = self._goalPose[4]
+        goalPoseStamped.pose.orientation.y = self._goalPose[5]
+        goalPoseStamped.pose.orientation.z = self._goalPose[6]
+        goalPoseStamped.pose.orientation.w = self._goalPose[3]
+        self._dbgGoalpublisher.publish(goalPoseStamped)
         print("Setting goal to: "+str(self._goalPose))
 
     def _getState(self) -> NDArray[(26,), np.float32]:
@@ -130,3 +144,26 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
         ret.append(seed)
 
         return ret
+
+
+    def _computeReward(self, previousState : NDArray[(26,), np.float32], state : NDArray[(26,), np.float32], action : int) -> float:
+
+        goal = state[20:26]
+        posDist_new = np.linalg.norm(state[0:3] - goal[0:3])
+        #posDist_new, orientDist_new = self._getDist2goal(state,goal)
+
+        if posDist_new < 0.05:
+            reward = 1
+        else:
+            reward = 0
+
+        #rospy.loginfo("computed reward = "+str(reward)+" for goal "+str(goal))
+        return reward
+
+    def setGoalInState(self, state, goal):
+        if len(state) == len(self.observation_space_high):
+            state[20:26] = 0
+        else:
+            np.append(state,np.zeros(6,dtype=state.dtype))
+
+        state[20:26] = goal

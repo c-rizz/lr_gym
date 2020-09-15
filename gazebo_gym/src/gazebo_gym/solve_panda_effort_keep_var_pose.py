@@ -14,7 +14,6 @@ import datetime
 import numpy as np
 
 import gazebo_gym
-from gazebo_gym.envs.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
 from gazebo_gym.envs.PandaEffortKeepVarPoseEnv import PandaEffortKeepVarPoseEnv
 from gazebo_gym.envs.ToGoalEnvWrapper import ToGoalEnvWrapper
 from stable_baselines.common.callbacks import CheckpointCallback
@@ -70,10 +69,11 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     #              seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
     #              tensorboard_log=folderName)
 
-    model = HER('MlpPolicy', env, SAC, n_sampled_goal=4, goal_selection_strategy="future", verbose=1, batch_size=100,
-                buffer_size=200000, gamma=0.99, gradient_steps=1000,
-                learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=env.getBaseEnv().getMaxFramesPerEpisode(),
-                seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
+    epLength = env.getBaseEnv().getMaxFramesPerEpisode()
+    model = HER('MlpPolicy', env, SAC, n_sampled_goal=int(epLength/10), goal_selection_strategy="future", verbose=1, batch_size=128,
+                buffer_size=100000, gamma=0.99, gradient_steps=1000,
+                learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=epLength,
+                seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess = 1 is needed for reproducibility
                 tensorboard_log=folderName)
 
     env.reset()
@@ -88,7 +88,7 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
         print("Saved as "+filename)
     else:
         print("Loading "+fileToLoad+"...")
-        model = SAC.load(fileToLoad)
+        model = HER.load(fileToLoad)
         print("Loaded model has hyperparameters:")
         print("policy:                 "+str(model.policy))
         #print("env:                    "+str(model.env))
@@ -115,10 +115,15 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     return model
 
 
-def main(fileToLoad : str = None):
+def main(fileToLoad : str = None, usePlugin : bool = False):
 
-    env = ToGoalEnvWrapper( PandaEffortKeepVarPoseEnv(maxFramesPerEpisode = 2000),
-                            observationMask  = (1,1,1,1,1,1, 1,1,1,1,1,1,1, 1,1,1,1,1,1,1, 0,0,0,0,0,0),
+    if usePlugin:
+        envController = gazebo_gym.envControllers.GazeboController.GazeboController(stepLength_sec = 0.01)
+    else:
+        envController = None
+
+    env = ToGoalEnvWrapper( PandaEffortKeepVarPoseEnv(maxFramesPerEpisode = 1000, environmentController=envController),
+                            observationMask  = (0,0,0,0,0,0, 1,1,1,1,1,1,1, 1,1,1,1,1,1,1, 0,0,0,0,0,0),
                             desiredGoalMask  = (0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 1,1,1,1,1,1),
                             achievedGoalMask = (1,1,1,1,1,1, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0))
 
@@ -132,4 +137,4 @@ if __name__ == "__main__":
     ap.add_argument("--load", default=None, type=str, help="load this model instead of perfomring the training")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
-    main(fileToLoad = args["load"])
+    main(fileToLoad = args["load"], usePlugin = True)

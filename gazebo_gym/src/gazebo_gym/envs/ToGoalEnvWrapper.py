@@ -62,6 +62,30 @@ class ToGoalEnvWrapper(gym.GoalEnv):
         # print("converrted observation to:" + str(ret))
         return ret
 
+    def _dictToObservation(self, obsDict):
+        size = len(self._observationMask)
+        dtype = obsDict["observation"].dtype
+
+        obs          = np.zeros(size,dtype=dtype)
+        desiredGoal  = np.zeros(size,dtype=dtype)
+        achievedGoal = np.zeros(size,dtype=dtype)
+
+        obs_i = 0
+        dgl_i = 0
+        agl_i = 0
+        for i in range(len(size)):
+            if self._observationMask[i] == 1:
+                obs[i]=obsDict["observation"][obs_i]
+                obs_i +=1
+            elif self._desiredGoalMask[i] == 1:
+                desiredGoal[i]=obsDict["desired_goal"][dgl_i]
+                dgl_i+=1
+            elif self._achievedGoalMask[i] == 1:
+                achievedGoal[i] = obsDict["achieved_goal"][agl_i]
+                agl_i+=1
+
+        fullObs = obs + desiredGoal + achievedGoal
+        return fullObs
 
 
     def step(self, action):
@@ -80,7 +104,9 @@ class ToGoalEnvWrapper(gym.GoalEnv):
         reachedState = info["gz_gym_base_env_reached_state"]
         previousState = info["gz_gym_base_env_previous_state"]
         action = info["gz_gym_base_env_action"]
-
+        
+        self._env.setGoalInState(previousState, desired_goal)
+        self._env.setGoalInState(reachedState, desired_goal)
         reward = self._env._computeReward(previousState, reachedState, action)
         return reward
 

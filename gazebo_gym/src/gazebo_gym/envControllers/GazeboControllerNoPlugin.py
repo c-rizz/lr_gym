@@ -47,6 +47,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
 
         """
         super().__init__(stepLength_sec=stepLength_sec)
+        rospy.init_node('gazebo_env_controller', anonymous=True)
 
         self._lastUnpausedTime = 0
         self._episodeSimDuration = 0

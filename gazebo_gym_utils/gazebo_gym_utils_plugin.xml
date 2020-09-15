@@ -1,0 +1,7 @@
+<library path="lib/libgazebo_gym_utils">
+  <class name="gazebo_gym_utils/GravityCompensatedEffortController" type="gazebo_gym_utils::GravityCompensatedEffortController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      With this controller you can control joint efforts while having gravity compensation
+    </description>
+  </class>
+</library>

@@ -61,6 +61,7 @@ class BaseEnv(gym.Env):
         self._startActionDurationAverage = utils.AverageKeeper(bufferSize = 100)
         self._observationDurationAverage = utils.AverageKeeper(bufferSize = 100)
         self._wallStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
+        self._lastStepEndSimTimeFromStart = 0
 
 
 
@@ -102,6 +103,7 @@ class BaseEnv(gym.Env):
             done = True
             info = {}
             info.update(self._getInfo())
+            self._lastStepEndSimTimeFromStart = self._environmentController.getEnvSimTimeFromStart()
             return (observation, reward, done, info)
 
         # Get previous observation
@@ -142,6 +144,8 @@ class BaseEnv(gym.Env):
 
         self._envStepDurationAverage.addValue(newValue = time.time()-t0)
 
+        self._lastStepEndSimTimeFromStart = self._environmentController.getEnvSimTimeFromStart()
+
         # print(type(observation))
 
         # for r in ret:
@@ -170,7 +174,7 @@ class BaseEnv(gym.Env):
         if self._framesCounter == 0:
             rospy.loginfo("No step executed in this episode")
         else:
-            avgSimTimeStepDuration = self._environmentController.getEnvSimTimeFromStart()/self._framesCounter
+            avgSimTimeStepDuration = self._lastStepEndSimTimeFromStart/self._framesCounter
             totEpisodeWallDuration = time.time() - self._lastResetTime
             resetWallDuration = self._lastPostResetTime-self._lastResetTime
             rospy.loginfo(" - Average env step wall-time duration  = "+str(self._envStepDurationAverage.getAverage()))
@@ -483,3 +487,7 @@ class BaseEnv(gym.Env):
     def getMaxFramesPerEpisode(self):
         """Get the maximum number of frames of one episode, as set by the constructor."""
         return self._maxFramesPerEpisode
+
+    def setGoalInState(self, state, goal):
+        """Updates the provided state with the provided goal. Useful for goal-oriented environments, especially when using HER. It's used by ToGoalEnvWrapper."""
+        return NotImplementedError()

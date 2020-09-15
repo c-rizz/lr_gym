@@ -141,7 +141,8 @@ class PandaEffortBaseEnv(ControlledEnv):
                                                         ("panda","panda_link5"),
                                                         ("panda","panda_link6"),
                                                         ("panda","panda_link7"),
-                                                        ("panda","panda_link8")])
+                                                       # ("panda","panda_link8"),
+                                                       ])
 
         self._environmentController.startController()
 
@@ -184,7 +185,7 @@ class PandaEffortBaseEnv(ControlledEnv):
                                                                     ("panda","panda_joint6"),
                                                                     ("panda","panda_joint7")])
 
-        eePose = self._environmentController.getLinksState([("panda","panda_link8")])[("panda","panda_link8")].pose
+        eePose = self._environmentController.getLinksState([("panda","panda_link7")])[("panda","panda_link7")].pose
 
         quat = quaternion.from_float_array([eePose.orientation.w,eePose.orientation.x,eePose.orientation.y,eePose.orientation.z])
         eeOrientation_rpy = quaternion.as_euler_angles(quat)
@@ -215,7 +216,7 @@ class PandaEffortBaseEnv(ControlledEnv):
                     jointStates["panda","panda_joint5"].rate[0],
                     jointStates["panda","panda_joint6"].rate[0],
                     jointStates["panda","panda_joint7"].rate[0]] # No unrecoverable failure states
-        #print(state)
+        #print("Got state = ",state)
         return np.array(state,dtype=np.float32)
 
 

@@ -7,7 +7,7 @@
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainfksolvervel_recursive.hpp>
 #include <kdl_conversions/kdl_msg.h>
-#include <gazebo_gym_helpers/LinkStates.h>
+#include <gazebo_gym_utils/LinkStates.h>
 #include <geometry_msgs/PoseArray.h>
 
 
@@ -125,7 +125,7 @@ void jointStatesCallback(const sensor_msgs::JointStateConstPtr& msg)
   }
 
   //ROS_DEBUG_STREAM("Computed forward kinematics for "<<linkCartesianPoses.size()<<" links");
-  gazebo_gym_helpers::LinkStates linkStates;
+  gazebo_gym_utils::LinkStates linkStates;
   geometry_msgs::PoseArray poseArrayDbg;
 
   for(std::pair<std::string,FkResult> fkResult : fkResults)
@@ -221,7 +221,7 @@ int main(int argc, char** argv)
 
   ros::Subscriber jointStatesSub = node_handle.subscribe("joint_states", 1, jointStatesCallback);
 
-  linkStatesPublisher = node_handle.advertise<gazebo_gym_helpers::LinkStates>("link_states", 1);
+  linkStatesPublisher = node_handle.advertise<gazebo_gym_utils::LinkStates>("link_states", 1);
   linkStatesDbgPublisher = node_handle.advertise<geometry_msgs::PoseArray>("link_poses_dbg", 1);
 
   ROS_INFO("Link state publisher started");

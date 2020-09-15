@@ -16,7 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2
   tf2_ros
   gazebo_gym_env_plugin
-  gazebo_gym_helpers
+  gazebo_gym_utils
 )
 
 ## System dependencies are found with CMake's conventions
@@ -120,7 +120,7 @@ CATKIN_DEPENDS
   tf2_ros
 
   gazebo_gym_env_plugin
-  gazebo_gym_helpers
+  gazebo_gym_utils
 
 DEPENDS
 )

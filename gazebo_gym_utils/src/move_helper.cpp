@@ -16,14 +16,14 @@
 #include <tf2_ros/transform_listener.h>
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
-#include <gazebo_gym_helpers/MoveToEePoseAction.h>
-#include <gazebo_gym_helpers/MoveToJointPoseAction.h>
-#include <gazebo_gym_helpers/GetJointState.h>
-#include <gazebo_gym_helpers/GetEePose.h>
+#include <gazebo_gym_utils/MoveToEePoseAction.h>
+#include <gazebo_gym_utils/MoveToJointPoseAction.h>
+#include <gazebo_gym_utils/GetJointState.h>
+#include <gazebo_gym_utils/GetEePose.h>
 
 
-std::shared_ptr<actionlib::SimpleActionServer<gazebo_gym_helpers::MoveToEePoseAction>> moveToEePoseActionServer;
-std::shared_ptr<actionlib::SimpleActionServer<gazebo_gym_helpers::MoveToJointPoseAction>> moveToJointPoseActionServer;
+std::shared_ptr<actionlib::SimpleActionServer<gazebo_gym_utils::MoveToEePoseAction>> moveToEePoseActionServer;
+std::shared_ptr<actionlib::SimpleActionServer<gazebo_gym_utils::MoveToJointPoseAction>> moveToJointPoseActionServer;
 std::shared_ptr<moveit::planning_interface::MoveGroupInterface> moveGroupInt;
 std::shared_ptr<tf2_ros::Buffer> tfBuffer;
 std::string defaultEeLink = "";
@@ -118,7 +118,7 @@ int moveToEePose(moveit::planning_interface::MoveGroupInterface& move_group, con
   return 0;
 }
 
-void moveToEePoseActionCallback(const gazebo_gym_helpers::MoveToEePoseGoalConstPtr &goal)
+void moveToEePoseActionCallback(const gazebo_gym_utils::MoveToEePoseGoalConstPtr &goal)
 {
   try
   {
@@ -128,14 +128,14 @@ void moveToEePoseActionCallback(const gazebo_gym_helpers::MoveToEePoseGoalConstP
   {
     std::string errorMsg = "moveToEePose failed with error "+std::string(e.what());
     ROS_ERROR_STREAM(errorMsg);
-    gazebo_gym_helpers::MoveToEePoseResult result;
+    gazebo_gym_utils::MoveToEePoseResult result;
     result.succeded = false;
     result.error_message = errorMsg;
     moveToEePoseActionServer->setAborted(result);
     return;
   }
 
-  gazebo_gym_helpers::MoveToEePoseResult result;
+  gazebo_gym_utils::MoveToEePoseResult result;
   result.succeded = true;
   result.error_message = "No error";
   moveToEePoseActionServer->setSucceeded(result);
@@ -143,7 +143,7 @@ void moveToEePoseActionCallback(const gazebo_gym_helpers::MoveToEePoseGoalConstP
 }
 
 
-void moveToJointPoseActionCallback(const gazebo_gym_helpers::MoveToJointPoseGoalConstPtr &goal)
+void moveToJointPoseActionCallback(const gazebo_gym_utils::MoveToJointPoseGoalConstPtr &goal)
 {
   try
   {
@@ -153,14 +153,14 @@ void moveToJointPoseActionCallback(const gazebo_gym_helpers::MoveToJointPoseGoal
   {
     std::string errorMsg = "moveToJointPose failed with error "+std::string(e.what());
     ROS_ERROR_STREAM(errorMsg);
-    gazebo_gym_helpers::MoveToJointPoseResult result;
+    gazebo_gym_utils::MoveToJointPoseResult result;
     result.succeded = false;
     result.error_message = errorMsg;
     moveToJointPoseActionServer->setAborted(result);
     return;
   }
 
-  gazebo_gym_helpers::MoveToJointPoseResult result;
+  gazebo_gym_utils::MoveToJointPoseResult result;
   result.succeded = true;
   result.error_message = "No error";
   moveToJointPoseActionServer->setSucceeded(result);
@@ -168,7 +168,7 @@ void moveToJointPoseActionCallback(const gazebo_gym_helpers::MoveToJointPoseGoal
 }
 
 
-bool getJointStateServiceCallback(gazebo_gym_helpers::GetJointState::Request& req, gazebo_gym_helpers::GetJointState::Response& res)
+bool getJointStateServiceCallback(gazebo_gym_utils::GetJointState::Request& req, gazebo_gym_utils::GetJointState::Response& res)
 {
   ROS_INFO("Getting joint state...");
   moveGroupInt->getCurrentState(10)->copyJointGroupPositions(joint_model_group, res.joint_poses);
@@ -176,7 +176,7 @@ bool getJointStateServiceCallback(gazebo_gym_helpers::GetJointState::Request& re
   return true;
 }
 
-bool getEePoseServiceCallback(gazebo_gym_helpers::GetEePose::Request& req, gazebo_gym_helpers::GetEePose::Response& res)
+bool getEePoseServiceCallback(gazebo_gym_utils::GetEePose::Request& req, gazebo_gym_utils::GetEePose::Response& res)
 {
   ROS_INFO("Getting end effector pose...");
   res.pose = moveGroupInt->getCurrentPose(req.end_effector_link_name);
@@ -207,13 +207,13 @@ int main(int argc, char** argv)
   tf2_ros::TransformListener tfListener(*tfBuffer);
 
 
-  moveToEePoseActionServer = std::make_shared<actionlib::SimpleActionServer<gazebo_gym_helpers::MoveToEePoseAction>>(node_handle,
+  moveToEePoseActionServer = std::make_shared<actionlib::SimpleActionServer<gazebo_gym_utils::MoveToEePoseAction>>(node_handle,
                                                                                                                   "move_to_ee_pose",
                                                                                                                   moveToEePoseActionCallback,
                                                                                                                   false);
   moveToEePoseActionServer->start();
 
-  moveToJointPoseActionServer = std::make_shared<actionlib::SimpleActionServer<gazebo_gym_helpers::MoveToJointPoseAction>>(node_handle,
+  moveToJointPoseActionServer = std::make_shared<actionlib::SimpleActionServer<gazebo_gym_utils::MoveToJointPoseAction>>(node_handle,
                                                                                                                         "move_to_joint_pose",
                                                                                                                         moveToJointPoseActionCallback,
                                                                                                                         false);

@@ -60,12 +60,19 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
 
 
 
-    def _getDist2goal(self, state : NDArray[(20,), np.float32]):
+    def _getDist2goal(self, state : NDArray[(20,), np.float32], goalPoseRpy : NDArray[(6,), np.float32] = None):
+
+        if goalPoseRpy is None:
+            goalPos  = self._goalPose[0:3]
+            goalQuat = quaternion.from_float_array([self._goalPose[6],self._goalPose[3],self._goalPose[4],self._goalPose[5]])
+        else:
+            goalPos  = goalPoseRpy[0:3]
+            goalQuat = quaternion.from_euler_angles(goalPoseRpy[3:6])
+
         position = state[0:3]
         orientation_quat = quaternion.from_euler_angles(state[3:6])
 
-        position_dist2goal = np.linalg.norm(position - self._goalPose[0:3])
-        goalQuat = quaternion.from_float_array([self._goalPose[6],self._goalPose[3],self._goalPose[4],self._goalPose[5]])
+        position_dist2goal = np.linalg.norm(position - goalPos)
         # print("orientation_quat =",orientation_quat)
         # print("goal_quat =",goalQuat)
         orientation_dist2goal = quaternion.rotation_intrinsic_distance(orientation_quat,goalQuat)

@@ -11,7 +11,7 @@ and the various demos.
  to the needs of RL methods. In particular it allows to step the simulation of precise durations,
  to obtain renderings from simulated cameras even while the simulation is stopped and reduces
  communication overhead making simulation MUCH faster.
-* gazebo_gym_helpers provides a node that can receive and execute moveit commands via ROS messaging.
+* gazebo_gym_utils provides a node that can receive and execute moveit commands via ROS messaging.
  This is needed as an intermediate node for controlling moveit from python3 code.
 
 
@@ -155,7 +155,7 @@ rosrun panda move_to_start_pose_raw.sh
 
 Then, in another separate terminal:
 ```
-rosrun gazebo_gym_helpers move_helper
+rosrun gazebo_gym_utils move_helper
 ```
 
 Finally, you can start training the RL policy with:

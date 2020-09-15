@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>gazebo_gym_helpers</name>
+  <name>gazebo_gym_utils</name>
   <version>0.0.0</version>
-  <description>The gazebo_gym_helpers package</description>
+  <description>The gazebo_gym_utils package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/gazebo_gym_helpers</url> -->
+  <!-- <url type="website">http://wiki.ros.org/gazebo_gym_utils</url> -->
 
 
   <!-- Author tags are optional, multiple are allowed, one per tag -->
@@ -64,18 +64,22 @@
   <depend>kdl_parser</depend>
   <depend>kdl_conversions</depend>
 
+  <!-- for using moveit -->
   <depend>moveit_core</depend>
   <depend>moveit_visual_tools</depend>
   <depend>moveit_ros_planning_interface</depend>
   <depend>interactive_markers</depend>
 
+  <!-- For implementing ros controllers -->
+  <depend>controller_interface</depend>
+  <depend>hardware_interface</depend>
+  <depend>realtime_tools </depend>
+  <depend>pluginlib</depend>
 
 
 
-
-  <!-- The export tag contains other, unspecified, tags -->
   <export>
-    <!-- Other tools can request additional information be placed here -->
-
+    <controller_interface plugin="${prefix}/gazebo_gym_utils_plugin.xml"/>
   </export>
+
 </package>

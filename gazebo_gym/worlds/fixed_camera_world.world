@@ -4,7 +4,7 @@
         <uri>model://sun</uri>
     </include>
 
-    <gravity>0 0 -9.8</gravity>
+    <gravity>0 0 -9.80665</gravity>
 
 
     <physics name="custom_physics_profile" type="ode" default="true">

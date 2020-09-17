@@ -43,20 +43,19 @@ namespace gazebo_gym_utils
     void update(const ros::Time& /*time*/, const ros::Duration& /*period*/);
 
 private:
-    void jointStatesCallback(const sensor_msgs::JointStateConstPtr& msg);
+    KDL::JntArray computeGravityCompensation();
     bool getSegmentForJoint(std::string jointName, KDL::Tree tree, KDL::Segment& segment);
     bool getSegmentParent(KDL::Segment& segment, KDL::Tree tree, KDL::Segment& parent);
+    KDL::Chain getChainFromJoints(const KDL::Tree& tree, std::vector<std::string> jointNames);
 
-    std::vector< std::string > joint_names;
-    unsigned int n_joints_;
     std::vector< hardware_interface::JointHandle > joints_;
+    double gravity_acceleration;
 
     KDL::Chain robotChain;
+    std::vector<std::string> notFixedJointsNames;
     std::shared_ptr<KDL::ChainDynParam> chainDynParam;
 
     realtime_tools::RealtimeBuffer<std::vector<double> > command_buffer;
-    realtime_tools::RealtimeBuffer<KDL::JntArray> gravityCompensationTorques;
-    realtime_tools::RealtimeBuffer<std::chrono::time_point<std::chrono::steady_clock>> lastTimeReceivedJointStates;
 
     ros::Subscriber sub_command_;
     ros::Subscriber jointStatesSub;

@@ -1,5 +1,5 @@
 
-#include <GravityCompensatedEffortController.hpp>
+#include "../include/GravityCompensatedEffortController.hpp"
 #include <pluginlib/class_list_macros.h>
 #include <urdf/model.h>
 
@@ -19,6 +19,7 @@ namespace gazebo_gym_utils
 
   bool GravityCompensatedEffortController::getSegmentForJoint(std::string jointName, KDL::Tree tree, KDL::Segment& segment)
   {
+    ROS_INFO_STREAM("Getting segment for joint "<<jointName);
     std::vector<KDL::Segment> candidateSegments;
     KDL::SegmentMap allSegments = tree.getSegments();
     for(auto it : allSegments)
@@ -55,39 +56,78 @@ namespace gazebo_gym_utils
     return true;
   }
 
+  KDL::Chain GravityCompensatedEffortController::getChainFromJoints(const KDL::Tree& tree, std::vector<std::string> jointNames)
+  {
+    KDL::Segment firstSegment;
+    bool r = getSegmentForJoint(jointNames[0], tree, firstSegment);
+    if(!r)
+      throw std::runtime_error("Could not get segment (=link) for joint "+jointNames[0]);
+
+    KDL::Segment rootSegment;
+    r = getSegmentParent(firstSegment, tree, rootSegment);
+    if(!r)
+      throw std::runtime_error("Could not get parent of segment (=link) "+firstSegment.getName()+". First segment must have a parent to create a KDL chain.");
+
+    KDL::Segment tipSegment;
+    r = getSegmentForJoint(jointNames.back(), tree, tipSegment);
+    if(!r)
+      throw std::runtime_error("Could not get segment (=link) for joint "+jointNames.back());
+
+    std::string rootLinkName = rootSegment.getName();
+    std::string tipLinkName = tipSegment.getName();
+    ROS_INFO_STREAM("RootLinkName = "<<rootLinkName<<"   tipLinkName = "<<tipLinkName);
+
+    KDL::Chain chain;
+    r = tree.getChain(rootLinkName,tipLinkName,chain);
+    if(!r)
+      throw std::runtime_error("KDL::Tree::getChain failed. Cannot get chain from link "+rootLinkName+" to "+tipLinkName);
+
+    ROS_INFO_STREAM("Built chain with segments:");
+    for(KDL::Segment& seg : chain.segments)
+      ROS_INFO_STREAM(" - \""<<seg.getName()<<"\" (joint = \""<<seg.getJoint().getName()<<"\" of type "<<seg.getJoint().getTypeName()<<")");
+
+
+    for(unsigned int i=0; i<jointNames.size(); i++)
+    {
+      if(chain.getSegment(i).getJoint().getName() != jointNames.at(i))
+      {
+        throw std::runtime_error( "Specified joints do not correspond to a chain starting from joint "+
+                                  chain.getSegment(0).getJoint().getName()+
+                                  " ("+chain.getSegment(i).getJoint().getName() +" != "+ jointNames.at(i)+", i = "+std::to_string(i)+")");
+      }
+    }
+
+    return chain;
+  }
+
+
   bool GravityCompensatedEffortController::init(hardware_interface::EffortJointInterface* hw, ros::NodeHandle &n)
   {
     // List of controlled joints
     std::string joint_chain_param_name = "joint_chain";
+    std::vector<std::string> joint_names;
     if(!n.getParam(joint_chain_param_name, joint_names))
     {
       ROS_ERROR_STREAM("Failed to getParam '" << joint_chain_param_name << "' (namespace: " << n.getNamespace() << ").");
       return false;
     }
-    n_joints_ = joint_names.size();
 
-    if(n_joints_ == 0)
+    std::string g_param_name = "gravity_acceleration";
+    if(!n.getParam(g_param_name, gravity_acceleration))
+    {
+      ROS_ERROR_STREAM("Failed to getParam '" << gravity_acceleration << "' (namespace: " << n.getNamespace() << ").");
+      return false;
+    }
+
+
+
+    if(joint_names.size() == 0)
     {
       ROS_ERROR_STREAM("List of joint names is empty.");
       return false;
     }
-    for(unsigned int i=0; i<n_joints_; i++)
-    {
-      try
-      {
-        joints_.push_back(hw->getHandle(joint_names[i]));
-      }
-      catch (const hardware_interface::HardwareInterfaceException& e)
-      {
-        ROS_ERROR_STREAM("Exception thrown: " << e.what());
-        return false;
-      }
-    }
 
-    command_buffer.writeFromNonRT(std::vector<double>(n_joints_, 0.0));
-    gravityCompensationTorques.writeFromNonRT(KDL::JntArray(n_joints_));
-    lastTimeReceivedJointStates.writeFromNonRT(std::chrono::time_point<std::chrono::steady_clock>());//initializes to epoch time to epoch is zero, (1970)
-
+    command_buffer.writeFromNonRT(std::vector<double>(joint_names.size(), 0.0));
 
 
     std::string joint_names_str = "";
@@ -111,118 +151,107 @@ namespace gazebo_gym_utils
       return false;
     }
 
-    KDL::Segment firstSegment;
-    bool r = getSegmentForJoint(joint_names[0], tree, firstSegment);
-    if(!r)
+    try
     {
-      ROS_ERROR_STREAM("Could not get segment (=link) for joint "<<joint_names[0]);
-      return false;
+      robotChain = getChainFromJoints(tree, joint_names);
     }
-    KDL::Segment rootSegment;
-    r = getSegmentParent(firstSegment, tree, rootSegment);
-    if(!r)
+    catch(const std::runtime_error& e)
     {
-      ROS_ERROR_STREAM("Could not get parent of segment (=link) "<<firstSegment.getName()<<". First segment must have a parent to create a KDL chain.");
+      ROS_ERROR_STREAM("Failed to get chain for the specified joints: "<<e.what());
       return false;
     }
 
-    KDL::Segment tipSegment;
-    r = getSegmentForJoint(joint_names.back(), tree, tipSegment);
-    if(!r)
-    {
-      ROS_ERROR_STREAM("Could not get segment (=link) for joint "<<joint_names.back());
-      return false;
-    }
-    std::string rootLinkName = rootSegment.getName();
-    std::string tipLinkName = tipSegment.getName();
-    ROS_INFO_STREAM("RootLinkName = "<<rootLinkName<<"   tipLinkName = "<<tipLinkName);
+    KDL::Vector gravityVector(0,0,-gravity_acceleration);
+    chainDynParam = std::make_shared<KDL::ChainDynParam>(robotChain, gravityVector);
 
-    r = tree.getChain(rootLinkName,tipLinkName,robotChain);
-    if(!r)
-    {
-      ROS_ERROR_STREAM("KDL::Tree::getChain failed. Cannot get chain from link "<<rootLinkName<<" to "<<tipLinkName);
-      return false;
-    }
 
     ROS_INFO_STREAM("Built chain with segments:");
     for(KDL::Segment& seg : robotChain.segments)
-      ROS_INFO_STREAM(" - \""<<seg.getName()<<"\" (joint = \""<<seg.getJoint().getName()<<"\" of type "<<seg.getJoint().getTypeName()<<")");
-
-
-    for(unsigned int i=0; i<n_joints_; i++)
     {
-      if(robotChain.getSegment(i).getJoint().getName() != joint_names.at(i))
+      if(seg.getJoint().getType() != KDL::Joint::JointType::None)
       {
-        ROS_ERROR_STREAM("Joints specified in "<<joint_chain_param_name<<" do not correspond to a chain starting from joint "<<robotChain.getSegment(0).getJoint().getName()<<
-                         " ("<<robotChain.getSegment(i).getJoint().getName() <<" != "<< joint_names.at(i)<<", i = "<<i<<")");
+        ROS_INFO_STREAM("Joint "<<seg.getJoint().getName()<<" is not a fixed joint, type = "<<seg.getJoint().getTypeName());
+        notFixedJointsNames.push_back(seg.getJoint().getName());
+      }
+    }
+
+
+    for(std::string jn : notFixedJointsNames)
+    {
+      try
+      {
+        joints_.push_back(hw->getHandle(jn));
+      }
+      catch (const hardware_interface::HardwareInterfaceException& e)
+      {
+        ROS_ERROR_STREAM("Exception thrown: " << e.what());
         return false;
       }
     }
 
-    KDL::Vector gravityVector(0,0,-9.80665);
-    chainDynParam = std::make_shared<KDL::ChainDynParam>(robotChain, gravityVector);
-
-
-
-
-
     sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &GravityCompensatedEffortController::commandCB, this);
-    jointStatesSub = n.subscribe("/joint_states", 1, &GravityCompensatedEffortController::jointStatesCallback, this);
     return true;
   }
 
   void GravityCompensatedEffortController::starting(const ros::Time& time)
   {
     // Start controller with 0.0 efforts
-    command_buffer.readFromRT()->assign(n_joints_, 0.0);
+    command_buffer.readFromRT()->assign(notFixedJointsNames.size(), 0.0);
   }
 
 
   void GravityCompensatedEffortController::commandCB(const std_msgs::Float64MultiArrayConstPtr& msg)
   {
-    if(msg->data.size()!=n_joints_)
+    if(msg->data.size()!=notFixedJointsNames.size())
     {
-      ROS_ERROR_STREAM("Dimension of command (" << msg->data.size() << ") does not match number of joints (" << n_joints_ << ")! Not executing!");
+      ROS_ERROR_STREAM("Dimension of command (" << msg->data.size() << ") does not match number of joints (" << notFixedJointsNames.size() << ")! Not executing!");
       return;
     }
     command_buffer.writeFromNonRT(msg->data);
   }
 
-  void GravityCompensatedEffortController::jointStatesCallback(const sensor_msgs::JointStateConstPtr& msg)
+
+  KDL::JntArray GravityCompensatedEffortController::computeGravityCompensation()
   {
-    KDL::JntArray joint_positions(joint_names.size());
-    ROS_INFO("Received joint states");
+    KDL::JntArray joint_positions(joints_.size());
+    //ROS_INFO("Received joint states");
 
     int i=0;
-    for(std::string jointName : joint_names)
-    {
-      auto jointIt = std::find(msg->name.begin(),msg->name.end(),jointName);
-      if(jointIt == msg->name.end())
-      {
-        ROS_WARN_STREAM("Joint "<<jointName<<" not found in received JointState, skipping message");
-        return;
-      }
-      int idx = jointIt-msg->name.begin();
-      ROS_INFO_STREAM("found joint "<<jointName<<" at idx "<<idx);
-      joint_positions(i++) = msg->position.at(idx);
-    }
+    for(hardware_interface::JointHandle jh : joints_)
+      joint_positions(i++) = jh.getPosition();
 
 
-    KDL::JntArray gravityCompensationTorquesArr(joint_names.size());
+    KDL::JntArray gravityCompensationTorquesArr(notFixedJointsNames.size());
     chainDynParam->JntToGravity(joint_positions,gravityCompensationTorquesArr);
-    ROS_INFO_STREAM("Computed gravity compensation");
+    std::string torquesStr = "[";
+    for(unsigned int i=0; i<notFixedJointsNames.size()-1; i++)
+      torquesStr += std::to_string(gravityCompensationTorquesArr(i))+",\t";
+    torquesStr += std::to_string(gravityCompensationTorquesArr(notFixedJointsNames.size()-1))+"]";
+    //ROS_INFO_STREAM("Computed gravity compensation: "<<torquesStr);
 
-    gravityCompensationTorques.writeFromNonRT(gravityCompensationTorquesArr);
+    return gravityCompensationTorquesArr;
   }
 
 
   void GravityCompensatedEffortController::update(const ros::Time& /*time*/, const ros::Duration& /*period*/)
   {
     std::vector<double> command = *command_buffer.readFromRT();
-    KDL::JntArray gravityCompensationTorquesArr = *(gravityCompensationTorques.readFromRT());
-    for(unsigned int i=0; i<n_joints_; i++)
+    KDL::JntArray gravityCompensationTorquesArr = computeGravityCompensation();
+    std::vector<double> totCommand;
+    for(unsigned int i = 0; i<command.size(); i++)
+      totCommand.push_back(command.at(i)+ gravityCompensationTorquesArr(i));
+
+
+    std::string torquesStr = "[";
+    for(unsigned int i=0; i<notFixedJointsNames.size()-1; i++)
+      torquesStr += std::to_string(totCommand.at(i))+",\t";
+    torquesStr += std::to_string(totCommand.at(notFixedJointsNames.size()-1))+"]";
+    //ROS_INFO_STREAM("Commanding torques:: "<<torquesStr);
+
+
+    for(unsigned int i=0; i<notFixedJointsNames.size(); i++)
     {
-      joints_[i].setCommand(command[i] + gravityCompensationTorquesArr(i));
+      joints_[i].setCommand(totCommand[i]);
     }
   }
 }

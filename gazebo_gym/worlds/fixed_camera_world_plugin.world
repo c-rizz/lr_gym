@@ -4,7 +4,7 @@
         <uri>model://sun</uri>
     </include>
 
-    <gravity>0 0 -9.8</gravity>
+    <gravity>0 0 -9.80665</gravity>
 
 
     <plugin name='gazebo_gym_env' filename='libgazebo_gym_env_plugin.so'/>

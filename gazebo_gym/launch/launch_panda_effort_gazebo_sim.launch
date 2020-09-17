@@ -9,6 +9,7 @@
     <arg name="gui" default="true"/>
     <arg name="noplugin" default="false"/>
     <arg name="start_controllers" default="true"/>
+    <arg name="load_gripper" default="true"/>
 
 
     <!-- Launch gazebo -->
@@ -24,9 +25,15 @@
       <arg name="simulated" value="true"/>
       <arg name="launch_gazebo" value="false"/>
       <arg name="start_controllers" value="$(arg start_controllers)"/>
+      <arg name="load_gripper" value="$(arg load_gripper)"/>
     </include>
 
     <!-- publish the links states -->
     <node name="link_state_publisher" pkg="gazebo_gym_utils" type="link_state_publisher" />
+
+    <!-- load the gravity-compensated effort controller -->
+    <rosparam file="$(find gazebo_gym_utils)/config/ros_controllers.yaml" command="load" />
+    <node name="controller_spawner_compensated" pkg="controller_manager" type="spawner" respawn="false" output="screen"
+          args="--stopped panda_arm_effort_effort_compensated_controller" />
 
 </launch>

@@ -98,6 +98,7 @@ class HopperEnv(ControlledEnv):
         if self._renderingEnabled:
             self._environmentController.setCamerasToObserve(["camera"])
 
+        self._environmentController.startController()
 
     def _startAction(self, action : Tuple[float,float,float]) -> None:
 

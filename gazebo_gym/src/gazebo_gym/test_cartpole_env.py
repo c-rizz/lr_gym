@@ -8,6 +8,7 @@ import cv2
 import os
 import argparse
 import PyBulletUtils
+from gazebo_gym_utils.subproc_vec_env_nd import SubprocVecEnvNonDaemonic
 
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
 from gazebo_gym.envControllers.GazeboController import GazeboController
@@ -34,9 +35,11 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
 
     """
 
-
+    def constructEnv():
+        return CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController, startSimulation = True)
+    env = SubprocVecEnvNonDaemonic([constructEnv for i in range(2)])
     #env = gym.make('CartPoleStayUp-v0')
-    env = CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController)
+    #env = CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController, startSimulation = True)
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
@@ -122,7 +125,6 @@ if __name__ == "__main__":
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
 
-    rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.WARN)
 
     if args["pybullet"]:
         PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/cartpole_v0.urdf")

@@ -35,7 +35,9 @@ class BaseEnv(gym.Env):
     metadata = None # e.g. {'render.modes': ['rgb_array']}
 
     def __init__(self,
-                 maxFramesPerEpisode : int = 500):
+                 maxFramesPerEpisode : int = 500,
+                 startSimulation : bool = False,
+                 simulationBackend : str = "gazebo"):
         """Short summary.
 
         Parameters
@@ -63,6 +65,8 @@ class BaseEnv(gym.Env):
         self._wallStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
         self._lastStepEndSimTimeFromStart = 0
 
+        if startSimulation:
+            self._buildSimulation()
 
 
 
@@ -280,7 +284,7 @@ class BaseEnv(gym.Env):
         Environments will automatically close() themselves when
         garbage collected or when the program exits.
         """
-        pass
+        self._destroySimulation()
 
 
 
@@ -489,5 +493,13 @@ class BaseEnv(gym.Env):
         return self._maxFramesPerEpisode
 
     def setGoalInState(self, state, goal):
-        """Updates the provided state with the provided goal. Useful for goal-oriented environments, especially when using HER. It's used by ToGoalEnvWrapper."""
-        return NotImplementedError()
+        """Update the provided state with the provided goal. Useful for goal-oriented environments, especially when using HER. It's used by ToGoalEnvWrapper."""
+        raise NotImplementedError()
+
+    def _buildSimulation(self, backend : str = "gazebo"):
+        """Build a simulation for the environment."""
+        raise NotImplementedError()
+
+    def _destroySimulation(self):
+        """Destroy a simulation built by _buildSimulation."""
+        pass

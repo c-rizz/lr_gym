@@ -47,7 +47,6 @@ class GazeboControllerNoPlugin(EnvironmentController):
 
         """
         super().__init__(stepLength_sec=stepLength_sec)
-        rospy.init_node('gazebo_env_controller', anonymous=True)
 
         self._lastUnpausedTime = 0
         self._episodeSimDuration = 0
@@ -58,7 +57,13 @@ class GazeboControllerNoPlugin(EnvironmentController):
 
         self._lastStepRendered = None
         self._lastRenderResult = None
+        self._usePersistentConnections = usePersistentConnections
 
+
+    def startController(self):
+        """Start up the controller. This must be called after setCamerasToObserve, setLinksToObserve and setJointsToObserve."""
+
+        rospy.init_node('gazebo_env_controller', anonymous=True)
 
         serviceNames = {"applyJointEffort" : "/gazebo/apply_joint_effort",
                         "clearJointEffort" : "/gazebo/clear_joint_forces",
@@ -81,15 +86,15 @@ class GazeboControllerNoPlugin(EnvironmentController):
                 rospy.logfatal("Interrupeted while waiting for service "+serviceName+". Exception = "+str(e))
                 raise
 
-        self._applyJointEffortService   = rospy.ServiceProxy(serviceNames["applyJointEffort"], gazebo_msgs.srv.ApplyJointEffort, persistent=usePersistentConnections)
-        self._clearJointEffortService   = rospy.ServiceProxy(serviceNames["clearJointEffort"], gazebo_msgs.srv.JointRequest, persistent=usePersistentConnections)
-        self._getJointPropertiesService = rospy.ServiceProxy(serviceNames["getJointProperties"], gazebo_msgs.srv.GetJointProperties, persistent=usePersistentConnections)
-        self._getLinkStateService       = rospy.ServiceProxy(serviceNames["getLinkState"], gazebo_msgs.srv.GetLinkState, persistent=usePersistentConnections)
-        self._pauseGazeboService        = rospy.ServiceProxy(serviceNames["pause"], Empty, persistent=usePersistentConnections)
-        self._unpauseGazeboService      = rospy.ServiceProxy(serviceNames["unpause"], Empty, persistent=usePersistentConnections)
-        self._resetGazeboService        = rospy.ServiceProxy(serviceNames["reset"], Empty, persistent=usePersistentConnections)
+        self._applyJointEffortService   = rospy.ServiceProxy(serviceNames["applyJointEffort"], gazebo_msgs.srv.ApplyJointEffort, persistent=self._usePersistentConnections)
+        self._clearJointEffortService   = rospy.ServiceProxy(serviceNames["clearJointEffort"], gazebo_msgs.srv.JointRequest, persistent=self._usePersistentConnections)
+        self._getJointPropertiesService = rospy.ServiceProxy(serviceNames["getJointProperties"], gazebo_msgs.srv.GetJointProperties, persistent=self._usePersistentConnections)
+        self._getLinkStateService       = rospy.ServiceProxy(serviceNames["getLinkState"], gazebo_msgs.srv.GetLinkState, persistent=self._usePersistentConnections)
+        self._pauseGazeboService        = rospy.ServiceProxy(serviceNames["pause"], Empty, persistent=self._usePersistentConnections)
+        self._unpauseGazeboService      = rospy.ServiceProxy(serviceNames["unpause"], Empty, persistent=self._usePersistentConnections)
+        self._resetGazeboService        = rospy.ServiceProxy(serviceNames["reset"], Empty, persistent=self._usePersistentConnections)
 
-        #self._setGazeboPhysics = rospy.ServiceProxy(self._setGazeboPhysics, SetPhysicsProperties, persistent=usePersistentConnections)
+        #self._setGazeboPhysics = rospy.ServiceProxy(self._setGazeboPhysics, SetPhysicsProperties, persistent=self._usePersistentConnections)
 
         # Crete a publisher to manually send clock messages (used in reset, very ugly, sorry)
         self._clockPublisher = rospy.Publisher("/clock", rosgraph_msgs.msg.Clock, queue_size=1)

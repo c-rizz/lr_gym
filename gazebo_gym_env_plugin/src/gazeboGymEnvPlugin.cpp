@@ -151,7 +151,7 @@ namespace gazebo
      */
     int getJointInfo(const gazebo_gym_env_plugin::JointId& jointId, gazebo_gym_env_plugin::JointInfo& ret)
     {
-      ROS_DEBUG_STREAM("Getting joint info for "<<jointId.model_name<<"."<<jointId.joint_name);
+      //ROS_DEBUG_STREAM("Getting joint info for "<<jointId.model_name<<"."<<jointId.joint_name);
       gazebo::physics::ModelPtr model = world->ModelByName(jointId.model_name);
       if (!model)
         return -1;
@@ -201,7 +201,7 @@ namespace gazebo
      */
     int getLinkInfo(const gazebo_gym_env_plugin::LinkId& linkId, gazebo_gym_env_plugin::LinkInfo& ret)
     {
-      ROS_DEBUG_STREAM("Getting link info for "<<linkId.model_name<<"."<<linkId.link_name);
+      //ROS_DEBUG_STREAM("Getting link info for "<<linkId.model_name<<"."<<linkId.link_name);
       gazebo::physics::ModelPtr model = world->ModelByName(linkId.model_name);
       if (!model)
         return -1;

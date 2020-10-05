@@ -72,7 +72,7 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     epLength = env.getBaseEnv().getMaxFramesPerEpisode()
     model = HER('MlpPolicy', env, SAC, n_sampled_goal=int(epLength/10), goal_selection_strategy="future", verbose=1, batch_size=128,
                 buffer_size=100000, gamma=0.99, gradient_steps=1000,
-                learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=epLength,
+                learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=epLength*20,
                 seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess = 1 is needed for reproducibility
                 tensorboard_log=folderName)
 
@@ -117,17 +117,21 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
 
 def main(fileToLoad : str = None, usePlugin : bool = False):
 
+    stepLength_sec = 0.05
     if usePlugin:
-        envController = gazebo_gym.envControllers.GazeboController.GazeboController(stepLength_sec = 0.01)
+        envController = gazebo_gym.envControllers.GazeboController.GazeboController(stepLength_sec = stepLength_sec)
     else:
         envController = None
 
-    env = ToGoalEnvWrapper( PandaEffortKeepVarPoseEnv(maxFramesPerEpisode = 1000, environmentController=envController),
+    env = ToGoalEnvWrapper( PandaEffortKeepVarPoseEnv(maxFramesPerEpisode = 50,
+                                                      environmentController = envController,
+                                                      maxTorques = [87, 87, 87, 87, 12, 12, 12],
+                                                      stepLength_sec = stepLength_sec),
                             observationMask  = (0,0,0,0,0,0, 1,1,1,1,1,1,1, 1,1,1,1,1,1,1, 0,0,0,0,0,0),
                             desiredGoalMask  = (0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 1,1,1,1,1,1),
                             achievedGoalMask = (1,1,1,1,1,1, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0))
 
-    model = trainOrLoad(env,2500000, fileToLoad = fileToLoad)
+    model = trainOrLoad(env,10000000, fileToLoad = fileToLoad)
     input("Press Enter to continue...")
     run(env,model)
 
@@ -135,6 +139,8 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--load", default=None, type=str, help="load this model instead of perfomring the training")
+    ap.add_argument("--useplugin", default=False, action='store_true', help="Use the gazebo_gym Gazebo plugin to control the simulation")
+
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
-    main(fileToLoad = args["load"], usePlugin = True)
+    main(fileToLoad = args["load"], usePlugin = args["useplugin"])

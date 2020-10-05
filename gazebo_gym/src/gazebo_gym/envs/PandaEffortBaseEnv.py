@@ -88,7 +88,7 @@ class PandaEffortBaseEnv(ControlledEnv):
         """
         if environmentController is None:
             environmentController = EffortRosControlController(
-                             effortControllersInfos = { "panda_arm_effort_effort_controller" : ("panda_arm_effort_effort_controller",
+                             effortControllersInfos = { "panda_arm_effort_effort_compensated_controller" : ("panda_arm_effort_effort_compensated_controller",
                                                                                                 "panda",
                                                                                                 ("panda_joint1",
                                                                                                  "panda_joint2",

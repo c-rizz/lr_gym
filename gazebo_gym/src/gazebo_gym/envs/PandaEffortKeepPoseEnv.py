@@ -22,7 +22,8 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 0.0175*5,
                     maxTorques = [87, 87, 87, 87, 12, 12, 12],
-                    environmentController : gazebo_gym.envControllers.EnvironmentController = None):
+                    environmentController : gazebo_gym.envControllers.EnvironmentController = None,
+                    stepLength_sec : float = 0.01):
         """Short summary.
 
         Parameters
@@ -51,7 +52,7 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
                          render = render,
                          maxTorques = maxTorques,
                          environmentController = environmentController,
-                         stepLength_sec = 0.033)
+                         stepLength_sec = stepLength_sec)
 
         self._goalPose = goalPose
         self._goalTolerancePosition = goalTolerancePosition

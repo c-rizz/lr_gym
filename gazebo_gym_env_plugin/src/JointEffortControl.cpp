@@ -19,7 +19,7 @@ JointEffortControl::JointEffortControl(gazebo::physics::WorldPtr world)
  */
 int JointEffortControl::setJointEffort(const gazebo_gym_env_plugin::JointId& jointId, double effort)
 {
-  ROS_DEBUG_STREAM("Applying effort="<<effort<<" to joint "<<jointId.model_name<<"."<<jointId.joint_name);
+  //ROS_DEBUG_STREAM("Applying effort="<<effort<<" to joint "<<jointId.model_name<<"."<<jointId.joint_name);
   gazebo::physics::ModelPtr model = world->ModelByName(jointId.model_name);
   if (!model)
     return -1;

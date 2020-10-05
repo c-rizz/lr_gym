@@ -123,7 +123,7 @@ class TrajectoryControllerHelper:
 
 
         #rospy.logdebug("waiting 10s")
-        rospy.sleep(rospy.Duration(10))
+        rospy.sleep(rospy.Duration(5))
         #rospy.logdebug("waited")
 
         if r.error_code == FollowJointTrajectoryResult.SUCCESSFUL:

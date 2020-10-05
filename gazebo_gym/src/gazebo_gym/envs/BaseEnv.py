@@ -186,7 +186,7 @@ class BaseEnv(gym.Env):
             rospy.loginfo(" - Reset wall duration                  = "+str(resetWallDuration) +" ({:.2f}%)".format(resetWallDuration/totEpisodeWallDuration*100))
             rospy.loginfo(" - Frames count                         = "+str(self._framesCounter))
             rospy.loginfo(" - Total episode reward                 = "+str(self._totalEpisodeReward))
-            rospy.loginfo(" - Wall fps                             = "+str(self._framesCounter/(time.time()-self._envResetTime)))
+            rospy.loginfo(" - Wall fps                             = "+str(self._framesCounter/totEpisodeWallDuration))
 
         self._lastResetTime = time.time()
         #reset simulation state

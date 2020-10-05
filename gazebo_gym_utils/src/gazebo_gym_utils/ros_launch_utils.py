@@ -11,6 +11,7 @@ import fcntl
 import multiprocessing as mp
 import signal
 from typing import List
+import subprocess
 
 class SystemMutex:
     def __init__(self, id : str):
@@ -23,7 +24,7 @@ class SystemMutex:
         try:
             fcntl.flock(self.fp.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             self._acquired = True
-        except OSError as e:
+        except OSError:
             pass
 
         return self._acquired
@@ -60,6 +61,7 @@ class MultiMasterRosLauncher:
         self._gazeboPort = baseGazeboPort + inc
         os.environ["ROS_MASTER_URI"] = "http://127.0.0.1:"+str(self._rosMasterPort)
         os.environ["GAZEBO_MASTER_URI"] = "http://127.0.0.1:"+str(self._gazeboPort)
+        print("MultiMasterRosLauncher will use port "+str(self._rosMasterPort))
 
     def __init__(self, launchFile : str, cli_args : List[str] = []):
         self._launchFile = launchFile
@@ -67,33 +69,33 @@ class MultiMasterRosLauncher:
         self._mutex = None
         self.setPorts()
 
-    def launch(self):
+    def launchAsync(self):
         os.environ["ROS_MASTER_URI"] = "http://127.0.0.1:"+str(self._rosMasterPort)
         os.environ["GAZEBO_MASTER_URI"] = "http://127.0.0.1:"+str(self._gazeboPort)
 
-        uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-        parent = roslaunch.parent.ROSLaunchParent(uuid, [(self._launchFile, self._cli_args)], port = self._rosMasterPort)
+        self._popen_obj = subprocess.Popen(["roslaunch", self._launchFile]+self._cli_args)
 
-        parent.start()
-        parent.spin()
-        self._mutex.release()
-
-    def launchAsync(self) -> mp.Process:
-        p = mp.Process(target=self.launch)
-        p.start()
-        self._process = p
-        return self._process
+    # def launchAsync(self) -> mp.Process:
+    #     p = mp.Process(target=self.launch)
+    #     p.start()
+    #     self._process = p
+    #     return self._process
 
     def stop(self):
         """Stop a roscore started with launchAsync."""
-        os.kill(self._process.pid, signal.SIGINT)
+        self._popen_obj.send_signal(signal.SIGINT)
         print("Waiting for ros subprocess to finish")
-        self._process.join(10)
-        if self._process.is_alive():
-            rospy.logwarn("Terminating subprocess forcefully (SIGTERM)")
-            self._process.terminate()
-            self._process.join(10)
-            if self._process.is_alive():
-                rospy.logwarn("Killing subprocess (SIGKILL)")
-                self._process.kill()
+        try:
+            self._popen_obj.wait(10)
+        except subprocess.TimeoutExpired:
+            if self._popen_obj.poll() is None:
+                rospy.logwarn("Terminating subprocess forcefully (SIGTERM)")
+                self._popen_obj.terminate()
+                try:
+                    self._popen_obj.wait(10)
+                except subprocess.TimeoutExpired:
+                    if self._popen_obj.poll():
+                        rospy.logwarn("Killing subprocess (SIGKILL)")
+                        self._popen_obj.kill()
+        self._mutex.release()
         print("Ros subprocess finished")

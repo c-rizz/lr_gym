@@ -54,6 +54,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
         self._episodeRealStartTime = 0
         self._totalRenderTime = 0
         self._stepsTaken = 0
+        self._epStartSimTime = 0
 
         self._lastStepRendered = None
         self._lastRenderResult = None
@@ -62,6 +63,20 @@ class GazeboControllerNoPlugin(EnvironmentController):
 
     def startController(self):
         """Start up the controller. This must be called after setCamerasToObserve, setLinksToObserve and setJointsToObserve."""
+
+        # init_node uses use_sim_time to determine which time to use, but I can't
+        # find a reliable way for it to be set before init_node is being called
+        # So we wait for it to be set to either true or false
+        useSimTime = None
+        while useSimTime is None:
+            try:
+                useSimTime = rospy.get_param("/use_sim_time")
+            except KeyError:
+                pass
+            except ConnectionRefusedError:
+                pass
+            if useSimTime is None:
+                time.sleep(0.25)
 
         rospy.init_node('gazebo_env_controller', anonymous=True)
 
@@ -177,7 +192,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
 
         """
         self.pauseSimulation()
-        totalEpSimDuration = rospy.get_time()
+        totalEpSimDuration = rospy.get_time() - self._epStartSimTime
         totalEpRealDuration = time.time() - self._episodeRealStartTime
 
         ret = self._callService(self._resetGazeboService)
@@ -212,6 +227,8 @@ class GazeboControllerNoPlugin(EnvironmentController):
         # Reset the time manually. Incredibly ugly, incredibly effective
         t = rosgraph_msgs.msg.Clock()
         self._clockPublisher.publish(t)
+
+        self._epStartSimTime = rospy.get_time()
 
         rospy.loginfo("resetted sim")
         return ret

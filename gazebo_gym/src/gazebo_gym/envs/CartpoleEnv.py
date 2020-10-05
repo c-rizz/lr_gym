@@ -137,7 +137,7 @@ class CartpoleEnv(ControlledEnv):
         #print("states['foot_joint'] = "+str(states["foot_joint"]))
         #print("Got joint state "+str(states))
         t1 = time.time()
-        rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
+        #rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
 
         state = ( states[("cartpole_v0","foot_joint")].position[0],
                   states[("cartpole_v0","foot_joint")].rate[0],
@@ -152,7 +152,7 @@ class CartpoleEnv(ControlledEnv):
         if backend != "gazebo":
             raise NotImplementedError("Backend '+backend+' not supported")
 
-        self.mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("gazebo_gym")+"/launch/cartpole_gazebo_sim.launch")
+        self.mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("gazebo_gym")+"/launch/cartpole_gazebo_sim.launch", cli_args=["gui:=false"])
         self.mmRosLauncher.launchAsync()
 
     def _destroySimulation(self):

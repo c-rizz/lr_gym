@@ -329,7 +329,7 @@ class CartpoleEnvNoPlugin(gym.Env):
         cartInfo = self._getJointPropertiesService.call("foot_joint")
         poleInfo = self._getJointPropertiesService.call("cartpole_joint")
         t1 = time.time()
-        rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
+        #rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
 
         observation = (cartInfo.position[0], cartInfo.rate[0], poleInfo.position[0], poleInfo.rate[0])
 

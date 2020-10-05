@@ -8,13 +8,15 @@ import cv2
 import os
 import argparse
 import PyBulletUtils
+from gazebo_gym_utils.subproc_vec_env_nd import SubprocVecEnvNonDaemonic
+import stable_baselines
 
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
 from gazebo_gym.envControllers.GazeboController import GazeboController
 from gazebo_gym.envControllers.PyBulletController import PyBulletController
 
 
-def main(simulatorController, doRender : bool = False, noPlugin : bool = False, saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength : float = 0) -> None:
+def main(simulatorController, doRender : bool = False, noPlugin : bool = False, saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength : float = 0, parallelEnvsNum : int = 1) -> None:
     """Run the gazebo cartpole environment with a simple hard-coded policy.
 
     Parameters
@@ -34,9 +36,11 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
 
     """
 
-
+    def constructEnv():
+        return CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController, startSimulation = True)
+    env = stable_baselines.common.vec_env.SubprocVecEnv([constructEnv for i in range(parallelEnvsNum)])
     #env = gym.make('CartPoleStayUp-v0')
-    env = CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController)
+    #env = CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController, startSimulation = True)
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
@@ -51,57 +55,54 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
     wallTimeStart = time.time()
     rewards=[]
     totFrames=0
-    totDuration=0
     frames = []
     totalSimTime = 0
 
+
+    obss = env.reset()
     #do an average over a bunch of episodes
-    for episode in tqdm.tqdm(range(0,100)):
-        frame = 0
-        episodeReward = 0
-        done = False
+    for step_count in tqdm.tqdm(range(0,1000)):
         #rospy.loginfo("resetting...")
-        obs = env.reset()
         #rospy.loginfo("resetted")
-        t0 = time.time()
-        while not done:
-            #rospy.loginfo("---------------------------------------")
-            #time.sleep(1)
-            #rospy.loginfo("Episode "+str(episode)+" frame "+str(frame))
 
-            if doRender:
-                img = env.render()
-                if saveFrames and img.size!=0:
-                    r = cv2.imwrite(imagesOutFolder+"/frame-"+str(episode)+"-"+str(frame)+".png",img)
-                    if not r:
-                        print("couldn't save image")
-                    #else:
-                    #    print("saved image")
+        #rospy.loginfo("---------------------------------------")
+        #time.sleep(1)
+        #rospy.loginfo("Episode "+str(episode)+" frame "+str(frame))
 
-            #rospy.loginfo(obs)
-            if obs[2]>0:
-                action = 1
+        if doRender:
+            img = env.render()
+            if saveFrames and img.size!=0:
+                r = cv2.imwrite(imagesOutFolder+"/frame-"+str(episode)+"-"+str(frame)+".png",img)
+                if not r:
+                    print("couldn't save image")
+                #else:
+                #    print("saved image")
+
+        #rospy.loginfo(obs)
+        action = [None]*len(obss)
+        for i in range(len(obss)):
+            if obss[i][2]>0:
+                action[i] = 1
             else:
-                action = 0
-            #rospy.loginfo("stepping("+str(action)+")...")
-            obs, stepReward, done, info = env.step(action)
-            #rospy.loginfo("stepped")
-            #frames.append(env.render("rgb_array"))
-            if sleepLength>0:
-                time.sleep(sleepLength)
-            frame+=1
-            episodeReward += stepReward
+                action[i] = 0
+        #rospy.loginfo("stepping("+str(action)+")...")
+        obss, stepRewards, dones, infos = env.step(action)
+        #rospy.loginfo("stepped")
+        #frames.append(env.render("rgb_array"))
+        if sleepLength>0:
+            time.sleep(sleepLength)
+        step_count+=1
 
-        totalSimTime += info["simTime"]
-        rewards.append(episodeReward)
-        totFrames +=frame
-        totDuration += time.time() - t0
+        totalSimTime += sum([info["simTime"] for info in infos])
+        [rewards.append(stepReward) for stepReward in stepRewards]
+        totFrames += 1
         #print("Episode "+str(episode)+" lasted "+str(frame)+" frames, total reward = "+str(episodeReward))
     avgReward = sum(rewards)/len(rewards)
     totalWallTime = time.time() - wallTimeStart
 
-    print("Average reward is "+str(avgReward)+". Took "+str(totalWallTime)+" seconds ({:.3f}".format(totFrames/totDuration)+" fps). simTime/wallTime={:.3f}".format(totalSimTime/totalWallTime)+" total frames count = "+str(totFrames))
+    print("Average reward is "+str(avgReward)+". Took "+str(totalWallTime)+" seconds ({:.3f}".format(totFrames/totalWallTime)+" fps). simTime/wallTime={:.3f}".format(totalSimTime/totalWallTime)+" total frames count = "+str(totFrames))
 
+    env.close()
 
 def createFolders(folder):
     if not os.path.exists(folder):
@@ -119,10 +120,10 @@ if __name__ == "__main__":
     ap.add_argument("--saveframes", default=False, action='store_true', help="Saves each frame of each episode in ./frames")
     ap.add_argument("--steplength", required=False, default=0.05, type=float, help="Duration of each simulation step")
     ap.add_argument("--sleeplength", required=False, default=0, type=float, help="How much to sleep at the end of each frame execution")
+    ap.add_argument("--envsNum", required=False, default=1, type=int, help="Number of environments to run in parallel")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
 
-    rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.WARN)
 
     if args["pybullet"]:
         PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/cartpole_v0.urdf")
@@ -130,4 +131,10 @@ if __name__ == "__main__":
     else:
         simulatorController = GazeboController(stepLength_sec = args["steplength"])
 
-    main(simulatorController, doRender = args["render"], noPlugin=args["noplugin"], saveFrames=args["saveframes"], stepLength_sec=args["steplength"], sleepLength = args["sleeplength"])
+    main(   simulatorController,
+            doRender = args["render"],
+            noPlugin=args["noplugin"],
+            saveFrames=args["saveframes"],
+            stepLength_sec=args["steplength"],
+            sleepLength = args["sleeplength"],
+            parallelEnvsNum = args["envsNum"])

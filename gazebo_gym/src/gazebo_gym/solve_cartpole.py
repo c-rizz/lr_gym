@@ -19,9 +19,9 @@ def main() -> None:
     None
 
     """
-    rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.WARN)
+    #rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
-    env = CartpoleEnv(render=False)
+    env = CartpoleEnv(render=False, startSimulation = True)
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)

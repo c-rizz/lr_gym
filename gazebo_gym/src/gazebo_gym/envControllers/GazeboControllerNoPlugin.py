@@ -162,7 +162,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
 
         """
         ret = self._callService(self._pauseGazeboService)
-        rospy.loginfo("paused sim")
+        #rospy.loginfo("paused sim")
         self._lastUnpausedTime = rospy.get_time()
         return ret
 
@@ -179,7 +179,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
         if self._lastUnpausedTime>t:
             rospy.logwarn("Simulation time increased since last pause! (time diff = "+str(t-self._lastUnpausedTime)+"s)")
         ret = self._callService(self._unpauseGazeboService)
-        rospy.loginfo("unpaused sim")
+        #rospy.loginfo("unpaused sim")
         return ret
 
     def resetWorld(self) -> bool:
@@ -216,8 +216,8 @@ class GazeboControllerNoPlugin(EnvironmentController):
                             " sim/real={:.3f}".format(totalRatio)+ # Achieved sim/real time ratio
                             " step-time-only ratio ={:.3f}".format(ratio)+ #This would be the sim/real time ratio if there was no overhead for sending actions and getting observations
                             " totalRenderTime={:.4f}".format(self._totalRenderTime)+
-                            " realFps="+str(self._stepsTaken/totalEpRealDuration)+
-                            " simFps="+str(self._stepsTaken/totalEpSimDuration))
+                            " realFps={:.2f}".format(self._stepsTaken/totalEpRealDuration)+
+                            " simFps={:.2f}".format(self._stepsTaken/totalEpSimDuration))
         self._episodeSimDuration = 0
         self._episodeRealSimDuration = 0
         self._episodeRealStartTime = time.time()
@@ -228,9 +228,9 @@ class GazeboControllerNoPlugin(EnvironmentController):
         t = rosgraph_msgs.msg.Clock()
         self._clockPublisher.publish(t)
 
-        self._epStartSimTime = rospy.get_time()
+        self._epStartSimTime = 0
 
-        rospy.loginfo("resetted sim")
+        #rospy.loginfo("resetted sim")
         return ret
 
 

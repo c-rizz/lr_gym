@@ -3,8 +3,8 @@
 import rospy
 import time
 import tqdm
-from stable_baselines.deepq.policies import MlpPolicy
-from stable_baselines import ACKTR
+from stable_baselines.common.policies import MlpPolicy
+from stable_baselines import A2C
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
 import stable_baselines
 import multiprocessing
@@ -31,13 +31,20 @@ def main() -> None:
     env.action_space.seed(RANDOM_SEED)
     env._max_episode_steps = 500 #limit episode length
 
-    model = ACKTR(MlpPolicy, env, verbose=1, seed=RANDOM_SEED, n_cpu_tf_sess=1) #seed=RANDOM_SEED, n_cpu_tf_sess=1 are needed to get deterministic results
+    model = A2C(MlpPolicy, env, verbose=1, seed=RANDOM_SEED, n_cpu_tf_sess=1) #seed=RANDOM_SEED, n_cpu_tf_sess=1 are needed to get deterministic results
     print("Learning...")
     t_preLearn = time.time()
-    model.learn(total_timesteps=25000)
+    model.learn(total_timesteps=150000)
     duration_learn = time.time() - t_preLearn
     print("Learned. Took "+str(duration_learn)+" seconds.")
 
+    env.close()
+
+    time.sleep(10)
+
+    env = CartpoleEnv(render = False, startSimulation = True)
+
+    input("Press Enter to continue.")
 
     print("Computing average reward...")
     t_preVal = time.time()
@@ -67,7 +74,9 @@ def main() -> None:
     avgReward = sum(rewards)/len(rewards)
     duration_val = time.time() - t_preVal
     print("Computed average reward. Took "+str(duration_val)+" seconds ("+str(totFrames/totDuration)+" fps).")
-    print("Average rewar = "+str(avgReward))
+    print("Average reward = "+str(avgReward))
+
+    env.close()
 
 if __name__ == "__main__":
     main()

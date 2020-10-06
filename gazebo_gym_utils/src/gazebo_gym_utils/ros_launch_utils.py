@@ -47,17 +47,17 @@ class MultiMasterRosLauncher:
     def setPorts(self):
         maxInc = 64
         found = False
-        basePort = 11350
-        baseGazeboPort = basePort+maxInc
+        self._baseRosPort = 11350
+        baseGazeboPort = self._baseRosPort+maxInc
         inc = 0
         while not found:
             if inc > maxInc:
                 raise RuntimeError("Couldn't find port for new roscore")
-            self._mutex = SystemMutex("roscore-"+str(basePort+inc))
+            self._mutex = SystemMutex("roscore-"+str(self._baseRosPort+inc))
             found = self._mutex.acquire()
             if not found:
                 inc+=1
-        self._rosMasterPort = basePort + inc
+        self._rosMasterPort = self._baseRosPort + inc
         self._gazeboPort = baseGazeboPort + inc
         os.environ["ROS_MASTER_URI"] = "http://127.0.0.1:"+str(self._rosMasterPort)
         os.environ["GAZEBO_MASTER_URI"] = "http://127.0.0.1:"+str(self._gazeboPort)
@@ -67,12 +67,16 @@ class MultiMasterRosLauncher:
         self._launchFile = launchFile
         self._cli_args  = cli_args
         self._mutex = None
+        self._baseRosPort = 11350
         self.setPorts()
 
     def launchAsync(self):
         os.environ["ROS_MASTER_URI"] = "http://127.0.0.1:"+str(self._rosMasterPort)
         os.environ["GAZEBO_MASTER_URI"] = "http://127.0.0.1:"+str(self._gazeboPort)
 
+        time.sleep(self._rosMasterPort-self._baseRosPort) #Very ugly way to avoid potential race conditions
+
+        os.environ["ROSCONSOLE_FORMAT"] = '['+str(self._rosMasterPort)+'][${severity}] [${time}]: ${message}'
         self._popen_obj = subprocess.Popen(["roslaunch", self._launchFile]+self._cli_args)
 
     # def launchAsync(self) -> mp.Process:

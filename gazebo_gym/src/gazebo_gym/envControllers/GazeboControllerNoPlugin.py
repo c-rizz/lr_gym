@@ -193,31 +193,33 @@ class GazeboControllerNoPlugin(EnvironmentController):
         """
         self.pauseSimulation()
         totalEpSimDuration = rospy.get_time() - self._epStartSimTime
-        totalEpRealDuration = time.time() - self._episodeRealStartTime
 
         ret = self._callService(self._resetGazeboService)
 
         self._lastUnpausedTime = 0
 
-        if self._episodeRealSimDuration!=0:
-            ratio = float(totalEpSimDuration)/self._episodeRealSimDuration
-        else:
-            ratio = -1
-        if totalEpRealDuration!=0:
-            totalRatio = float(totalEpSimDuration)/totalEpRealDuration
-        else:
-            totalRatio = -1
+
         totalSimTimeError = totalEpSimDuration - self._episodeSimDuration
         if abs(totalSimTimeError)>=0.001:
             rospy.logwarn("Estimated error in simulation time keeping = "+str(totalSimTimeError)+"s")
-        if totalEpSimDuration!=0:
-            rospy.loginfo(  "Duration: sim={:.3f}".format(totalEpSimDuration)+
-                            " real={:.3f}".format(totalEpRealDuration)+
-                            " sim/real={:.3f}".format(totalRatio)+ # Achieved sim/real time ratio
-                            " step-time-only ratio ={:.3f}".format(ratio)+ #This would be the sim/real time ratio if there was no overhead for sending actions and getting observations
-                            " totalRenderTime={:.4f}".format(self._totalRenderTime)+
-                            " realFps={:.2f}".format(self._stepsTaken/totalEpRealDuration)+
-                            " simFps={:.2f}".format(self._stepsTaken/totalEpSimDuration))
+
+        # totalEpRealDuration = time.time() - self._episodeRealStartTime
+        # if self._episodeRealSimDuration!=0:
+        #     ratio = float(totalEpSimDuration)/self._episodeRealSimDuration
+        # else:
+        #     ratio = -1
+        # if totalEpRealDuration!=0:
+        #     totalRatio = float(totalEpSimDuration)/totalEpRealDuration
+        # else:
+        #     totalRatio = -1
+        # if totalEpSimDuration!=0:
+        #     rospy.loginfo(  "Duration: sim={:.3f}".format(totalEpSimDuration)+
+        #                     " real={:.3f}".format(totalEpRealDuration)+
+        #                     " sim/real={:.3f}".format(totalRatio)+ # Achieved sim/real time ratio
+        #                     " step-time-only ratio ={:.3f}".format(ratio)+ #This would be the sim/real time ratio if there was no overhead for sending actions and getting observations
+        #                     " totalRenderTime={:.4f}".format(self._totalRenderTime)+
+        #                     " realFps={:.2f}".format(self._stepsTaken/totalEpRealDuration)+
+        #                     " simFps={:.2f}".format(self._stepsTaken/totalEpSimDuration))
         self._episodeSimDuration = 0
         self._episodeRealSimDuration = 0
         self._episodeRealStartTime = time.time()

@@ -38,7 +38,8 @@ class BaseEnv(gym.Env):
                  maxFramesPerEpisode : int = 500,
                  startSimulation : bool = False,
                  simulationBackend : str = "gazebo",
-                 verbose : bool = False):
+                 verbose : bool = False,
+                 quiet : bool = False):
         """Short summary.
 
         Parameters
@@ -50,6 +51,7 @@ class BaseEnv(gym.Env):
         """
 
         self._verbose = verbose
+        self._quiet = quiet
         self._maxFramesPerEpisode = maxFramesPerEpisode
         self._framesCounter = 0
         self._lastStepStartEnvTime = -1
@@ -181,7 +183,7 @@ class BaseEnv(gym.Env):
         self._resetCount += 1
         if self._verbose:
             rospy.loginfo(" ------- Resetting Environment (#"+str(self._resetCount)+")-------")
-            
+
         if self._framesCounter == 0:
             rospy.loginfo("No step executed in this episode")
         else:
@@ -200,7 +202,11 @@ class BaseEnv(gym.Env):
             self._reset_dbgInfo_timings["wall_fps"] = self._framesCounter/(time.time()-self._envResetTime)
             if self._verbose:
                 for k,v in self._reset_dbgInfo_timings.items():
-                    print(k," = ",v)
+                    rospy.loginfo(k," = ",v)
+            elif not self._quiet:
+                rospy.loginfo(  "ep_reward = {:f}".format(self._reset_dbgInfo_timings["ep_reward"])+
+                                " \t ep_frames_count = {:d}".format(self._reset_dbgInfo_timings["ep_frames_count"])+
+                                " \t wall_fps = {:f}".format(self._reset_dbgInfo_timings["wall_fps"]))
 
         self._lastResetTime = time.time()
         #reset simulation state

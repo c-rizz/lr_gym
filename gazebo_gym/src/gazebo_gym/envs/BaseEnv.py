@@ -35,7 +35,11 @@ class BaseEnv(gym.Env):
     metadata = None # e.g. {'render.modes': ['rgb_array']}
 
     def __init__(self,
-                 maxFramesPerEpisode : int = 500):
+                 maxFramesPerEpisode : int = 500,
+                 startSimulation : bool = False,
+                 simulationBackend : str = "gazebo",
+                 verbose : bool = False,
+                 quiet : bool = False):
         """Short summary.
 
         Parameters
@@ -46,6 +50,8 @@ class BaseEnv(gym.Env):
 
         """
 
+        self._verbose = verbose
+        self._quiet = quiet
         self._maxFramesPerEpisode = maxFramesPerEpisode
         self._framesCounter = 0
         self._lastStepStartEnvTime = -1
@@ -62,7 +68,10 @@ class BaseEnv(gym.Env):
         self._observationDurationAverage = utils.AverageKeeper(bufferSize = 100)
         self._wallStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
         self._lastStepEndSimTimeFromStart = 0
+        self._reset_dbgInfo_timings = {}
 
+        if startSimulation:
+            self._buildSimulation()
 
 
 
@@ -104,6 +113,7 @@ class BaseEnv(gym.Env):
             info = {}
             info.update(self._getInfo())
             self._lastStepEndSimTimeFromStart = self._environmentController.getEnvSimTimeFromStart()
+            info.update(self._reset_dbgInfo_timings)
             return (observation, reward, done, info)
 
         # Get previous observation
@@ -136,6 +146,7 @@ class BaseEnv(gym.Env):
                 "gz_gym_base_env_previous_state" : previousState,
                 "gz_gym_base_env_action" : action}
         info.update(self._getInfo())
+        info.update(self._reset_dbgInfo_timings)
 
         self._totalEpisodeReward += reward
 
@@ -170,23 +181,32 @@ class BaseEnv(gym.Env):
         """
         #rospy.loginfo("reset()")
         self._resetCount += 1
-        rospy.loginfo(" ------- Resetting Environment (#"+str(self._resetCount)+")-------")
+        if self._verbose:
+            rospy.loginfo(" ------- Resetting Environment (#"+str(self._resetCount)+")-------")
+
         if self._framesCounter == 0:
             rospy.loginfo("No step executed in this episode")
         else:
             avgSimTimeStepDuration = self._lastStepEndSimTimeFromStart/self._framesCounter
             totEpisodeWallDuration = time.time() - self._lastResetTime
             resetWallDuration = self._lastPostResetTime-self._lastResetTime
-            rospy.loginfo(" - Average env step wall-time duration  = "+str(self._envStepDurationAverage.getAverage()))
-            rospy.loginfo(" - Average sim step wall-time duration  = "+str(self._wallStepDurationAverage.getAverage()))
-            rospy.loginfo(" - Average action duration              = "+str(self._startActionDurationAverage.getAverage()))
-            rospy.loginfo(" - Average observation duration         = "+str(self._observationDurationAverage.getAverage()))
-            rospy.loginfo(" - Average sim time step duration       = "+str(avgSimTimeStepDuration))
-            rospy.loginfo(" - Total episode wall duration          = "+str(totEpisodeWallDuration))
-            rospy.loginfo(" - Reset wall duration                  = "+str(resetWallDuration) +" ({:.2f}%)".format(resetWallDuration/totEpisodeWallDuration*100))
-            rospy.loginfo(" - Frames count                         = "+str(self._framesCounter))
-            rospy.loginfo(" - Total episode reward                 = "+str(self._totalEpisodeReward))
-            rospy.loginfo(" - Wall fps                             = "+str(self._framesCounter/totEpisodeWallDuration))
+            self._reset_dbgInfo_timings["avg_env_step_wall_duration"] = self._envStepDurationAverage.getAverage()
+            self._reset_dbgInfo_timings["avg_sim_step_wall_duration"] = self._wallStepDurationAverage.getAverage()
+            self._reset_dbgInfo_timings["avg_act_wall_duration"] = self._startActionDurationAverage.getAverage()
+            self._reset_dbgInfo_timings["avg_obs_wall_duration"] = self._observationDurationAverage.getAverage()
+            self._reset_dbgInfo_timings["avg_step_sim_duration"] = avgSimTimeStepDuration
+            self._reset_dbgInfo_timings["tot_ep_wall_duration"] = totEpisodeWallDuration
+            self._reset_dbgInfo_timings["reset_wall_duration"] = resetWallDuration
+            self._reset_dbgInfo_timings["ep_frames_count"] = self._framesCounter
+            self._reset_dbgInfo_timings["ep_reward"] = self._totalEpisodeReward
+            self._reset_dbgInfo_timings["wall_fps"] = self._framesCounter/(time.time()-self._envResetTime)
+            if self._verbose:
+                for k,v in self._reset_dbgInfo_timings.items():
+                    rospy.loginfo(k," = ",v)
+            elif not self._quiet:
+                rospy.loginfo(  "ep_reward = {:f}".format(self._reset_dbgInfo_timings["ep_reward"])+
+                                " \t ep_frames_count = {:d}".format(self._reset_dbgInfo_timings["ep_frames_count"])+
+                                " \t wall_fps = {:f}".format(self._reset_dbgInfo_timings["wall_fps"]))
 
         self._lastResetTime = time.time()
         #reset simulation state
@@ -280,7 +300,7 @@ class BaseEnv(gym.Env):
         Environments will automatically close() themselves when
         garbage collected or when the program exits.
         """
-        pass
+        self._destroySimulation()
 
 
 
@@ -489,5 +509,13 @@ class BaseEnv(gym.Env):
         return self._maxFramesPerEpisode
 
     def setGoalInState(self, state, goal):
-        """Updates the provided state with the provided goal. Useful for goal-oriented environments, especially when using HER. It's used by ToGoalEnvWrapper."""
-        return NotImplementedError()
+        """Update the provided state with the provided goal. Useful for goal-oriented environments, especially when using HER. It's used by ToGoalEnvWrapper."""
+        raise NotImplementedError()
+
+    def _buildSimulation(self, backend : str = "gazebo"):
+        """Build a simulation for the environment."""
+        raise NotImplementedError()
+
+    def _destroySimulation(self):
+        """Destroy a simulation built by _buildSimulation."""
+        pass

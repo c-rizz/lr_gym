@@ -33,7 +33,9 @@ class ControlledEnv(BaseEnv):
     def __init__(self,
                  maxFramesPerEpisode : int = 500,
                  stepLength_sec : float = 0.05,
-                 environmentController = None):
+                 environmentController = None,
+                 startSimulation : bool = False,
+                 simulationBackend : str = "gazebo"):
         """Short summary.
 
         Parameters
@@ -58,7 +60,9 @@ class ControlledEnv(BaseEnv):
         """
 
 
-        super().__init__(maxFramesPerEpisode = maxFramesPerEpisode)
+        super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
+                         startSimulation = startSimulation,
+                         simulationBackend = simulationBackend)
 
         if environmentController is None:
             environmentController = GazeboController(stepLength_sec = stepLength_sec)

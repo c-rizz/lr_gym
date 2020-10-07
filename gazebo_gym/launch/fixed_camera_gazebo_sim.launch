@@ -25,6 +25,7 @@
         <arg name="extra_gazebo_args" value="--seed 20200413  -o bullet_default" if="$(eval arg('physics_engine') == 'bullet')"/>
         <arg name="extra_gazebo_args" value="--seed 20200413  -o ode_default" if="$(eval arg('physics_engine') == 'ode')"/>
         <env name="GAZEBO_MODEL_PATH" value="$(find gazebo_gym)/models:$(optenv GAZEBO_MODEL_PATH)"/>
+        <arg name="use_sim_time" value="true"/>        
     </include>
 
 

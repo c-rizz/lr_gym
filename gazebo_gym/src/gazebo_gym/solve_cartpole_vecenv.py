@@ -3,10 +3,12 @@
 import rospy
 import time
 import tqdm
-from stable_baselines.deepq.policies import MlpPolicy
-from stable_baselines import DQN
+from stable_baselines.common.policies import MlpPolicy
+from stable_baselines import A2C
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
-
+import stable_baselines
+import multiprocessing
+from gazebo_gym.envControllers.GazeboController import GazeboController
 
 def main() -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
@@ -19,22 +21,30 @@ def main() -> None:
     None
 
     """
-    #rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
-    env = CartpoleEnv(render=False, startSimulation = True)
+    def constructEnv():
+        return CartpoleEnv(render = False, startSimulation = True)
+    env = stable_baselines.common.vec_env.SubprocVecEnv([constructEnv for i in range(7)])  # 7 is good on an 8-core cpu (tested on i7-6820HK, 4 cores, 8 threads)
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
     env._max_episode_steps = 500 #limit episode length
 
-    model = DQN(MlpPolicy, env, verbose=1, seed=RANDOM_SEED, n_cpu_tf_sess=1) #seed=RANDOM_SEED, n_cpu_tf_sess=1 are needed to get deterministic results
+    model = A2C(MlpPolicy, env, verbose=1, seed=RANDOM_SEED, n_cpu_tf_sess=1) #seed=RANDOM_SEED, n_cpu_tf_sess=1 are needed to get deterministic results
     print("Learning...")
     t_preLearn = time.time()
-    model.learn(total_timesteps=25000)
+    model.learn(total_timesteps=150000)
     duration_learn = time.time() - t_preLearn
     print("Learned. Took "+str(duration_learn)+" seconds.")
 
+    env.close()
+
+    time.sleep(10)
+
+    env = CartpoleEnv(render = False, startSimulation = True)
+
+    input("Press Enter to continue.")
 
     print("Computing average reward...")
     t_preVal = time.time()
@@ -64,7 +74,9 @@ def main() -> None:
     avgReward = sum(rewards)/len(rewards)
     duration_val = time.time() - t_preVal
     print("Computed average reward. Took "+str(duration_val)+" seconds ("+str(totFrames/totDuration)+" fps).")
-    print("Average rewar = "+str(avgReward))
+    print("Average reward = "+str(avgReward))
+
+    env.close()
 
 if __name__ == "__main__":
     main()

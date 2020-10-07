@@ -42,6 +42,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 find_package(orocos_kdl REQUIRED)
 find_package(urdfdom_headers REQUIRED)
 
+catkin_python_setup()
 
 ################################################
 ## Declare ROS messages, services and actions ##

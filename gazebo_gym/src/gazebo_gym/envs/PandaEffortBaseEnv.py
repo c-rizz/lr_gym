@@ -218,7 +218,3 @@ class PandaEffortBaseEnv(ControlledEnv):
                     jointStates["panda","panda_joint7"].rate[0]] # No unrecoverable failure states
         #print("Got state = ",state)
         return np.array(state,dtype=np.float32)
-
-
-    def launchPandaGazeboWorld(useNewRosMaster : bool = False):
-        pass

@@ -54,7 +54,11 @@ class GazeboController(GazeboControllerNoPlugin):
         """
 
         super().__init__(stepLength_sec=stepLength_sec)
+        self._usePersistentConnections = usePersistentConnections
 
+    def startController(self):
+        """Start up the controller. This must be called after setCamerasToObserve, setLinksToObserve and setJointsToObserve."""
+        super().startController()
         #self._stepGazeboServiceName = "/gazebo/gym_env_interface/step"
         #self._renderGazeboServiceName = "/gazebo/gym_env_interface/render"
         serviceNames = {"step" : "/gazebo/gym_env_interface/step",
@@ -73,8 +77,8 @@ class GazeboController(GazeboControllerNoPlugin):
                 rospy.logfatal("Interrupeted while waiting for service "+serviceName+". Exception = "+str(e))
                 raise
 
-        self._stepGazeboService   = rospy.ServiceProxy(serviceNames["step"], gazebo_gym_env_plugin.srv.StepSimulation, persistent=usePersistentConnections)
-        self._renderGazeboService   = rospy.ServiceProxy(serviceNames["render"], gazebo_gym_env_plugin.srv.RenderCameras, persistent=usePersistentConnections)
+        self._stepGazeboService   = rospy.ServiceProxy(serviceNames["step"], gazebo_gym_env_plugin.srv.StepSimulation, persistent=self._usePersistentConnections)
+        self._renderGazeboService   = rospy.ServiceProxy(serviceNames["render"], gazebo_gym_env_plugin.srv.RenderCameras, persistent=self._usePersistentConnections)
 
         self._simulationState = GazeboController._SimState()
         self._jointEffortsToRequest = []

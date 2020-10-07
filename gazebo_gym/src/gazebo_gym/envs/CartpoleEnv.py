@@ -13,7 +13,8 @@ import gym
 import numpy as np
 from typing import Tuple
 import time
-
+import gazebo_gym_utils.ros_launch_utils
+import rospkg
 
 from gazebo_gym.envs.ControlledEnv import ControlledEnv
 
@@ -36,7 +37,8 @@ class CartpoleEnv(ControlledEnv):
                     maxFramesPerEpisode : int = 500,
                     render : bool = False,
                     stepLength_sec : float = 0.05,
-                    simulatorController = None):
+                    simulatorController = None,
+                    startSimulation : bool = False):
         """Short summary.
 
         Parameters
@@ -66,13 +68,16 @@ class CartpoleEnv(ControlledEnv):
 
         super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
                          stepLength_sec = stepLength_sec,
-                         environmentController = simulatorController)
+                         environmentController = simulatorController,
+                         startSimulation = startSimulation,
+                         simulationBackend = "gazebo")
         self._renderingEnabled = render
 
         self._environmentController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
         if self._renderingEnabled:
             self._environmentController.setCamerasToObserve(["camera"])
 
+        self._environmentController.startController()
 
     def _startAction(self, action : int) -> None:
         if action == 0: #left
@@ -132,7 +137,7 @@ class CartpoleEnv(ControlledEnv):
         #print("states['foot_joint'] = "+str(states["foot_joint"]))
         #print("Got joint state "+str(states))
         t1 = time.time()
-        rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
+        #rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
 
         state = ( states[("cartpole_v0","foot_joint")].position[0],
                   states[("cartpole_v0","foot_joint")].rate[0],
@@ -142,3 +147,13 @@ class CartpoleEnv(ControlledEnv):
         #print(observation)
 
         return state
+
+    def _buildSimulation(self, backend : str = "gazebo"):
+        if backend != "gazebo":
+            raise NotImplementedError("Backend '+backend+' not supported")
+
+        self.mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("gazebo_gym")+"/launch/cartpole_gazebo_sim.launch", cli_args=["gui:=false"])
+        self.mmRosLauncher.launchAsync()
+
+    def _destroySimulation(self):
+        self.mmRosLauncher.stop()

@@ -47,7 +47,6 @@ class GazeboControllerNoPlugin(EnvironmentController):
 
         """
         super().__init__(stepLength_sec=stepLength_sec)
-        rospy.init_node('gazebo_env_controller', anonymous=True)
 
         self._lastUnpausedTime = 0
         self._episodeSimDuration = 0
@@ -55,10 +54,31 @@ class GazeboControllerNoPlugin(EnvironmentController):
         self._episodeRealStartTime = 0
         self._totalRenderTime = 0
         self._stepsTaken = 0
+        self._epStartSimTime = 0
 
         self._lastStepRendered = None
         self._lastRenderResult = None
+        self._usePersistentConnections = usePersistentConnections
 
+
+    def startController(self):
+        """Start up the controller. This must be called after setCamerasToObserve, setLinksToObserve and setJointsToObserve."""
+
+        # init_node uses use_sim_time to determine which time to use, but I can't
+        # find a reliable way for it to be set before init_node is being called
+        # So we wait for it to be set to either true or false
+        useSimTime = None
+        while useSimTime is None:
+            try:
+                useSimTime = rospy.get_param("/use_sim_time")
+            except KeyError:
+                pass
+            except ConnectionRefusedError:
+                pass
+            if useSimTime is None:
+                time.sleep(0.25)
+
+        rospy.init_node('gazebo_env_controller', anonymous=True)
 
         serviceNames = {"applyJointEffort" : "/gazebo/apply_joint_effort",
                         "clearJointEffort" : "/gazebo/clear_joint_forces",
@@ -81,15 +101,15 @@ class GazeboControllerNoPlugin(EnvironmentController):
                 rospy.logfatal("Interrupeted while waiting for service "+serviceName+". Exception = "+str(e))
                 raise
 
-        self._applyJointEffortService   = rospy.ServiceProxy(serviceNames["applyJointEffort"], gazebo_msgs.srv.ApplyJointEffort, persistent=usePersistentConnections)
-        self._clearJointEffortService   = rospy.ServiceProxy(serviceNames["clearJointEffort"], gazebo_msgs.srv.JointRequest, persistent=usePersistentConnections)
-        self._getJointPropertiesService = rospy.ServiceProxy(serviceNames["getJointProperties"], gazebo_msgs.srv.GetJointProperties, persistent=usePersistentConnections)
-        self._getLinkStateService       = rospy.ServiceProxy(serviceNames["getLinkState"], gazebo_msgs.srv.GetLinkState, persistent=usePersistentConnections)
-        self._pauseGazeboService        = rospy.ServiceProxy(serviceNames["pause"], Empty, persistent=usePersistentConnections)
-        self._unpauseGazeboService      = rospy.ServiceProxy(serviceNames["unpause"], Empty, persistent=usePersistentConnections)
-        self._resetGazeboService        = rospy.ServiceProxy(serviceNames["reset"], Empty, persistent=usePersistentConnections)
+        self._applyJointEffortService   = rospy.ServiceProxy(serviceNames["applyJointEffort"], gazebo_msgs.srv.ApplyJointEffort, persistent=self._usePersistentConnections)
+        self._clearJointEffortService   = rospy.ServiceProxy(serviceNames["clearJointEffort"], gazebo_msgs.srv.JointRequest, persistent=self._usePersistentConnections)
+        self._getJointPropertiesService = rospy.ServiceProxy(serviceNames["getJointProperties"], gazebo_msgs.srv.GetJointProperties, persistent=self._usePersistentConnections)
+        self._getLinkStateService       = rospy.ServiceProxy(serviceNames["getLinkState"], gazebo_msgs.srv.GetLinkState, persistent=self._usePersistentConnections)
+        self._pauseGazeboService        = rospy.ServiceProxy(serviceNames["pause"], Empty, persistent=self._usePersistentConnections)
+        self._unpauseGazeboService      = rospy.ServiceProxy(serviceNames["unpause"], Empty, persistent=self._usePersistentConnections)
+        self._resetGazeboService        = rospy.ServiceProxy(serviceNames["reset"], Empty, persistent=self._usePersistentConnections)
 
-        #self._setGazeboPhysics = rospy.ServiceProxy(self._setGazeboPhysics, SetPhysicsProperties, persistent=usePersistentConnections)
+        #self._setGazeboPhysics = rospy.ServiceProxy(self._setGazeboPhysics, SetPhysicsProperties, persistent=self._usePersistentConnections)
 
         # Crete a publisher to manually send clock messages (used in reset, very ugly, sorry)
         self._clockPublisher = rospy.Publisher("/clock", rosgraph_msgs.msg.Clock, queue_size=1)
@@ -142,7 +162,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
 
         """
         ret = self._callService(self._pauseGazeboService)
-        rospy.loginfo("paused sim")
+        #rospy.loginfo("paused sim")
         self._lastUnpausedTime = rospy.get_time()
         return ret
 
@@ -159,7 +179,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
         if self._lastUnpausedTime>t:
             rospy.logwarn("Simulation time increased since last pause! (time diff = "+str(t-self._lastUnpausedTime)+"s)")
         ret = self._callService(self._unpauseGazeboService)
-        rospy.loginfo("unpaused sim")
+        #rospy.loginfo("unpaused sim")
         return ret
 
     def resetWorld(self) -> bool:
@@ -172,32 +192,34 @@ class GazeboControllerNoPlugin(EnvironmentController):
 
         """
         self.pauseSimulation()
-        totalEpSimDuration = rospy.get_time()
-        totalEpRealDuration = time.time() - self._episodeRealStartTime
+        totalEpSimDuration = rospy.get_time() - self._epStartSimTime
 
         ret = self._callService(self._resetGazeboService)
 
         self._lastUnpausedTime = 0
 
-        if self._episodeRealSimDuration!=0:
-            ratio = float(totalEpSimDuration)/self._episodeRealSimDuration
-        else:
-            ratio = -1
-        if totalEpRealDuration!=0:
-            totalRatio = float(totalEpSimDuration)/totalEpRealDuration
-        else:
-            totalRatio = -1
+
         totalSimTimeError = totalEpSimDuration - self._episodeSimDuration
         if abs(totalSimTimeError)>=0.001:
             rospy.logwarn("Estimated error in simulation time keeping = "+str(totalSimTimeError)+"s")
-        if totalEpSimDuration!=0:
-            rospy.loginfo(  "Duration: sim={:.3f}".format(totalEpSimDuration)+
-                            " real={:.3f}".format(totalEpRealDuration)+
-                            " sim/real={:.3f}".format(totalRatio)+ # Achieved sim/real time ratio
-                            " step-time-only ratio ={:.3f}".format(ratio)+ #This would be the sim/real time ratio if there was no overhead for sending actions and getting observations
-                            " totalRenderTime={:.4f}".format(self._totalRenderTime)+
-                            " realFps="+str(self._stepsTaken/totalEpRealDuration)+
-                            " simFps="+str(self._stepsTaken/totalEpSimDuration))
+
+        # totalEpRealDuration = time.time() - self._episodeRealStartTime
+        # if self._episodeRealSimDuration!=0:
+        #     ratio = float(totalEpSimDuration)/self._episodeRealSimDuration
+        # else:
+        #     ratio = -1
+        # if totalEpRealDuration!=0:
+        #     totalRatio = float(totalEpSimDuration)/totalEpRealDuration
+        # else:
+        #     totalRatio = -1
+        # if totalEpSimDuration!=0:
+        #     rospy.loginfo(  "Duration: sim={:.3f}".format(totalEpSimDuration)+
+        #                     " real={:.3f}".format(totalEpRealDuration)+
+        #                     " sim/real={:.3f}".format(totalRatio)+ # Achieved sim/real time ratio
+        #                     " step-time-only ratio ={:.3f}".format(ratio)+ #This would be the sim/real time ratio if there was no overhead for sending actions and getting observations
+        #                     " totalRenderTime={:.4f}".format(self._totalRenderTime)+
+        #                     " realFps={:.2f}".format(self._stepsTaken/totalEpRealDuration)+
+        #                     " simFps={:.2f}".format(self._stepsTaken/totalEpSimDuration))
         self._episodeSimDuration = 0
         self._episodeRealSimDuration = 0
         self._episodeRealStartTime = time.time()
@@ -208,7 +230,9 @@ class GazeboControllerNoPlugin(EnvironmentController):
         t = rosgraph_msgs.msg.Clock()
         self._clockPublisher.publish(t)
 
-        rospy.loginfo("resetted sim")
+        self._epStartSimTime = 0
+
+        #rospy.loginfo("resetted sim")
         return ret
 
 

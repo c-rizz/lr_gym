@@ -34,6 +34,17 @@ class RosEnvController(EnvironmentController):
         super().__init__(stepLength_sec = stepLength_sec)
         if ros_master_uri is not None:
             os.environ['ROS_MASTER_URI'] = ros_master_uri
+
+        # init_node uses use_sim_time to determine which time to use, but I can't
+        # find a reliable way for it to be set before init_node is being called
+        # So we wait for it to be set to either true or false
+        useSimTime = None
+        while useSimTime is None:
+            try:
+                useSimTime = rospy.get_param("/use_sim_time")
+            except KeyError:
+                pass
+
         rospy.init_node('ros_env_controller', anonymous=True)
 
         self._listenersStarted = False

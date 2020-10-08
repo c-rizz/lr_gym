@@ -10,6 +10,7 @@ import argparse
 import PyBulletUtils
 
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
+from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 from gazebo_gym.envControllers.GazeboController import GazeboController
 from gazebo_gym.envControllers.PyBulletController import PyBulletController
 
@@ -36,7 +37,7 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
 
 
     #env = gym.make('CartPoleStayUp-v0')
-    env = CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController)
+    env = GymEnvWrapper(CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController, startSimulation = True))
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
@@ -100,6 +101,8 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
     avgReward = sum(rewards)/len(rewards)
     totalWallTime = time.time() - wallTimeStart
 
+    env.close()
+
     print("Average reward is "+str(avgReward)+". Took "+str(totalWallTime)+" seconds ({:.3f}".format(totFrames/totDuration)+" fps). simTime/wallTime={:.3f}".format(totalSimTime/totalWallTime)+" total frames count = "+str(totFrames))
 
 
@@ -121,8 +124,6 @@ if __name__ == "__main__":
     ap.add_argument("--sleeplength", required=False, default=0, type=float, help="How much to sleep at the end of each frame execution")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
-
-    rospy.init_node('test_cartpole_env', anonymous=True, log_level=rospy.WARN)
 
     if args["pybullet"]:
         PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/cartpole_v0.urdf")

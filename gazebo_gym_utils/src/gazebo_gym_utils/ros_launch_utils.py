@@ -12,6 +12,7 @@ import multiprocessing as mp
 import signal
 from typing import List
 import subprocess
+import atexit
 
 class SystemMutex:
     def __init__(self, id : str):
@@ -76,9 +77,11 @@ class MultiMasterRosLauncher:
 
         time.sleep(self._rosMasterPort-self._baseRosPort) #Very ugly way to avoid potential race conditions
 
+        print("Launching "+self._launchFile)
         os.environ["ROSCONSOLE_FORMAT"] = '['+str(self._rosMasterPort)+'][${severity}] [${time}]: ${message}'
         self._popen_obj = subprocess.Popen(["roslaunch", self._launchFile]+self._cli_args)
 
+        atexit.register(self.stop)
     # def launchAsync(self) -> mp.Process:
     #     p = mp.Process(target=self.launch)
     #     p.start()

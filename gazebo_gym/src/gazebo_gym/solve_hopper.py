@@ -45,7 +45,7 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
             simulatorController = PyBulletController()
         else:
             simulatorController = GazeboController(stepLength_sec = stepLength_sec)
-        env = HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, maxFramesPerEpisode = 20/stepLength_sec)
+        env = HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, maxActionsPerEpisode = 20/stepLength_sec)
     print("Environment created")
 
     #setup seeds for reproducibility

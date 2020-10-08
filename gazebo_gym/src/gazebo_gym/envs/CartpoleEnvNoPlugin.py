@@ -36,12 +36,12 @@ class CartpoleEnvNoPlugin(gym.Env):
 
     metadata = {'render.modes': ['rgb_array']}
 
-    def __init__(self, maxFramesPerEpisode : int = 500, stepLength_sec : float = 0.05):
+    def __init__(self, maxActionsPerEpisode : int = 500, stepLength_sec : float = 0.05):
         """Short summary.
 
         Parameters
         ----------
-        maxFramesPerEpisode : int
+        maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         stepLength_sec : float
@@ -57,7 +57,7 @@ class CartpoleEnvNoPlugin(gym.Env):
             In case it gets interrupted while waiting for ROS servics
 
         """
-        self._maxFramesPerEpisode = maxFramesPerEpisode
+        self._maxActionsPerEpisode = maxActionsPerEpisode
         self._framesCounter = 0
         self._lastStepStartEnvTime = -1
         self._lastStepEndEnvTime = -1
@@ -126,8 +126,8 @@ class CartpoleEnvNoPlugin(gym.Env):
         """
         #rospy.loginfo("step()")
 
-        if self._framesCounter>=self._maxFramesPerEpisode:
-            observation = self._getObservation()
+        if self._framesCounter>=self._maxActionsPerEpisode:
+            observation = self.getObservation()
             reward = 0
             done = True
             return (observation, reward, done, {})
@@ -150,7 +150,7 @@ class CartpoleEnvNoPlugin(gym.Env):
         self._lastStepStartEnvTime = rospy.get_time()
 
         self._simulatorController.step(self._stepLength_sec)
-        observation = self._getObservation()
+        observation = self.getObservation()
 
         self._lastStepEndEnvTime = rospy.get_time()
         #t1 = time.time()
@@ -214,7 +214,7 @@ class CartpoleEnvNoPlugin(gym.Env):
         self._clockPublisher.publish(t)
 
         #rospy.loginfo("reset() return")
-        return  self._getObservation()
+        return  self.getObservation()
 
 
 
@@ -315,7 +315,7 @@ class CartpoleEnvNoPlugin(gym.Env):
 
 
 
-    def _getObservation(self) -> Tuple[float,float,float,float]:
+    def getObservation(self) -> Tuple[float,float,float,float]:
         """Get the an observation of the environment.
 
         Returns

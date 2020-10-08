@@ -23,7 +23,7 @@ def main(trainIterations : int = 120000) -> None:
     runId = datetime.now().strftime('%Y%m%d-%H%M%S')
 
     print("Setting up environment...")
-    env = PandaMoveitReachingEnv([0.3,-0.3,0.5,-1,0,0,0], maxFramesPerEpisode = 30)
+    env = PandaMoveitReachingEnv([0.3,-0.3,0.5,-1,0,0,0], maxActionsPerEpisode = 30)
     print("Environment created")
 
     #setup seeds for reproducibility

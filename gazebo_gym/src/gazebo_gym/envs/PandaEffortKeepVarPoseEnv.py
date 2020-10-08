@@ -48,7 +48,7 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
     observation_space = gym.spaces.Box(-observation_space_high, observation_space_high)
 
     def __init__(   self,
-                    maxFramesPerEpisode : int = 500,
+                    maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 0.0175*5,
@@ -59,7 +59,7 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
 
         Parameters
         ----------
-        maxFramesPerEpisode : int
+        maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -76,7 +76,7 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
 
         """
 
-        super().__init__(   maxFramesPerEpisode = maxFramesPerEpisode,
+        super().__init__(   maxActionsPerEpisode = maxActionsPerEpisode,
                             render = render,
                             goalTolerancePosition = goalTolerancePosition,
                             goalToleranceOrientation_rad = goalToleranceOrientation_rad,
@@ -91,7 +91,7 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
 
 
 
-    def _onResetDone(self) -> None:
+    def onResetDone(self) -> None:
 
         r = self._numpyRndGenerator.uniform(0,4)
         if r<1:
@@ -136,8 +136,8 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
         self._dbgGoalpublisher.publish(goalPoseStamped)
         print("Setting goal to: "+str(self._goalPose))
 
-    def _getState(self) -> NDArray[(26,), np.float32]:
-        state_noGoal = super()._getState()
+    def getState(self) -> NDArray[(26,), np.float32]:
+        state_noGoal = super().getState()
 
         goalOrientation_rpy = quaternion.as_euler_angles(quaternion.from_float_array([self._goalPose[6], self._goalPose[3], self._goalPose[4], self._goalPose[5]]))
         goalRpy  = [self._goalPose[0],
@@ -159,7 +159,7 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
         return ret
 
 
-    def _computeReward(self, previousState : NDArray[(26,), np.float32], state : NDArray[(26,), np.float32], action : int) -> float:
+    def computeReward(self, previousState : NDArray[(26,), np.float32], state : NDArray[(26,), np.float32], action : int) -> float:
 
         goal = state[20:26]
 

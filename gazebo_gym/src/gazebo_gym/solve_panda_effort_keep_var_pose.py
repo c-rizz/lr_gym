@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
 
-import rospy
 import time
 import argparse
 import gym
 
-from stable_baselines.sac.policies import MlpPolicy
 from stable_baselines import SAC, HER
-from stable_baselines.ddpg.noise import NormalActionNoise
 from stable_baselines.common import env_checker
 import stable_baselines
 import datetime
-import numpy as np
 
 import gazebo_gym
 from gazebo_gym.envs.PandaEffortKeepVarPoseEnv import PandaEffortKeepVarPoseEnv
@@ -65,11 +61,11 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     # action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
     # sacModel = SAC( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
     #              buffer_size=200000, gamma=0.99, gradient_steps=1000,
-    #              learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=env.getBaseEnv().getMaxFramesPerEpisode(),
+    #              learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=env.getBaseEnv().getMaxStepsPerEpisode(),
     #              seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
     #              tensorboard_log=folderName)
 
-    epLength = env.getBaseEnv().getMaxFramesPerEpisode()
+    epLength = env.getBaseEnv().getMaxStepsPerEpisode()
     model = HER('MlpPolicy', env, SAC, n_sampled_goal=int(epLength/10), goal_selection_strategy="future", verbose=1, batch_size=128,
                 buffer_size=100000, gamma=0.99, gradient_steps=1000,
                 learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=epLength*20,
@@ -123,7 +119,7 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
     else:
         envController = None
 
-    env = ToGoalEnvWrapper( PandaEffortKeepVarPoseEnv(maxFramesPerEpisode = 50,
+    env = ToGoalEnvWrapper( PandaEffortKeepVarPoseEnv(maxActionsPerEpisode = 50,
                                                       environmentController = envController,
                                                       maxTorques = [87, 87, 87, 87, 12, 12, 12],
                                                       stepLength_sec = stepLength_sec),

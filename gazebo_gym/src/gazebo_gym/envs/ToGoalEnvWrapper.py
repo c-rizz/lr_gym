@@ -7,6 +7,8 @@ from collections import OrderedDict
 from gym import spaces
 import numpy as np
 
+from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
+
 class ToGoalEnvWrapper(gym.GoalEnv):
     """This is a wrapper that transforms a gazebo_gym.envs.BaseEnv from being gym.Env compliant to being gym.GoalEnv compliant."""
 
@@ -17,7 +19,8 @@ class ToGoalEnvWrapper(gym.GoalEnv):
         if len(observationMask) != env.observation_space.shape[0]:
             raise AttributeError("Environment observation space and masks don't have the same size! ("+str(len(observationMask))+" vs "+str(env.observation_space.shape[0])+")")
 
-        self._env = env
+        self._ggEnv = env
+        self._gymEnv = GymEnvWrapper(env)
         self._observationMask = observationMask
         self._desiredGoalMask = desiredGoalMask
         self._achievedGoalMask = achievedGoalMask
@@ -89,13 +92,13 @@ class ToGoalEnvWrapper(gym.GoalEnv):
 
 
     def step(self, action):
-        obs, reward, done, info = self._env.step(action)
+        obs, reward, done, info = self._gymEnv.step(action)
         obsDict = self._observationToDict(obs)
         #print("info = ", info)
         return obsDict, reward, done, info
 
     def reset(self):
-        obs = self._env.reset()
+        obs = self._gymEnv.reset()
         obsDict = self._observationToDict(obs)
         return obsDict
 
@@ -104,35 +107,35 @@ class ToGoalEnvWrapper(gym.GoalEnv):
         reachedState = info["gz_gym_base_env_reached_state"]
         previousState = info["gz_gym_base_env_previous_state"]
         action = info["gz_gym_base_env_action"]
-        
-        self._env.setGoalInState(previousState, desired_goal)
-        self._env.setGoalInState(reachedState, desired_goal)
-        reward = self._env._computeReward(previousState, reachedState, action)
+
+        self._ggEnv.setGoalInState(previousState, desired_goal)
+        self._ggEnv.setGoalInState(reachedState, desired_goal)
+        reward = self._ggEnv.computeReward(previousState, reachedState, action)
         return reward
 
     def getBaseEnv(self):
-        return self._env
+        return self._ggEnv
 
 
 
     def render(self, mode='human'):
-        self._env.render(mode)
+        self._gymEnv.render(mode)
 
     def close(self):
-        self._env.close()
+        self._gymEnv.close()
 
     def seed(self, seed=None):
-        self._env.seed(seed)
+        self._gymEnv.seed(seed)
 
     @property
     def unwrapped(self):
-        self._env.unwrapped()
+        self._gymEnv.unwrapped()
 
     def __str__(self):
-        self._env.__str__()
+        self._gymEnv.__str__()
 
     def __enter__(self):
-        self._env.__enter__()
+        self._gymEnv.__enter__()
 
     def __exit__(self, *args):
-        self._env.__exit__()
+        self._gymEnv.__exit__()

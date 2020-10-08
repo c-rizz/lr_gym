@@ -17,20 +17,21 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
 
     def __init__(   self,
                     goalPose : Tuple[float,float,float,float,float,float,float] = (0,0,0, 0,0,0,0),
-                    maxFramesPerEpisode : int = 500,
+                    maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 0.0175*5,
                     maxTorques = [87, 87, 87, 87, 12, 12, 12],
                     environmentController : gazebo_gym.envControllers.EnvironmentController = None,
-                    stepLength_sec : float = 0.01):
+                    stepLength_sec : float = 0.01,
+                    startSimulation = False):
         """Short summary.
 
         Parameters
         ----------
         goalPose : Tuple[float,float,float,float,float,float,float]
             end-effector pose to reach (x,y,z, qx,qy,qz,qw)
-        maxFramesPerEpisode : int
+        maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -48,11 +49,12 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
         """
 
 
-        super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
+        super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
                          render = render,
                          maxTorques = maxTorques,
                          environmentController = environmentController,
-                         stepLength_sec = stepLength_sec)
+                         stepLength_sec = stepLength_sec,
+                         startSimulation = startSimulation)
 
         self._goalPose = goalPose
         self._goalTolerancePosition = goalTolerancePosition
@@ -80,11 +82,13 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
         return position_dist2goal, orientation_dist2goal
 
 
-    def _checkEpisodeEnd(self, previousState : NDArray[(20,), np.float32], state : NDArray[(20,), np.float32]) -> bool:
+    def checkEpisodeEnded(self, previousState : NDArray[(20,), np.float32], state : NDArray[(20,), np.float32]) -> bool:
+        if super().checkEpisodeEnded(previousState, state):
+            return True
         return False # Only stops at the maximum frame number
 
 
-    def _computeReward(self, previousState : NDArray[(20,), np.float32], state : NDArray[(20,), np.float32], action : int) -> float:
+    def computeReward(self, previousState : NDArray[(20,), np.float32], state : NDArray[(20,), np.float32], action : int) -> float:
 
         posDist_new, orientDist_new = self._getDist2goal(state)
         posDist_old, orientDist_old = self._getDist2goal(previousState)

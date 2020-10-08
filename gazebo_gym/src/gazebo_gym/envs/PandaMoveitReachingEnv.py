@@ -64,7 +64,7 @@ class PandaMoveitReachingEnv(BaseEnv):
 
     def __init__(   self,
                     goalPose : Tuple[float,float,float,float,float,float,float] = (0,0,0, 0,0,0,0),
-                    maxFramesPerEpisode : int = 500,
+                    maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 0.0175*5):
@@ -74,7 +74,7 @@ class PandaMoveitReachingEnv(BaseEnv):
         ----------
         goalPose : Tuple[float,float,float,float,float,float,float]
             end-effector pose to reach (x,y,z, qx,qy,qz,qw)
-        maxFramesPerEpisode : int
+        maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -89,7 +89,7 @@ class PandaMoveitReachingEnv(BaseEnv):
         """
 
 
-        super().__init__( maxFramesPerEpisode = maxFramesPerEpisode)
+        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode)
         self._envController = RosEnvController()
 
         self._renderingEnabled = render
@@ -130,7 +130,7 @@ class PandaMoveitReachingEnv(BaseEnv):
 
 
 
-    def _startAction(self, action : Tuple[float, float, float]) -> None:
+    def submitAction(self, action : Tuple[float, float, float]) -> None:
         """Plan and execute moveit movement without blocking.
 
         Parameters
@@ -139,6 +139,7 @@ class PandaMoveitReachingEnv(BaseEnv):
             Relative end-effector movement in cartesian space
 
         """
+        super().submitAction(action)
         clippedAction = np.clip(np.array(action, dtype=np.float32),-0.1,0.1)
 
 
@@ -150,7 +151,7 @@ class PandaMoveitReachingEnv(BaseEnv):
 
 
 
-    def _performStep(self) -> None:
+    def performStep(self) -> None:
         """Short summary.
 
         Returns
@@ -198,7 +199,9 @@ class PandaMoveitReachingEnv(BaseEnv):
 
 
 
-    def _checkEpisodeEnd(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32]) -> bool:
+    def checkEpisodeEnded(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32]) -> bool:
+        if super().checkEpisodeEnded(previousState, state):
+            return True
         unrecoverableFailure = state[14]
         if unrecoverableFailure:
             return True
@@ -208,7 +211,7 @@ class PandaMoveitReachingEnv(BaseEnv):
         return isdone
 
 
-    def _computeReward(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32], action : int) -> float:
+    def computeReward(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32], action : int) -> float:
 
         lastStepFailed = state[13]
         if lastStepFailed:
@@ -241,11 +244,11 @@ class PandaMoveitReachingEnv(BaseEnv):
         return reward
 
 
-    def _onResetDone(self) -> None:
+    def onResetDone(self) -> None:
         return
 
 
-    def _performReset(self) -> None:
+    def performReset(self) -> None:
         goal = gazebo_gym_utils.msg.MoveToJointPoseGoal()
         goal.pose = self._initialJointState
         self._moveJointClient.send_goal(goal)
@@ -258,10 +261,10 @@ class PandaMoveitReachingEnv(BaseEnv):
             raise RuntimeError("Failed ot reset environment: "+str(self._moveJointClient.get_result()))
 
 
-    def _getObservation(self, state) -> np.ndarray:
+    def getObservation(self, state) -> np.ndarray:
         return state
 
-    def _getState(self) -> NDArray[(15,), np.float32]:
+    def getState(self) -> NDArray[(15,), np.float32]:
         """Get an observation of the environment.
 
         Returns

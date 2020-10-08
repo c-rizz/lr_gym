@@ -16,15 +16,16 @@ class PandaEffortStayUpEnv(PandaEffortBaseEnv):
     """This class represents an environment in which a Panda arm is controlled with torque control to keep the end-effector as high as possible."""
 
     def __init__(   self,
-                    maxFramesPerEpisode : int = 500,
+                    maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     maxTorques = [100, 100, 100, 100, 100, 100, 100],
-                    environmentController : gazebo_gym.envControllers.EnvironmentController = None):
+                    environmentController : gazebo_gym.envControllers.EnvironmentController = None,
+                    startSimulation : bool = False):
         """Short summary.
 
         Parameters
         ----------
-        maxFramesPerEpisode : int
+        maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -38,18 +39,21 @@ class PandaEffortStayUpEnv(PandaEffortBaseEnv):
         """
 
 
-        super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
+        super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
                          render = render,
                          maxTorques = maxTorques,
-                         environmentController = environmentController)
+                         environmentController = environmentController,
+                         startSimulation = startSimulation)
 
 
 
-    def _checkEpisodeEnd(self, previousState : NDArray[(20,), np.float32], state : NDArray[(20,), np.float32]) -> bool:
+    def checkEpisodeEnded(self, previousState : NDArray[(20,), np.float32], state : NDArray[(20,), np.float32]) -> bool:
+        if super().checkEpisodeEnded(previousState, state):
+            return True
         return False
 
 
-    def _computeReward(self, previousState : NDArray[(20,), np.float32], state : NDArray[(20,), np.float32], action : int) -> float:
+    def computeReward(self, previousState : NDArray[(20,), np.float32], state : NDArray[(20,), np.float32], action : int) -> float:
 
         position = state[0:3]
         prevPosition = previousState[0:3]

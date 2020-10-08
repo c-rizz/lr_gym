@@ -14,8 +14,8 @@ import math
 from gazebo_gym.envs.ControlledEnv import ControlledEnv
 from gazebo_gym.envControllers.EffortRosControlController import EffortRosControlController
 import gazebo_gym
-
-
+import gazebo_gym_utils.ros_launch_utils
+import rospkg
 
 
 
@@ -64,17 +64,18 @@ class PandaEffortBaseEnv(ControlledEnv):
     metadata = {'render.modes': ['rgb_array']}
 
     def __init__(   self,
-                    maxFramesPerEpisode : int = 500,
+                    maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     maxTorques : Tuple[float, float, float, float, float, float, float] = [87, 87, 87, 87, 12, 12, 12],
                     environmentController : gazebo_gym.envControllers.EnvironmentController = None,
-                    ros_master_uri : str = None,
-                    stepLength_sec : float = 0.01):
+                    forced_ros_master_uri : str = None,
+                    stepLength_sec : float = 0.01,
+                    startSimulation : bool = False):
         """Short summary.
 
         Parameters
         ----------
-        maxFramesPerEpisode : int
+        maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -86,6 +87,8 @@ class PandaEffortBaseEnv(ControlledEnv):
             The contorller to be used to interface with the environment. If left to None an EffortRosControlController will be used.
 
         """
+
+
         if environmentController is None:
             environmentController = EffortRosControlController(
                              effortControllersInfos = { "panda_arm_effort_effort_compensated_controller" : ("panda_arm_effort_effort_compensated_controller",
@@ -114,10 +117,13 @@ class PandaEffortBaseEnv(ControlledEnv):
                                                         ("panda","panda_joint6", 1),
                                                         ("panda","panda_joint7", 0)],
                              stepLength_sec = stepLength_sec,
-                             ros_master_uri = ros_master_uri)
+                             forced_ros_master_uri = forced_ros_master_uri)
 
-        super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
-                         environmentController = environmentController)
+        super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
+                         environmentController = environmentController,
+                         startSimulation = startSimulation)
+
+
 
 
         self._maxTorques = np.array(maxTorques)
@@ -150,7 +156,7 @@ class PandaEffortBaseEnv(ControlledEnv):
 
 
 
-    def _startAction(self, action : Tuple[float, float, float, float, float, float, float]) -> None:
+    def submitAction(self, action : Tuple[float, float, float, float, float, float, float]) -> None:
         """Send the joint torque command.
 
         Parameters
@@ -159,15 +165,16 @@ class PandaEffortBaseEnv(ControlledEnv):
             torque control command
 
         """
+        super().submitAction(action)
         clippedAction = np.clip(np.array(action, dtype=np.float32),-self._maxTorques,self._maxTorques)
         torques = [normalizedTorque*maxTorque for normalizedTorque,maxTorque in zip(clippedAction,self._maxTorques)]
         jointTorques = [("panda","panda_joint"+str(i+1),torques[i]) for i in range(7)]
         self._environmentController.setJointsEffort(jointTorques)
 
-    def _getObservation(self, state) -> np.ndarray:
+    def getObservation(self, state) -> np.ndarray:
         return state
 
-    def _getState(self) -> NDArray[(20,), np.float32]:
+    def getState(self) -> NDArray[(20,), np.float32]:
         """Get an observation of the environment.
 
         Returns
@@ -218,3 +225,15 @@ class PandaEffortBaseEnv(ControlledEnv):
                     jointStates["panda","panda_joint7"].rate[0]] # No unrecoverable failure states
         #print("Got state = ",state)
         return np.array(state,dtype=np.float32)
+
+
+
+    def buildSimulation(self, backend : str = "gazebo"):
+        if backend != "gazebo":
+            raise NotImplementedError("Backend "+backend+" not supported")
+
+        self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("gazebo_gym")+"/launch/launch_panda_effort_gazebo_sim.launch", cli_args=["gui:=false", "load_gripper:=false"])
+        self._mmRosLauncher.launchAsync()
+
+    def destroySimulation(self):
+        self._mmRosLauncher.stop()

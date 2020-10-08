@@ -27,7 +27,7 @@ def main(usePyBullet : bool = False) -> None:
         stepLength_sec = 0.001
         PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("gazebo_gym")+"/models/hopper.urdf")
         simulatorController = PyBulletController(stepLength_sec = stepLength_sec)
-        env = HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, renderInStep=False, maxFramesPerEpisode = 50000)
+        env = HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, renderInStep=False, maxActionsPerEpisode = 50000)
     else:
         env = HopperEnv(renderInStep=False)
 

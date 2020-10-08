@@ -29,7 +29,7 @@ class EffortRosControlController(RosEnvController):
                  trajectoryControllersInfos : Dict[str,Tuple[str,str,Tuple[str]]],
                  initialJointPositions : List[Tuple[str,str,float]],
                  stepLength_sec : float = 0.001,
-                 ros_master_uri : str = None):
+                 forced_ros_master_uri : str = None):
         """Initialize the environment controller.
 
         Parameters
@@ -57,7 +57,7 @@ class EffortRosControlController(RosEnvController):
 
         """
         rospy.loginfo("setting stepLength_sec to "+str(stepLength_sec))
-        super().__init__(stepLength_sec = stepLength_sec, ros_master_uri = ros_master_uri)
+        super().__init__(stepLength_sec = stepLength_sec, forced_ros_master_uri = forced_ros_master_uri)
 
         self._effortControllersInfos = effortControllersInfos
         self._trajectoryControllersInfos = trajectoryControllersInfos

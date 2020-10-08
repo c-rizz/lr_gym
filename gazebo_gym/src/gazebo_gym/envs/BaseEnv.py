@@ -20,12 +20,10 @@ import time
 import utils
 
 
-class BaseEnv(gym.Env):
-    """This is a base-class for implementing OpenAI-gym environments.
+class BaseEnv():
+    """This is a base-class for implementing gazebo_gym environments.
 
-    It defines more specific methods to be implemented than the original gym.Env class,
-    also it implements a simple cache for the state of the environment and keeps track
-    of some useful metrics.
+    It defines more general methods to be implemented than the original gym.Env class.
 
     You can extend this class with a sub-class to implement specific environments.
     """
@@ -35,7 +33,7 @@ class BaseEnv(gym.Env):
     metadata = None # e.g. {'render.modes': ['rgb_array']}
 
     def __init__(self,
-                 maxFramesPerEpisode : int = 500,
+                 maxActionsPerEpisode : int = 500,
                  startSimulation : bool = False,
                  simulationBackend : str = "gazebo",
                  verbose : bool = False,
@@ -44,313 +42,22 @@ class BaseEnv(gym.Env):
 
         Parameters
         ----------
-        maxFramesPerEpisode : int
+        maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
 
         """
 
-        self._verbose = verbose
-        self._quiet = quiet
-        self._maxFramesPerEpisode = maxFramesPerEpisode
-        self._framesCounter = 0
-        self._lastStepStartEnvTime = -1
-        self._lastStepEndEnvTime = -1
-        self._cumulativeImagesAge = 0
-        self._lastStepGotState = -1
-        self._lastState = None
-        self._totalEpisodeReward = 0
-        self._resetCount = 0
-
-
-        self._envStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
-        self._startActionDurationAverage = utils.AverageKeeper(bufferSize = 100)
-        self._observationDurationAverage = utils.AverageKeeper(bufferSize = 100)
-        self._wallStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
-        self._lastStepEndSimTimeFromStart = 0
-        self._reset_dbgInfo_timings = {}
+        self._actionsCounter = 0
+        self._maxActionsPerEpisode = maxActionsPerEpisode
 
         if startSimulation:
-            self._buildSimulation()
+            self.buildSimulation(backend=simulationBackend)
 
 
 
-    def step(self, action) -> Tuple[Sequence, int, bool, Dict[str,Any]]:
-        """Run one step of the environment's dynamics.
 
-        When end of episode is reached, you are responsible for calling `reset()`
-        to reset this environment's state.
-        Accepts an action and returns a tuple (observation, reward, done, info).
-
-        Parameters
-        ----------
-        action
-            Defines the action to be performed. See the environment implementation to know its format
-
-        Returns
-        -------
-        Tuple[Sequence, int, bool, Dict[str,Any]]
-            The first element is the observation. See the environment implementation to know its format
-            The second element is the reward. See the environment implementation to know its format
-            The third is True if the episode finished, False if it isn't
-            The fourth is a dict containing auxiliary info. It contains the "simTime" element,
-             which indicates the time reached by the simulation
-
-        Raises
-        -------
-        AttributeError
-            If an invalid action is provided
-
-        """
-        #rospy.loginfo("step()")
-
-        if self._framesCounter>=self._maxFramesPerEpisode-1:
-            rospy.loginfo("Environment reached max duration")
-            state = self._getStateCached()
-            observation = self._getObservation(state)
-            reward = 0
-            done = True
-            info = {}
-            info.update(self._getInfo())
-            self._lastStepEndSimTimeFromStart = self._environmentController.getEnvSimTimeFromStart()
-            info.update(self._reset_dbgInfo_timings)
-            return (observation, reward, done, info)
-
-        # Get previous observation
-        t0 = time.time()
-        previousState = self._getStateCached()
-
-        # Setup action to perform
-        t_preAct = time.time()
-        self._startAction(action)
-        self._startActionDurationAverage.addValue(newValue = time.time()-t_preAct)
-
-        # Step the environment
-        self._lastStepStartEnvTime = rospy.get_time()
-        t_preStep = time.time()
-        self._performStep()
-        self._wallStepDurationAverage.addValue(newValue = time.time()-t_preStep)
-        self._framesCounter+=1
-
-        #Get new observation
-        t_preObs = time.time()
-        state = self._getStateCached()
-        self._observationDurationAverage.addValue(newValue = time.time()-t_preObs)
-        self._lastStepEndEnvTime = rospy.get_time()
-
-        # Assess the situation
-        done = self._checkEpisodeEnd(previousState, state)
-        reward = self._computeReward(previousState, state, action)
-        observation = self._getObservation(state)
-        info = {"gz_gym_base_env_reached_state" : state,
-                "gz_gym_base_env_previous_state" : previousState,
-                "gz_gym_base_env_action" : action}
-        info.update(self._getInfo())
-        info.update(self._reset_dbgInfo_timings)
-
-        self._totalEpisodeReward += reward
-
-        #rospy.loginfo("step() return")
-        ret = (observation, reward, done, info)
-
-        self._envStepDurationAverage.addValue(newValue = time.time()-t0)
-
-        self._lastStepEndSimTimeFromStart = self._environmentController.getEnvSimTimeFromStart()
-
-        # print(type(observation))
-
-        # for r in ret:
-        #     print(str(r))
-        # time.sleep(1)
-        # rospy.logwarn("returning "+str(ret))
-        return ret
-
-
-
-
-
-
-    def reset(self):
-        """Reset the state of the environment and return an initial observation.
-
-        Returns
-        -------
-        Any
-            the initial observation.
-
-        """
-        #rospy.loginfo("reset()")
-        self._resetCount += 1
-        if self._verbose:
-            rospy.loginfo(" ------- Resetting Environment (#"+str(self._resetCount)+")-------")
-
-        if self._framesCounter == 0:
-            rospy.loginfo("No step executed in this episode")
-        else:
-            avgSimTimeStepDuration = self._lastStepEndSimTimeFromStart/self._framesCounter
-            totEpisodeWallDuration = time.time() - self._lastResetTime
-            resetWallDuration = self._lastPostResetTime-self._lastResetTime
-            self._reset_dbgInfo_timings["avg_env_step_wall_duration"] = self._envStepDurationAverage.getAverage()
-            self._reset_dbgInfo_timings["avg_sim_step_wall_duration"] = self._wallStepDurationAverage.getAverage()
-            self._reset_dbgInfo_timings["avg_act_wall_duration"] = self._startActionDurationAverage.getAverage()
-            self._reset_dbgInfo_timings["avg_obs_wall_duration"] = self._observationDurationAverage.getAverage()
-            self._reset_dbgInfo_timings["avg_step_sim_duration"] = avgSimTimeStepDuration
-            self._reset_dbgInfo_timings["tot_ep_wall_duration"] = totEpisodeWallDuration
-            self._reset_dbgInfo_timings["reset_wall_duration"] = resetWallDuration
-            self._reset_dbgInfo_timings["ep_frames_count"] = self._framesCounter
-            self._reset_dbgInfo_timings["ep_reward"] = self._totalEpisodeReward
-            self._reset_dbgInfo_timings["wall_fps"] = self._framesCounter/(time.time()-self._envResetTime)
-            if self._verbose:
-                for k,v in self._reset_dbgInfo_timings.items():
-                    rospy.loginfo(k," = ",v)
-            elif not self._quiet:
-                rospy.loginfo(  "ep_reward = {:f}".format(self._reset_dbgInfo_timings["ep_reward"])+
-                                " \t ep_frames_count = {:d}".format(self._reset_dbgInfo_timings["ep_frames_count"])+
-                                " \t wall_fps = {:f}".format(self._reset_dbgInfo_timings["wall_fps"]))
-
-        self._lastResetTime = time.time()
-        #reset simulation state
-        self._performReset()
-        self._lastPostResetTime = time.time()
-
-        if self._framesCounter!=0 and self._cumulativeImagesAge!=0:
-            rospy.logwarn("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
-
-        self._framesCounter = 0
-        self._cumulativeImagesAge = 0
-        self._lastStepStartEnvTime = -1
-        self._lastStepEndEnvTime = 0
-        self._lastStepGotState = -1
-        self._lastState = None
-        self._totalEpisodeReward = 0
-        self._envResetTime = time.time()
-
-        self._onResetDone()
-        #time.sleep(1)
-
-
-
-
-
-        self._envStepDurationAverage.reset()
-        self._startActionDurationAverage.reset()
-        self._observationDurationAverage.reset()
-        self._wallStepDurationAverage.reset()
-
-        #rospy.loginfo("reset() return")
-        observation = self._getObservation(self._getStateCached())
-        # print("observation space = "+str(self.observation_space)+" high = "+str(self.observation_space.high)+" low = "+str(self.observation_space.low))
-        # print("observation = "+str(observation))
-        return observation
-
-
-
-
-
-
-
-    def render(self, mode : str = 'rgb_array') -> np.ndarray:
-        """Get a rendering of the environment.
-
-        This rendering is not synchronized with the end of the step() function
-
-        Parameters
-        ----------
-        mode : string
-            type of rendering to generate. Only "rgb_array" is supported
-
-        Returns
-        -------
-        type
-            A rendering in the format of a numpy array of shape (width, height, 3), BGR channel order.
-            OpenCV-compatible
-
-        Raises
-        -------
-        NotImplementedError
-            If called with mode!="rgb_array"
-
-        """
-        if mode!="rgb_array":
-            raise NotImplementedError("only rgb_array mode is supported")
-
-        npArrImage, imageTime = self._getRendering()
-
-        if imageTime < self._lastStepStartEnvTime:
-            rospy.logwarn("render(): The most recent camera image is older than the start of the last step! (by "+str(self._lastStepStartEnvTime-imageTime)+"s)")
-
-        cameraImageAge = self._lastStepEndEnvTime - imageTime
-        #rospy.loginfo("Rendering image age = "+str(cameraImageAge)+"s")
-        self._cumulativeImagesAge += cameraImageAge
-
-
-        return npArrImage
-
-
-
-
-
-
-
-
-
-    def close(self):
-        """Close the environment.
-
-        Environments will automatically close() themselves when
-        garbage collected or when the program exits.
-        """
-        self._destroySimulation()
-
-
-
-
-
-
-
-
-
-    def seed(self, seed=None):
-        """Set the seed for this env's random number generator(s).
-
-        Note:
-            Some environments use multiple pseudorandom number generators.
-            We want to capture all such seeds used in order to ensure that
-            there aren't accidental correlations between multiple generators.
-        Returns:
-            list<bigint>: Returns the list of seeds used in this env's random
-              number generators. The first value in the list should be the
-              "main" seed, or the value which a reproducer should pass to
-              'seed'. Often, the main seed equals the provided 'seed', but
-              this won't be true if seed=None, for example.
-        """
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
-
-
-
-
-    def _getStateCached(self) -> Any:
-        """Get the an observation of the environment keeping a cache of the last observation.
-
-        Returns
-        -------
-        Any
-            An observation of the environment. See the environment implementation for details on its format
-
-        """
-        if self._framesCounter != self._lastStepGotState:
-            self._lastStepGotState = self._framesCounter
-            self._lastState = self._getState()
-
-        return self._lastState
-
-
-
-
-
-
-    def _startAction(self, action) -> None:
+    def submitAction(self, action) -> None:
         """To be implemented in subclass.
 
         This method is called during the stepping of the simulation. It is called while the simulation is paused and
@@ -371,9 +78,10 @@ class BaseEnv(gym.Env):
             Raised if the provided action is not valid
 
         """
-        raise NotImplementedError()
+        self._actionsCounter += 1
 
-    def _checkEpisodeEnd(self, previousState, state) -> bool:
+
+    def checkEpisodeEnded(self, previousState, state) -> bool:
         """To be implemented in subclass.
 
         This method is called during the stepping of the simulation. Just after the simulation has been stepped forward
@@ -392,9 +100,12 @@ class BaseEnv(gym.Env):
             Return True if the episode has ended, False otherwise
 
         """
-        raise NotImplementedError()
+        if self._actionsCounter >= self._maxActionsPerEpisode and self._maxActionsPerEpisode>0:
+            return True
+        else:
+            return False
 
-    def _computeReward(self, previousState, state, action) -> float:
+    def computeReward(self, previousState, state, action) -> float:
         """To be implemented in subclass.
 
         This method is called during the stepping of the simulation. Just after the simulation has been stepped forward
@@ -416,7 +127,7 @@ class BaseEnv(gym.Env):
         raise NotImplementedError()
 
 
-    def _getObservation(self) -> Sequence:
+    def getObservation(self) -> Sequence:
         """To be implemented in subclass.
 
         Get an observation of the environment.
@@ -429,7 +140,7 @@ class BaseEnv(gym.Env):
         """
         raise NotImplementedError()
 
-    def _getState(self) -> Sequence:
+    def getState(self) -> Sequence:
         """To be implemented in subclass.
 
         Get the state of the environment form the simulation
@@ -443,7 +154,7 @@ class BaseEnv(gym.Env):
         raise NotImplementedError()
 
 
-    def _getCameraToRenderName(self) -> str:
+    def getCameraToRenderName(self) -> str:
         """To be implemented in subclass.
 
         This method is called by the render method to determine the name of the camera to be rendered
@@ -457,7 +168,7 @@ class BaseEnv(gym.Env):
         raise NotImplementedError() #TODO: This is super wierd, need to rethink it
 
 
-    def _onResetDone(self) -> None:
+    def onResetDone(self) -> None:
         """To be implemented in subclass.
 
         This method is called by the reset method to allow the sub-class to reset environment-specific details
@@ -466,28 +177,28 @@ class BaseEnv(gym.Env):
         pass
 
 
-    def _performStep(self) -> None:
+    def performStep(self) -> None:
         """To be implemented in subclass.
 
         This method is called by the step method to perform the stepping of the environment. In the case of
         simulated environments this means stepping forward the simulated time.
-        It is called after _startAction and before getting the state observation
+        It is called after submitAction and before getting the state observation
 
         """
         raise NotImplementedError()
 
 
-    def _performReset(self) -> None:
+    def performReset(self) -> None:
         """To be implemented in subclass.
 
         This method is called by the reset method to perform the actual reset of the environment to its initial state
 
         """
-        raise NotImplementedError()
+        self._actionsCounter = 0
 
 
 
-    def _getRendering(self) -> Tuple[np.ndarray, float]:
+    def getRendering(self) -> Tuple[np.ndarray, float]:
         """To be implemented in subclass.
 
         This method is called by the render method to get the environment rendering
@@ -496,7 +207,7 @@ class BaseEnv(gym.Env):
 
         raise NotImplementedError()
 
-    def _getInfo(self) -> Dict[Any,Any]:
+    def getInfo(self) -> Dict[Any,Any]:
         """To be implemented in subclass.
 
         This method is called by the step method. The values returned by it will be appended in the info variable returned bby step
@@ -504,18 +215,21 @@ class BaseEnv(gym.Env):
         """
         return {}
 
-    def getMaxFramesPerEpisode(self):
+    def getMaxStepsPerEpisode(self):
         """Get the maximum number of frames of one episode, as set by the constructor."""
-        return self._maxFramesPerEpisode
+        return self._maxActionsPerEpisode
 
     def setGoalInState(self, state, goal):
         """Update the provided state with the provided goal. Useful for goal-oriented environments, especially when using HER. It's used by ToGoalEnvWrapper."""
         raise NotImplementedError()
 
-    def _buildSimulation(self, backend : str = "gazebo"):
+    def buildSimulation(self, backend : str = "gazebo"):
         """Build a simulation for the environment."""
         raise NotImplementedError()
 
-    def _destroySimulation(self):
-        """Destroy a simulation built by _buildSimulation."""
+    def destroySimulation(self):
+        """Destroy a simulation built by buildSimulation."""
         pass
+
+    def getSimTimeFromEpStart(self):
+        return self._environmentController.getEnvSimTimeFromStart()

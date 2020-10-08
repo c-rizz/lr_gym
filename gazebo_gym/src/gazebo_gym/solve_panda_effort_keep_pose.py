@@ -15,6 +15,7 @@ import numpy as np
 
 import gazebo_gym
 from gazebo_gym.envs.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
+from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 from stable_baselines.common.callbacks import CheckpointCallback
 
 def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, numEpisodes : int = -1):
@@ -62,7 +63,7 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     #hyperparameters taken by the RL baslines zoo repo
     model = SAC( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
                  buffer_size=200000, gamma=0.99, gradient_steps=1000,
-                 learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[200, 150]), train_freq=env.getMaxFramesPerEpisode(),
+                 learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[200, 150]), train_freq=env.getBaseEnv().getMaxStepsPerEpisode(),
                  seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
                  tensorboard_log="./solve_panda_effort_keep_tensorboard/")
 
@@ -107,8 +108,9 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
 
 def main(fileToLoad : str = None):
 
-    env = PandaEffortKeepPoseEnv(   goalPose = (0.4,0.4,0.6, 1,0,0,0),
-                                    maxFramesPerEpisode = 2000)
+    env = GymEnvWrapper(PandaEffortKeepPoseEnv( goalPose = (0.4,0.4,0.6, 1,0,0,0),
+                                                maxActionsPerEpisode = 2000,
+                                                startSimulation = True))
 
     model = trainOrLoad(env,1000000, fileToLoad = fileToLoad)
     input("Press Enter to continue...")

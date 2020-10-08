@@ -72,11 +72,12 @@ class GazeboControllerNoPlugin(EnvironmentController):
             try:
                 useSimTime = rospy.get_param("/use_sim_time")
             except KeyError:
-                pass
+                print("Could not get /use_sim_time. Will retry")
+                time.sleep(1)
             except ConnectionRefusedError:
-                pass
-            if useSimTime is None:
-                time.sleep(0.25)
+                print("No connection to ROS parameter server. Will retry")
+                time.sleep(1)
+
 
         rospy.init_node('gazebo_env_controller', anonymous=True)
 

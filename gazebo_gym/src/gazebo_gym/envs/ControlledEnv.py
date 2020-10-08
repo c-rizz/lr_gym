@@ -31,7 +31,7 @@ class ControlledEnv(BaseEnv):
     metadata = None # e.g. {'render.modes': ['rgb_array']}
 
     def __init__(self,
-                 maxFramesPerEpisode : int = 500,
+                 maxActionsPerEpisode : int = 500,
                  stepLength_sec : float = 0.05,
                  environmentController = None,
                  startSimulation : bool = False,
@@ -40,7 +40,7 @@ class ControlledEnv(BaseEnv):
 
         Parameters
         ----------
-        maxFramesPerEpisode : int
+        maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         stepLength_sec : float
@@ -60,7 +60,7 @@ class ControlledEnv(BaseEnv):
         """
 
 
-        super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
+        super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
                          startSimulation = startSimulation,
                          simulationBackend = simulationBackend)
 
@@ -73,19 +73,20 @@ class ControlledEnv(BaseEnv):
 
 
 
-    def _performStep(self) -> None:
+    def performStep(self) -> None:
         self._environmentController.step()
         self._intendedSimTime += self._environmentController.getStepLength()
 
 
 
-    def _performReset(self):
+    def performReset(self):
+        super().performReset()
         self._environmentController.resetWorld()
         self._intendedSimTime = 0
 
-    def _getRendering(self) -> np.ndarray:
+    def getRendering(self) -> np.ndarray:
 
-        cameraName = self._getCameraToRenderName()
+        cameraName = self.getCameraToRenderName()
 
         #t0 = time.time()
         cameraImage = self._environmentController.getRenderings([cameraName])[0]
@@ -103,5 +104,5 @@ class ControlledEnv(BaseEnv):
         return (npArrImage, imageTime)
 
 
-    def _getInfo(self):
+    def getInfo(self):
         return {"simTime":self._intendedSimTime}

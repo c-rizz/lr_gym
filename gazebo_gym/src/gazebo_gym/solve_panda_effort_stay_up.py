@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import rospy
 import time
 import argparse
 import gym
@@ -15,6 +14,7 @@ import numpy as np
 
 import gazebo_gym
 from gazebo_gym.envs.PandaEffortStayUpEnv import PandaEffortStayUpEnv
+from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 
 def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, numEpisodes : int = -1):
     #frames = []
@@ -38,7 +38,7 @@ def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, n
         print("Ran for "+str(totDuration)+"s \t Reward: "+str(episodeReward))
 
 
-def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fileToLoad : str = None) -> None:
+def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, episodeLength : int, fileToLoad : str = None) -> None:
     """Run the provided environment with a random agent."""
 
     #setup seeds for reproducibility
@@ -55,7 +55,7 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     #hyperparameters taken by the RL baslines zoo repo
     model = TD3( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
                  buffer_size=1000000, gamma=0.99, gradient_steps=1000,
-                 learning_rate=0.001, learning_starts=10000, policy_kwargs=dict(layers=[400, 300]), train_freq=env.getMaxFramesPerEpisode(),
+                 learning_rate=0.001, learning_starts=10000, policy_kwargs=dict(layers=[400, 300]), train_freq=episodeLength,
                  seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
                  tensorboard_log="./solve_panda_effort_stayup_tensorboard/")
 
@@ -80,9 +80,11 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
 
 def main(fileToLoad : str = None):
 
-    env = PandaEffortStayUpEnv( maxFramesPerEpisode = 5000,
-                                maxTorques = [87, 87, 87, 87, 12, 12, 12])
-    model = trainOrLoad(env,1000000, fileToLoad = fileToLoad)
+    episodeLength = 5000
+    env = GymEnvWrapper(PandaEffortStayUpEnv(maxActionsPerEpisode = episodeLength,
+                                             maxTorques = [87, 87, 87, 87, 12, 12, 12],
+                                             startSimulation = True))
+    model = trainOrLoad(env,1000000, fileToLoad = fileToLoad, episodeLength = episodeLength)
     input("Press Enter to continue...")
     run(env,model)
 

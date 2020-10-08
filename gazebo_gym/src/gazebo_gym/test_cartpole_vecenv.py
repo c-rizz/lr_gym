@@ -12,6 +12,7 @@ from gazebo_gym_utils.subproc_vec_env_nd import SubprocVecEnvNonDaemonic
 import stable_baselines
 
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
+from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 from gazebo_gym.envControllers.GazeboController import GazeboController
 from gazebo_gym.envControllers.PyBulletController import PyBulletController
 
@@ -37,7 +38,7 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
     """
 
     def constructEnv():
-        return CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController, startSimulation = True)
+        return GymEnvWrapper(CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController, startSimulation = True), quiet=True)
     env = stable_baselines.common.vec_env.SubprocVecEnv([constructEnv for i in range(parallelEnvsNum)])
     #env = gym.make('CartPoleStayUp-v0')
     #env = CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController, startSimulation = True)
@@ -60,6 +61,7 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
 
 
     obss = env.reset()
+    episodeCounter = 0
     #do an average over a bunch of episodes
     for step_count in tqdm.tqdm(range(0,1000)):
         #rospy.loginfo("resetting...")
@@ -89,6 +91,9 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
         obss, stepRewards, dones, infos = env.step(action)
         #rospy.loginfo("stepped")
         #frames.append(env.render("rgb_array"))
+
+        episodeCounter += sum(dones)
+
         if sleepLength>0:
             time.sleep(sleepLength)
         step_count+=1
@@ -97,10 +102,10 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
         [rewards.append(stepReward) for stepReward in stepRewards]
         totFrames += 1
         #print("Episode "+str(episode)+" lasted "+str(frame)+" frames, total reward = "+str(episodeReward))
-    avgReward = sum(rewards)/len(rewards)
+    avgReward = sum(rewards)/episodeCounter
     totalWallTime = time.time() - wallTimeStart
 
-    print("Average reward is "+str(avgReward)+". Took "+str(totalWallTime)+" seconds ({:.3f}".format(totFrames/totalWallTime)+" fps). simTime/wallTime={:.3f}".format(totalSimTime/totalWallTime)+" total frames count = "+str(totFrames))
+    print("Average reward is "+str(avgReward)+". Took "+str(totalWallTime)+" seconds ({:.3f}".format(totFrames/totalWallTime)+"x"+str(env.num_envs)+" fps). simTime/wallTime={:.3f}".format(totalSimTime/totalWallTime)+" total frames count = "+str(totFrames)+" episode count = "+str(episodeCounter))
 
     env.close()
 

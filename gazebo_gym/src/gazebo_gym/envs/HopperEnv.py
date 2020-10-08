@@ -51,7 +51,7 @@ class HopperEnv(ControlledEnv):
     MAX_TORQUE = 75
 
     def __init__(   self,
-                    maxFramesPerEpisode : int = 500,
+                    maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     stepLength_sec : float = 0.05,
                     simulatorController : EnvironmentController = None):
@@ -59,7 +59,7 @@ class HopperEnv(ControlledEnv):
 
         Parameters
         ----------
-        maxFramesPerEpisode : int
+        maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -83,7 +83,7 @@ class HopperEnv(ControlledEnv):
         if simulatorController is None:
             simulatorController = GazeboController(stepLength_sec = stepLength_sec)
         #print("HopperEnv: action_space = "+str(self.action_space))
-        super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
+        super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
                          stepLength_sec = stepLength_sec,
                          environmentController = simulatorController)
         #print("HopperEnv: action_space = "+str(self.action_space))
@@ -100,7 +100,8 @@ class HopperEnv(ControlledEnv):
 
         self._environmentController.startController()
 
-    def _startAction(self, action : Tuple[float,float,float]) -> None:
+    def submitAction(self, action : Tuple[float,float,float]) -> None:
+        super().submitAction(action)
 
         if len(action)!=3:
             raise AttributeError("Action must have length 3, it is "+str(action))
@@ -113,8 +114,11 @@ class HopperEnv(ControlledEnv):
                                                     ("hopper","leg_to_foot",unnormalizedAction[2])])
 
 
-    def _checkEpisodeEnd(self, previousState : Tuple[float,float,float,float,float,float,float,float,float,float],
+    def checkEpisodeEnded(self, previousState : Tuple[float,float,float,float,float,float,float,float,float,float],
                          state : Tuple[float,float,float,float,float,float,float,float,float,float]) -> bool:
+
+        if super().checkEpisodeEnded(previousState, state):
+            return True
         torso_z_displacement = state[self.POS_Z_OBS]
         torso_pitch = state[self.TORSO_PITCH_OBS]
         #rospy.loginfo("height = "+str(mid_torso_height))
@@ -127,11 +131,11 @@ class HopperEnv(ControlledEnv):
         return done
 
 
-    def _computeReward( self,
+    def computeReward( self,
                         previousState : Tuple[float,float,float,float,float,float,float,float,float,float],
                         state : Tuple[float,float,float,float,float,float,float,float,float,float],
                         action : Tuple[float,float,float]) -> float:
-        if not self._checkEpisodeEnd(previousState, state):
+        if not self.checkEpisodeEnded(previousState, state):
             speed = (state[15] - state[16])/self._stepLength_sec
             # print("Speed: "+str(speed))
             return 1 + 2*speed - 0.003*(action[0]*action[0] + action[1]*action[1] + action[2]*action[2]) # should be more or less the same as openai's hopper_v3
@@ -139,21 +143,21 @@ class HopperEnv(ControlledEnv):
             return -1
 
 
-    def _onResetDone(self) -> None:
+    def onResetDone(self) -> None:
         self._environmentController.setJointsEffort([  ("hopper","torso_to_thigh",0),
                                                        ("hopper","thigh_to_leg",0),
                                                        ("hopper","leg_to_foot",0)])
 
 
 
-    def _getCameraToRenderName(self) -> str:
+    def getCameraToRenderName(self) -> str:
         return "camera"
 
 
-    def _getObservation(self, state) -> np.ndarray:
+    def getObservation(self, state) -> np.ndarray:
         return state[0:-2]
 
-    def _getState(self) -> np.ndarray:
+    def getState(self) -> np.ndarray:
         """Get an observation of the environment.
 
         Returns

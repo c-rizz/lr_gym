@@ -34,7 +34,7 @@ class CartpoleEnv(ControlledEnv):
     metadata = {'render.modes': ['rgb_array']}
 
     def __init__(   self,
-                    maxFramesPerEpisode : int = 500,
+                    maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     stepLength_sec : float = 0.05,
                     simulatorController = None,
@@ -43,7 +43,7 @@ class CartpoleEnv(ControlledEnv):
 
         Parameters
         ----------
-        maxFramesPerEpisode : int
+        maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -66,7 +66,7 @@ class CartpoleEnv(ControlledEnv):
         """
 
 
-        super().__init__(maxFramesPerEpisode = maxFramesPerEpisode,
+        super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
                          stepLength_sec = stepLength_sec,
                          environmentController = simulatorController,
                          startSimulation = startSimulation,
@@ -79,7 +79,8 @@ class CartpoleEnv(ControlledEnv):
 
         self._environmentController.startController()
 
-    def _startAction(self, action : int) -> None:
+    def submitAction(self, action : int) -> None:
+        super().submitAction(action)
         if action == 0: #left
             direction = -1
         elif action == 1:
@@ -91,7 +92,9 @@ class CartpoleEnv(ControlledEnv):
 
 
 
-    def _checkEpisodeEnd(self, previousState : Tuple[float,float,float,float], state : Tuple[float,float,float,float]) -> bool:
+    def checkEpisodeEnded(self, previousState : Tuple[float,float,float,float], state : Tuple[float,float,float,float]) -> bool:
+        if super().checkEpisodeEnded(previousState, state):
+            return True
         cartPosition = state[0]
         poleAngle = state[2]
 
@@ -103,25 +106,26 @@ class CartpoleEnv(ControlledEnv):
         else:
             done = False
 
+        #rospy.loginfo("checkEpisodeEnded returning "+str(done)+" cartPosition = "+str(cartPosition)+" poleAngle = "+str(poleAngle))
         return done
 
 
-    def _computeReward(self, previousState : Tuple[float,float,float,float], state : Tuple[float,float,float,float], action : int) -> float:
+    def computeReward(self, previousState : Tuple[float,float,float,float], state : Tuple[float,float,float,float], action : int) -> float:
         return 1
 
 
-    def _onResetDone(self) -> None:
+    def onResetDone(self) -> None:
         self._environmentController.setJointsEffort([("cartpole_v0","foot_joint",0),("cartpole_v0","cartpole_joint",0)])
 
 
-    def _getCameraToRenderName(self) -> str:
+    def getCameraToRenderName(self) -> str:
         return "camera"
 
 
-    def _getObservation(self, state) -> np.ndarray:
+    def getObservation(self, state) -> np.ndarray:
         return state
 
-    def _getState(self) -> Tuple[float,float,float,float]:
+    def getState(self) -> Tuple[float,float,float,float]:
         """Get an observation of the environment.
 
         Returns
@@ -144,16 +148,16 @@ class CartpoleEnv(ControlledEnv):
                   states[("cartpole_v0","cartpole_joint")].position[0],
                   states[("cartpole_v0","cartpole_joint")].rate[0])
 
-        #print(observation)
+        #print(state)
 
         return state
 
-    def _buildSimulation(self, backend : str = "gazebo"):
+    def buildSimulation(self, backend : str = "gazebo"):
         if backend != "gazebo":
-            raise NotImplementedError("Backend '+backend+' not supported")
+            raise NotImplementedError("Backend "+backend+" not supported")
 
-        self.mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("gazebo_gym")+"/launch/cartpole_gazebo_sim.launch", cli_args=["gui:=false"])
-        self.mmRosLauncher.launchAsync()
+        self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("gazebo_gym")+"/launch/cartpole_gazebo_sim.launch", cli_args=["gui:=false"])
+        self._mmRosLauncher.launchAsync()
 
-    def _destroySimulation(self):
-        self.mmRosLauncher.stop()
+    def destroySimulation(self):
+        self._mmRosLauncher.stop()

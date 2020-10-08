@@ -14,6 +14,7 @@ from gazebo_gym_utils.msg import LinkStates
 import rospy
 import gazebo_gym
 import os
+import time
 
 class RosEnvController(EnvironmentController):
     """This class allows to control the execution of a ROS-based environment.
@@ -22,7 +23,7 @@ class RosEnvController(EnvironmentController):
 
     """
 
-    def __init__(   self, stepLength_sec : float = 0.001, ros_master_uri : str = None):
+    def __init__(   self, stepLength_sec : float = 0.001, forced_ros_master_uri : str = None):
         """Initialize the Simulator controller.
 
         Raises
@@ -32,21 +33,9 @@ class RosEnvController(EnvironmentController):
 
         """
         super().__init__(stepLength_sec = stepLength_sec)
-        if ros_master_uri is not None:
-            os.environ['ROS_MASTER_URI'] = ros_master_uri
 
-        # init_node uses use_sim_time to determine which time to use, but I can't
-        # find a reliable way for it to be set before init_node is being called
-        # So we wait for it to be set to either true or false
-        useSimTime = None
-        while useSimTime is None:
-            try:
-                useSimTime = rospy.get_param("/use_sim_time")
-            except KeyError:
-                pass
 
-        rospy.init_node('ros_env_controller', anonymous=True)
-
+        self._forced_ros_master_uri = forced_ros_master_uri
         self._listenersStarted = False
 
         self._lastImagesReceived = {}
@@ -55,7 +44,6 @@ class RosEnvController(EnvironmentController):
 
         self._jointStatesMutex = Lock() #To synchronize _jointStateCallback with getJointsState
         self._linkStatesMutex = Lock() #To synchronize _jointStateCallback with getJointsState
-        self._simTimeStart = rospy.get_time()
 
         self._jointStateMsgAgeAvg = gazebo_gym.utils.AverageKeeper(bufferSize = 100)
         self._linkStateMsgAgeAvg = gazebo_gym.utils.AverageKeeper(bufferSize = 100)
@@ -104,6 +92,27 @@ class RosEnvController(EnvironmentController):
             Why the exception is raised.
 
         """
+
+        if self._forced_ros_master_uri is not None:
+            os.environ['ROS_MASTER_URI'] = self._forced_ros_master_uri
+
+        # init_node uses use_sim_time to determine which time to use, but I can't
+        # find a reliable way for it to be set before init_node is being called
+        # So we wait for it to be set to either true or false
+        useSimTime = None
+        while useSimTime is None:
+            try:
+                useSimTime = rospy.get_param("/use_sim_time")
+            except KeyError:
+                print("Could not get /use_sim_time. Will retry")
+                time.sleep(1)
+            except ConnectionRefusedError:
+                print("No connection to ROS parameter server. Will retry")
+                time.sleep(1)
+
+        rospy.init_node('ros_env_controller', anonymous=True)
+
+        self._simTimeStart = rospy.get_time()
 
         self._imageSubscribers = []
         for cam_topic in self._camerasToObserve:

@@ -112,7 +112,7 @@ def main(fileToLoad : str = None):
                                                 maxActionsPerEpisode = 2000,
                                                 startSimulation = True))
 
-    model = trainOrLoad(env,1000000, fileToLoad = fileToLoad)
+    model = trainOrLoad(env,4000000, fileToLoad = fileToLoad)
     input("Press Enter to continue...")
     run(env,model)
 

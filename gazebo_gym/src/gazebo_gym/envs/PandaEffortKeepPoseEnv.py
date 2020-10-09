@@ -104,10 +104,10 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
         if orientDistImprovement<0:
             orientDistImprovement*=2
 
-        positionClosenessBonus    = math.pow(2*(2-posDist_new)/2, 2)
-        orientationClosenessBonus = math.pow(0.1*(math.pi-orientDist_new)/math.pi, 2)
+        positionClosenessBonus    = 1.0*(-(posDist_new/2))
+        orientationClosenessBonus = 0.1*(-orientDist_new/math.pi)
 
 
-        reward = positionClosenessBonus + orientationClosenessBonus + posDistImprovement + orientDistImprovement
+        reward = positionClosenessBonus + orientationClosenessBonus + 1000*(posDistImprovement + orientDistImprovement)
         #rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
         return reward

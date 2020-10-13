@@ -28,7 +28,8 @@ class GazeboController(GazeboControllerNoPlugin):
 
     def __init__(   self,
                     usePersistentConnections : bool = False,
-                    stepLength_sec : float = 0.001):
+                    stepLength_sec : float = 0.001,
+                    rosMasterUri : str = None):
         """Initialize the Gazebo controller.
 
         Parameters
@@ -53,7 +54,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
         """
 
-        super().__init__(stepLength_sec=stepLength_sec)
+        super().__init__(stepLength_sec=stepLength_sec, rosMasterUri = rosMasterUri)
         self._usePersistentConnections = usePersistentConnections
 
     def startController(self):
@@ -160,7 +161,7 @@ class GazeboController(GazeboControllerNoPlugin):
 
         #print("Step done, joint state = "+str(self._simulationState.jointsState))
         if not response.success:
-            rospy.logerror("Simulation stepping failed")
+            rospy.logerr("Simulation stepping failed")
 
     def _performRender(self, requestedCameras : List[str]):
         req = gazebo_gym_env_plugin.srv.RenderCamerasRequest()

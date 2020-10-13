@@ -60,14 +60,14 @@ class ControlledEnv(BaseEnv):
         """
 
 
+        if environmentController is None:
+            environmentController = GazeboController(stepLength_sec = stepLength_sec)
+        self._environmentController = environmentController
+
         super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
                          startSimulation = startSimulation,
                          simulationBackend = simulationBackend)
 
-        if environmentController is None:
-            environmentController = GazeboController(stepLength_sec = stepLength_sec)
-
-        self._environmentController = environmentController
         self._intendedSimTime = 0
 
 

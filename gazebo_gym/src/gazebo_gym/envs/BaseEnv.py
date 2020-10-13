@@ -227,9 +227,12 @@ class BaseEnv():
         """Build a simulation for the environment."""
         raise NotImplementedError()
 
-    def destroySimulation(self):
+    def _destroySimulation(self):
         """Destroy a simulation built by buildSimulation."""
         pass
 
     def getSimTimeFromEpStart(self):
         return self._environmentController.getEnvSimTimeFromStart()
+
+    def close(self):
+        self._destroySimulation()

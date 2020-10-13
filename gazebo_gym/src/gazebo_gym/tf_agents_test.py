@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-import gym
-
-
 
 
 import tensorflow as tf
@@ -14,20 +11,21 @@ from tf_agents.trajectories import trajectory
 from tf_agents.utils import common
 from tf_agents.environments import suite_gym
 from tf_agents.environments import tf_py_environment
-from tf_agents.policies import random_tf_policy
+from tf_agents.environments.batched_py_environment import BatchedPyEnvironment
 
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
+from gazebo_gym.envs.SubProcGazeboEnvWrapper import SubProcGazeboEnvWrapper
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
+
 
 #import pyvirtualdisplay
 import time
 
 
 learning_rate = 0.0005
-replay_buffer_size = 50000
+replay_buffer_size = 20000
 initial_collect_steps = 100  # @param {type:"integer"}
-training_episodes = 250
-steps_per_iteration = 1
+training_episodes = 300
 
 tf.compat.v1.enable_v2_behavior()
 
@@ -39,9 +37,10 @@ writer.set_as_default()
 #display = pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
 
 
-
+envs_num = 2
 #env = tf_py_environment.TFPyEnvironment(suite_gym.wrap_env(gym.make('CartPole-v1').unwrapped))
-env = tf_py_environment.TFPyEnvironment(suite_gym.wrap_env(GymEnvWrapper(CartpoleEnv(render=False, startSimulation = True))))
+env = tf_py_environment.TFPyEnvironment(BatchedPyEnvironment(
+                                        [suite_gym.wrap_env(GymEnvWrapper(SubProcGazeboEnvWrapper(CartpoleEnv(render=False, startSimulation = True))), auto_reset=False) for i in range(envs_num)]))
 #env = tf_py_environment.TFPyEnvironment(suite_gym.load('CartPole-v0'))
 
 
@@ -67,7 +66,9 @@ def compute_avg_return(environment, policy, num_episodes=10):
         time_step = environment.reset()
         episode_return = 0.0
 
-        while not time_step.is_last():
+        # print("time_step.is_last() = "+str(time_step.is_last()))
+
+        while not time_step.is_last().numpy().all():
             action_step = policy.action(time_step)
             time_step = environment.step(action_step.action)
             episode_return += time_step.reward
@@ -91,10 +92,11 @@ iterator = iter(dataset)
 
 collected_transitions_counter = tf.Variable(0)
 
+
 def collect_episode(environment, policy, buffer):
     print("collecting episode")
     time_step = environment.reset()
-    while not time_step.is_last():
+    while not time_step.is_last().numpy().all():
         time_step = environment.current_time_step() # gets reward and sytate
         action_step = policy.action(time_step)
         next_time_step = environment.step(action_step.action)

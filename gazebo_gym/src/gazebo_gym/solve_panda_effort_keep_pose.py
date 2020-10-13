@@ -80,6 +80,7 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     else:
         print("Loading "+fileToLoad+"...")
         model = SAC.load(fileToLoad)
+        model.action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.0 * np.ones(n_actions))
         print("Loaded model has hyperparameters:")
         print("policy:                 "+str(model.policy))
         #print("env:                    "+str(model.env))

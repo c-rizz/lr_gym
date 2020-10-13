@@ -17,6 +17,7 @@ import gazebo_gym_utils.ros_launch_utils
 import rospkg
 
 from gazebo_gym.envs.ControlledEnv import ControlledEnv
+from gazebo_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
 
 class CartpoleEnv(ControlledEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
@@ -156,8 +157,12 @@ class CartpoleEnv(ControlledEnv):
         if backend != "gazebo":
             raise NotImplementedError("Backend "+backend+" not supported")
 
-        self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("gazebo_gym")+"/launch/cartpole_gazebo_sim.launch", cli_args=["gui:=false"])
+        self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("gazebo_gym")+"/launch/cartpole_gazebo_sim.launch",
+                                                                                       cli_args=["gui:=true"])
         self._mmRosLauncher.launchAsync()
 
-    def destroySimulation(self):
+        if isinstance(self._environmentController, GazeboControllerNoPlugin):
+            self._environmentController.setRosMasterUri(self._mmRosLauncher.getRosMasterUri())
+
+    def _destroySimulation(self):
         self._mmRosLauncher.stop()

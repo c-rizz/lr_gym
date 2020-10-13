@@ -60,8 +60,10 @@ class MultiMasterRosLauncher:
                 inc+=1
         self._rosMasterPort = self._baseRosPort + inc
         self._gazeboPort = baseGazeboPort + inc
-        os.environ["ROS_MASTER_URI"] = "http://127.0.0.1:"+str(self._rosMasterPort)
-        os.environ["GAZEBO_MASTER_URI"] = "http://127.0.0.1:"+str(self._gazeboPort)
+        self._rosMasterUri = "http://127.0.0.1:"+str(self._rosMasterPort)
+        self._gazeboMasterUri = "http://127.0.0.1:"+str(self._gazeboPort)
+        os.environ["ROS_MASTER_URI"] = self._rosMasterUri
+        os.environ["GAZEBO_MASTER_URI"] = self._gazeboMasterUri
         print("MultiMasterRosLauncher will use port "+str(self._rosMasterPort))
 
     def __init__(self, launchFile : str, cli_args : List[str] = []):
@@ -106,3 +108,9 @@ class MultiMasterRosLauncher:
                         self._popen_obj.kill()
         self._mutex.release()
         print("Ros subprocess finished")
+
+    def getRosMasterUri(self):
+        return self._rosMasterUri
+
+    def getGazeboMasterUri(self):
+        return self._gazeboMasterUri

@@ -235,5 +235,5 @@ class PandaEffortBaseEnv(ControlledEnv):
         self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("gazebo_gym")+"/launch/launch_panda_effort_gazebo_sim.launch", cli_args=["gui:=false", "load_gripper:=false"])
         self._mmRosLauncher.launchAsync()
 
-    def destroySimulation(self):
+    def _destroySimulation(self):
         self._mmRosLauncher.stop()

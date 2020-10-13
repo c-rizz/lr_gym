@@ -299,7 +299,7 @@ class GymEnvWrapper(gym.Env):
         Environments will automatically close() themselves when
         garbage collected or when the program exits.
         """
-        self._ggEnv.destroySimulation()
+        self._ggEnv.close()
 
 
 

@@ -14,6 +14,7 @@ from std_srvs.srv import Empty
 
 from gazebo_gym.envControllers.EnvironmentController import EnvironmentController
 from gazebo_gym.utils import JointState
+import os
 
 class GazeboControllerNoPlugin(EnvironmentController):
     """This class allows to control the execution of a Gazebo simulation.
@@ -27,7 +28,8 @@ class GazeboControllerNoPlugin(EnvironmentController):
                     usePersistentConnections : bool = False,
                     stepLength_sec : float = 0.001,
                     jointsToObserve : List[Tuple[str,str]] = [],
-                    camerasToRender : List[str] = []):
+                    camerasToRender : List[str] = [],
+                    rosMasterUri : str = None):
         """Initialize the Gazebo controller.
 
         Parameters
@@ -60,6 +62,8 @@ class GazeboControllerNoPlugin(EnvironmentController):
         self._lastRenderResult = None
         self._usePersistentConnections = usePersistentConnections
 
+        self._rosMasterUri = rosMasterUri
+
 
     def startController(self):
         """Start up the controller. This must be called after setCamerasToObserve, setLinksToObserve and setJointsToObserve."""
@@ -78,7 +82,8 @@ class GazeboControllerNoPlugin(EnvironmentController):
                 print("No connection to ROS parameter server. Will retry")
                 time.sleep(1)
 
-
+        if self._rosMasterUri is not None:
+            os.environ["ROS_MASTER_URI"] = self._rosMasterUri
         rospy.init_node('gazebo_env_controller', anonymous=True)
 
         serviceNames = {"applyJointEffort" : "/gazebo/apply_joint_effort",
@@ -320,3 +325,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
 
     def getEnvSimTimeFromStart(self) -> float:
         return rospy.get_time()
+
+
+    def setRosMasterUri(self, rosMasterUri : str):
+        self._rosMasterUri = rosMasterUri

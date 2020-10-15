@@ -34,8 +34,14 @@ class PandaEffortBaseEnv(ControlledEnv):
 
 
 
-
-
+    # From franka documentation
+    joint_position_limits = np.array([  [ 2.8973, -2.8973],
+                                        [ 1.7628, -1.7628],
+                                        [ 2.8973, -2.8973],
+                                        [-0.0698, -3.0718],
+                                        [ 2.8973, -2.8973],
+                                        [ 3.7525, -0.0175],
+                                        [ 2.8973, -2.8973]])
 
 
 
@@ -237,3 +243,13 @@ class PandaEffortBaseEnv(ControlledEnv):
 
     def _destroySimulation(self):
         self._mmRosLauncher.stop()
+
+    def _normalizedJointPositions(self, state):
+        jnt_positions = np.array([state[i] for i in range(6,6+7)])
+
+        max_limits = self.joint_position_limits[:,0]
+        min_limits = self.joint_position_limits[:,1]
+        jnt_ranges = max_limits-min_limits
+
+        normalized_positions = (jnt_positions-min_limits)/jnt_ranges
+        return normalized_positions

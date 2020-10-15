@@ -108,6 +108,11 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
         orientationClosenessBonus = 0.1*(-orientDist_new/math.pi)
 
 
-        reward = positionClosenessBonus + orientationClosenessBonus + 1000*(posDistImprovement + orientDistImprovement)
+        norm_joint_pose = self._normalizedJointPositions(state)
+        amountJointsAtLimit = (abs((norm_joint_pose*2-1))>0.95).sum()
+        atLimitMalus = -amountJointsAtLimit
+
+
+        reward = positionClosenessBonus + orientationClosenessBonus + 1000*(posDistImprovement + orientDistImprovement) + atLimitMalus
         #rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
         return reward

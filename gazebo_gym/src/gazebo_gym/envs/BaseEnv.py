@@ -236,3 +236,6 @@ class BaseEnv():
 
     def close(self):
         self._destroySimulation()
+
+    def seed(self, seed=None):
+        return []

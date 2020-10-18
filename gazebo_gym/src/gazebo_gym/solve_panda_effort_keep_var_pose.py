@@ -13,6 +13,7 @@ import gazebo_gym
 from gazebo_gym.envs.PandaEffortKeepVarPoseEnv import PandaEffortKeepVarPoseEnv
 from gazebo_gym.envs.ToGoalEnvWrapper import ToGoalEnvWrapper
 from stable_baselines.common.callbacks import CheckpointCallback
+from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 
 def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, numEpisodes : int = -1):
     #frames = []
@@ -44,7 +45,7 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
 
-    env_checker.check_env(env.getBaseEnv())
+    env_checker.check_env(GymEnvWrapper(env.getBaseEnv()))
 
     print("Checked environment gym compliance :)")
 
@@ -66,10 +67,11 @@ def trainOrLoad(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, fi
     #              tensorboard_log=folderName)
 
     epLength = env.getBaseEnv().getMaxStepsPerEpisode()
-    model = HER('MlpPolicy', env, SAC, n_sampled_goal=int(epLength/10), goal_selection_strategy="future", verbose=1, batch_size=128,
-                buffer_size=100000, gamma=0.99, gradient_steps=1000,
-                learning_rate=0.003, learning_starts=25000, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=epLength*20,
-                seed = RANDOM_SEED, n_cpu_tf_sess=1, #n_cpu_tf_sess = 1 is needed for reproducibility
+    sampleGoalRatio = 0.1
+    model = HER('MlpPolicy', env, SAC, n_sampled_goal=int(epLength*sampleGoalRatio), goal_selection_strategy="future", verbose=1, batch_size=128,
+                buffer_size=100000, gamma=0.99, gradient_steps=int(env.getBaseEnv().getMaxStepsPerEpisode()*(1+sampleGoalRatio)), learning_starts=env.getBaseEnv().getMaxStepsPerEpisode()*10,
+                learning_rate=0.003, policy_kwargs=dict(layers=[100, 200, 100]), train_freq=env.getBaseEnv().getMaxStepsPerEpisode(),
+                seed = RANDOM_SEED, n_cpu_tf_sess=None, #n_cpu_tf_sess = 1 is needed for reproducibility
                 tensorboard_log=folderName)
 
     env.reset()
@@ -122,7 +124,8 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
     env = ToGoalEnvWrapper( PandaEffortKeepVarPoseEnv(maxActionsPerEpisode = 50,
                                                       environmentController = envController,
                                                       maxTorques = [87, 87, 87, 87, 12, 12, 12],
-                                                      stepLength_sec = stepLength_sec),
+                                                      stepLength_sec = stepLength_sec,
+                                                      startSimulation = True),
                             observationMask  = (0,0,0,0,0,0, 1,1,1,1,1,1,1, 1,1,1,1,1,1,1, 0,0,0,0,0,0),
                             desiredGoalMask  = (0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 1,1,1,1,1,1),
                             achievedGoalMask = (1,1,1,1,1,1, 0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,0,0,0,0))

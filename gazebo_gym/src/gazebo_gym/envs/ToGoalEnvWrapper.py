@@ -25,15 +25,15 @@ class ToGoalEnvWrapper(gym.GoalEnv):
         self._desiredGoalMask = desiredGoalMask
         self._achievedGoalMask = achievedGoalMask
 
-        self.action_space = self._env.action_space
-        self.metadata = self._env.observation_space
+        self.action_space = self._ggEnv.action_space
+        self.metadata = self._ggEnv.observation_space
 
-        pureObservation_space_low = self._env.observation_space.low[np.array(observationMask)==1]
-        desiredGoal_space_low = self._env.observation_space.low[np.array(desiredGoalMask)==1]
-        achievedGoal_space_low = self._env.observation_space.low[np.array(achievedGoalMask)==1]
-        pureObservation_space_high = self._env.observation_space.high[np.array(observationMask)==1]
-        desiredGoal_space_high = self._env.observation_space.high[np.array(desiredGoalMask)==1]
-        achievedGoal_space_high = self._env.observation_space.high[np.array(achievedGoalMask)==1]
+        pureObservation_space_low = self._ggEnv.observation_space.low[np.array(observationMask)==1]
+        desiredGoal_space_low = self._ggEnv.observation_space.low[np.array(desiredGoalMask)==1]
+        achievedGoal_space_low = self._ggEnv.observation_space.low[np.array(achievedGoalMask)==1]
+        pureObservation_space_high = self._ggEnv.observation_space.high[np.array(observationMask)==1]
+        desiredGoal_space_high = self._ggEnv.observation_space.high[np.array(desiredGoalMask)==1]
+        achievedGoal_space_high = self._ggEnv.observation_space.high[np.array(achievedGoalMask)==1]
 
         print("observationMask = "+str(observationMask))
         print("pureObservation_space_low = "+str(pureObservation_space_low))

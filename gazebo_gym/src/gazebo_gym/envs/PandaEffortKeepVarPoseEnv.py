@@ -54,7 +54,8 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
                     goalToleranceOrientation_rad : float = 0.0175*5,
                     maxTorques = [87, 87, 87, 87, 12, 12, 12],
                     environmentController : gazebo_gym.envControllers.EnvironmentController = None,
-                    stepLength_sec : float = 0.01):
+                    stepLength_sec : float = 0.01,
+                    startSimulation = False):
         """Short summary.
 
         Parameters
@@ -82,7 +83,8 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
                             goalToleranceOrientation_rad = goalToleranceOrientation_rad,
                             maxTorques = maxTorques,
                             environmentController = environmentController,
-                            stepLength_sec = stepLength_sec)
+                            stepLength_sec = stepLength_sec,
+                            startSimulation = startSimulation)
 
         self._goalTolerancePosition = goalTolerancePosition
         self._goalToleranceOrientation_rad = goalToleranceOrientation_rad
@@ -95,13 +97,13 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
 
         r = self._numpyRndGenerator.uniform(0,4)
         if r<1:
-            self._goalPose = (0.4,0,0.5, 1,0,0,0)
+            self._goalPose = (0.50, 0,    0.92, 0,1,0,0) #(0.4,0,0.5, 1,0,0,0)
         elif r<2:
-            self._goalPose = (0,0.4,0.5, 1,0,0,0)
+            self._goalPose = (0.40, 0,    0.92, 0,1,0,0) #(0,0.4,0.5, 1,0,0,0)
         elif r<3:
-            self._goalPose = (-0.4,0,0.5, 1,0,0,0)
+            self._goalPose = (0.45, 0.05, 0.92, 0,1,0,0) #(-0.4,0,0.5, 1,0,0,0)
         else:
-            self._goalPose = (0,-0.4,0.5, 1,0,0,0)
+            self._goalPose = (0.45,-0.05, 0.92, 0,1,0,0) #(0,-0.4,0.5, 1,0,0,0)
 
 
         #considering the robot to be pointing forward on the x axis, y on its left, z pointing up
@@ -191,6 +193,31 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
 
         reward = positionClosenessBonus + posDistImprovement # + orientationClosenessBonus + orientDistImprovement
         #rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
+
+        posDistImprovement  = posDist_old - posDist_new
+        #orientDistImprovement = orientDist_old - orientDist_new
+
+        # make the malus for going farther worse then the bonus for improving
+        # Having them asymmetric should avoid oscillations around the target
+        # Intuitively, with this correction the agent cannot go away, come back, and get the reward again
+        if posDistImprovement<0:
+            posDistImprovement*=2
+        #if orientDistImprovement<0:
+        #    orientDistImprovement*=2
+
+        positionClosenessBonus    = 1.0*(-(posDist_new/2))
+        #orientationClosenessBonus = 0.1*(-orientDist_new/math.pi)
+
+
+        norm_joint_pose = self._normalizedJointPositions(state)
+        amountJointsAtLimit = (abs((norm_joint_pose*2-1))>0.95).sum()
+        atLimitMalus = -amountJointsAtLimit
+
+
+        reward = positionClosenessBonus + 1000*(posDistImprovement) + atLimitMalus
+        # reward = positionClosenessBonus + orientationClosenessBonus + 1000*(posDistImprovement + orientDistImprovement) + atLimitMalus
+
+
         return reward
 
     def setGoalInState(self, state, goal):

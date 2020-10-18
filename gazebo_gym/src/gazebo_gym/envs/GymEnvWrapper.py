@@ -323,8 +323,8 @@ class GymEnvWrapper(gym.Env):
               'seed'. Often, the main seed equals the provided 'seed', but
               this won't be true if seed=None, for example.
         """
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
+        return self._ggEnv.seed(seed)
+
 
 
 

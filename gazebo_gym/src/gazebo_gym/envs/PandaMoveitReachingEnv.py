@@ -36,7 +36,7 @@ class PandaMoveitReachingEnv(BaseEnv):
 
     As moveit_commander is not working with python3 this environment relies on an intermediate ROS node for sending moveit commands.
     """
-
+    #TODO: This should be refacotred creating a MoveitEnvController and subclassing from ControlledEnv instead of BaseEnv
     action_space_high = np.array([  0.1,
                                     0.1,
                                     0.1])

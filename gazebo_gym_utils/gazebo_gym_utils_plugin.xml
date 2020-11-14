@@ -4,4 +4,9 @@
       With this controller you can control joint efforts while having gravity compensation
     </description>
   </class>
+  <class name="gazebo_gym_utils/LinkStatePublisherController" type="gazebo_gym_utils::LinkStatePublisherController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      this controller publishes the link_state of the robot
+    </description>
+  </class>
 </library>

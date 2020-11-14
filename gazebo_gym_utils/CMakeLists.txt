@@ -120,7 +120,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-#  include
+  include
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIR} ${EIGEN3_INCLUDE_DIRS} ${orocos_kdl_INCLUDE_DIRS} ${urdfdom_headers_INCLUDE_DIRS}
 )
@@ -132,16 +132,21 @@ add_executable(move_helper src/move_helper.cpp)
 add_dependencies(move_helper ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(move_helper ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
-add_executable(link_state_publisher src/link_state_publisher.cpp)
+add_executable(link_state_publisher src/link_state_publisher.cpp src/ForwardKinematicsComputer.cpp)
 add_dependencies(link_state_publisher ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(link_state_publisher ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES})
 
+add_executable(link_pose_publisher src/link_pose_publisher.cpp src/ForwardKinematicsComputer.cpp)
+add_dependencies(link_pose_publisher ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(link_pose_publisher ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES})
 
 
 
 # Declare a C++ library
 add_library(gazebo_gym_utils
-  src/GravityCompensatedEffortController.cpp
+src/GravityCompensatedEffortController.cpp
+src/LinkStatePublisherController.cpp
+src/ForwardKinematicsComputer.cpp
 )
 
 add_dependencies(gazebo_gym_utils
@@ -150,18 +155,24 @@ add_dependencies(gazebo_gym_utils
 )
 
 target_link_libraries(gazebo_gym_utils PUBLIC
-  ${catkin_LIBRARIES}
+  ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES}
 )
 
 target_include_directories(gazebo_gym_utils SYSTEM PUBLIC
   ${EIGEN3_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+  ${orocos_kdl_INCLUDE_DIRS}
 )
 target_include_directories(gazebo_gym_utils PUBLIC
   include
 )
 
 ## Installation
+# Install headers
+install(DIRECTORY include
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
 install(TARGETS gazebo_gym_utils
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

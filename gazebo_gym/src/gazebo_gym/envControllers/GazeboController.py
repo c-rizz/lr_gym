@@ -12,7 +12,7 @@ import gazebo_msgs
 
 
 from gazebo_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
-from gazebo_gym.utils import JointState
+from gazebo_gym.utils.utils import JointState
 
 class GazeboController(GazeboControllerNoPlugin):
     """This class allows to control the execution of a Gazebo simulation.

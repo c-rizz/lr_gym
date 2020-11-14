@@ -94,8 +94,22 @@
       		<camera name='__default__'>
       			<horizontal_fov>1.047</horizontal_fov>
       			<image>
-      				<width>480</width>
-      				<height>270</height>
+      				<!--
+              <height>1080</height>
+      				<width>1920</width>
+              -->
+      				<!--
+              <height>720</height>
+      				<width>1280</width>
+              -->
+              <!--
+              <height>480</height>
+      				<width>854</width>
+              -->
+              <height>240</height>
+      				<width>426</width>
+
+
       			</image>
       			<clip>
       				<near>0.1</near>
@@ -132,7 +146,9 @@
         <enable_wind>0</enable_wind>
         <kinematic>0</kinematic>
       </link>
-      <pose frame=''>0.0 -3.0 0.25 0 0 1.57</pose>
+      <pose frame=''>2.6582 1.02165 1.57835 -0 0.463643 -2.81499</pose>
+      <!-- <pose frame=''>2.74361 1.56182 2.26444 0 0.591643 -2.62699</pose>-->
+      <!-- <pose frame=''>0.0 -3.0 0.25 0 0 1.57</pose>-->
     </model>
 </world>
 </sdf>

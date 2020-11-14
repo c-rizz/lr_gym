@@ -3,10 +3,11 @@
 import rospy
 import time
 import tqdm
-from stable_baselines.deepq.policies import MlpPolicy
-from stable_baselines import DQN
+from stable_baselines3.dqn import MlpPolicy
+from stable_baselines3 import DQN
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
-
+from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
+import gazebo_gym.utils.ggLog as ggLog
 
 def main() -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
@@ -19,24 +20,29 @@ def main() -> None:
     None
 
     """
+    logFolder = "./solve_cartpole_env"
+    #logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s.%(msecs)03d][%(levelname)s] %(message)s', datefmt='%Y-%m-%d,%H:%M:%S')
+
     #rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
-    env = CartpoleEnv(render=False, startSimulation = True)
+    env = GymEnvWrapper(CartpoleEnv(render=False, startSimulation = True), episodeInfoLogFile = logFolder+"/GymEnvWrapper_log.csv")
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
     env._max_episode_steps = 500 #limit episode length
 
-    model = DQN(MlpPolicy, env, verbose=1, seed=RANDOM_SEED, n_cpu_tf_sess=1) #seed=RANDOM_SEED, n_cpu_tf_sess=1 are needed to get deterministic results
-    print("Learning...")
+    model = DQN(MlpPolicy, env, verbose=1, seed=RANDOM_SEED, learning_starts=100,
+                policy_kwargs=dict(net_arch=[64,64]), learning_rate = 0.0025, train_freq=1,
+                target_update_interval=500) # , n_cpu_tf_sess=1) #seed=RANDOM_SEED, n_cpu_tf_sess=1 are needed to get deterministic results
+    ggLog.info("Learning...")
     t_preLearn = time.time()
     model.learn(total_timesteps=25000)
     duration_learn = time.time() - t_preLearn
-    print("Learned. Took "+str(duration_learn)+" seconds.")
+    ggLog.info("Learned. Took "+str(duration_learn)+" seconds.")
 
 
-    print("Computing average reward...")
+    ggLog.info("Computing average reward...")
     t_preVal = time.time()
     rewards=[]
     totFrames=0
@@ -50,7 +56,7 @@ def main() -> None:
         obs = env.reset()
         t0 = time.time()
         while not done:
-            #print("Episode "+str(episode)+" frame "+str(frame))
+            #ggLog.info("Episode "+str(episode)+" frame "+str(frame))
             action, _states = model.predict(obs)
             obs, stepReward, done, info = env.step(action)
             #frames.append(env.render("rgb_array"))
@@ -63,8 +69,8 @@ def main() -> None:
         #print("Episode "+str(episode)+" lasted "+str(frame)+" frames, total reward = "+str(episodeReward))
     avgReward = sum(rewards)/len(rewards)
     duration_val = time.time() - t_preVal
-    print("Computed average reward. Took "+str(duration_val)+" seconds ("+str(totFrames/totDuration)+" fps).")
-    print("Average rewar = "+str(avgReward))
+    ggLog.info("Computed average reward. Took "+str(duration_val)+" seconds ("+str(totFrames/totDuration)+" fps).")
+    ggLog.info("Average rewar = "+str(avgReward))
 
 if __name__ == "__main__":
     main()

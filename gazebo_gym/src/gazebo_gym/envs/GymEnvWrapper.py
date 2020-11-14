@@ -5,8 +5,8 @@ Base-class for cresting GAzebo-based gym environments.
 The provided class must be extended to define a specific environment
 """
 
-import rospy
-import rospy.client
+
+import gazebo_gym.utils.ggLog as ggLog
 
 import gym
 import numpy as np
@@ -16,11 +16,14 @@ from typing import Dict
 from typing import Any
 from typing import Sequence
 import time
+import csv
 
-import utils
+import gazebo_gym.utils
 import gazebo_gym
 
 from gazebo_gym.envs.BaseEnv import BaseEnv
+import os
+import traceback
 
 class GymEnvWrapper(gym.Env):
     """This class is a wrapper to convert gazebo_gym environments in OpenAI Gym environments.
@@ -37,7 +40,8 @@ class GymEnvWrapper(gym.Env):
     def __init__(self,
                  env : BaseEnv,
                  verbose : bool = False,
-                 quiet : bool = False):
+                 quiet : bool = False,
+                 episodeInfoLogFile : str = None):
         """Short summary.
 
         Parameters
@@ -52,6 +56,9 @@ class GymEnvWrapper(gym.Env):
 
         self._verbose = verbose
         self._quiet = quiet
+        self._episodeInfoLogFile = episodeInfoLogFile
+        self._logEpisodeInfo = self._episodeInfoLogFile is not None
+
         self._framesCounter = 0
         self._lastStepStartEnvTime = -1
         self._lastStepEndEnvTime = -1
@@ -60,17 +67,68 @@ class GymEnvWrapper(gym.Env):
         self._lastState = None
         self._totalEpisodeReward = 0
         self._resetCount = 0
+        self._init_time = time.monotonic()
+        self._totalSteps = 0
 
 
-        self._envStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
-        self._ggEnv.submitActionDurationAverage = utils.AverageKeeper(bufferSize = 100)
-        self._observationDurationAverage = utils.AverageKeeper(bufferSize = 100)
-        self._wallStepDurationAverage = utils.AverageKeeper(bufferSize = 100)
+        self._envStepDurationAverage =gazebo_gym.utils.utils.AverageKeeper(bufferSize = 100)
+        self._ggEnv.submitActionDurationAverage =gazebo_gym.utils.utils.AverageKeeper(bufferSize = 100)
+        self._observationDurationAverage =gazebo_gym.utils.utils.AverageKeeper(bufferSize = 100)
+        self._wallStepDurationAverage =gazebo_gym.utils.utils.AverageKeeper(bufferSize = 100)
         self._lastStepEndSimTimeFromStart = 0
-        self._reset_dbgInfo_timings = {}
+        self._lastValidStepWallTime = -1
+        self._timeSpentStepping_ep = 0
+        self._info = {}
+        self._setInfo()
 
         self._done = False
 
+        if self._logEpisodeInfo:
+            try:
+                os.makedirs(os.path.dirname(self._episodeInfoLogFile))
+            except FileExistsError:
+                pass
+            self._logFile = open(self._episodeInfoLogFile, "w")
+            self._logFileCsvWriter = csv.writer(self._logFile, delimiter = ",")
+            self._logFileCsvWriter.writerow(self._info.keys())
+
+    def _setInfo(self):
+        if self._framesCounter>0:
+            avgSimTimeStepDuration = self._lastStepEndSimTimeFromStart/self._framesCounter
+            totEpisodeWallDuration = time.monotonic() - self._lastPostResetTime
+            epWallDurationUntilDone = self._lastValidStepWallTime - self._lastPostResetTime
+            resetWallDuration = self._lastPostResetTime-self._lastPreResetTime
+            wallFps = self._framesCounter/totEpisodeWallDuration
+            wall_fps_until_done = self._framesCounter/epWallDurationUntilDone
+            ratio_time_spent_stepping_until_done = self._timeSpentStepping_ep/epWallDurationUntilDone
+        else:
+            avgSimTimeStepDuration = float("NaN")
+            totEpisodeWallDuration = 0
+            resetWallDuration = float("NaN")
+            wallFps = float("NaN")
+            wall_fps_until_done = float("NaN")
+            ratio_time_spent_stepping_until_done = 0
+
+        self._info["avg_env_step_wall_duration"] = self._envStepDurationAverage.getAverage()
+        self._info["avg_sim_step_wall_duration"] = self._wallStepDurationAverage.getAverage()
+        self._info["avg_act_wall_duration"] = self._ggEnv.submitActionDurationAverage.getAverage()
+        self._info["avg_obs_wall_duration"] = self._observationDurationAverage.getAverage()
+        self._info["avg_step_sim_duration"] = avgSimTimeStepDuration
+        self._info["tot_ep_wall_duration"] = totEpisodeWallDuration
+        self._info["reset_wall_duration"] = resetWallDuration
+        self._info["ep_frames_count"] = self._framesCounter
+        self._info["ep_reward"] = self._totalEpisodeReward
+        self._info["wall_fps"] = wallFps
+        self._info["wall_fps_until_done"] = wall_fps_until_done
+        self._info["reset_count"] = self._resetCount
+        self._info["ratio_time_spent_stepping_until_done"] = ratio_time_spent_stepping_until_done
+        self._info["time_from_start"] = time.monotonic() - self._init_time
+        self._info["total_steps"] = self._totalSteps
+
+    def _logInfoCsv(self):
+        #print("writing csv")
+        self._logFileCsvWriter.writerow(self._info.values())
+        self._logFile.flush()
 
 
     def step(self, action) -> Tuple[Sequence, int, bool, Dict[str,Any]]:
@@ -100,40 +158,43 @@ class GymEnvWrapper(gym.Env):
             If an invalid action is provided
 
         """
-        #rospy.loginfo("step()")
+        #ggLog.info("step()")
 
         if self._done:
-            rospy.loginfo("Environment reached max duration")
+            if self._verbose:
+                ggLog.warning("Episode already finished")
             observation = self._ggEnv.getObservation(self._getStateCached())
             reward = 0
             done = True
             info = {}
             info.update(self._ggEnv.getInfo())
             self._lastStepEndSimTimeFromStart = self._ggEnv.getSimTimeFromEpStart()
-            info.update(self._reset_dbgInfo_timings)
+            info.update(self._info)
             return (observation, reward, done, info)
 
+        self._totalSteps += 1
         # Get previous observation
-        t0 = time.time()
+        t0 = time.monotonic()
         previousState = self._getStateCached()
 
         # Setup action to perform
-        t_preAct = time.time()
+        t_preAct = time.monotonic()
         self._ggEnv.submitAction(action)
-        self._ggEnv.submitActionDurationAverage.addValue(newValue = time.time()-t_preAct)
+        self._ggEnv.submitActionDurationAverage.addValue(newValue = time.monotonic()-t_preAct)
 
         # Step the environment
-        self._lastStepStartEnvTime = rospy.get_time()
-        t_preStep = time.time()
+
+        self._lastStepStartEnvTime = self._ggEnv.getSimTimeFromEpStart()
+        t_preStep = time.monotonic()
         self._ggEnv.performStep()
-        self._wallStepDurationAverage.addValue(newValue = time.time()-t_preStep)
+        self._wallStepDurationAverage.addValue(newValue = time.monotonic()-t_preStep)
         self._framesCounter+=1
 
         #Get new observation
-        t_preObs = time.time()
+        t_preObs = time.monotonic()
         state = self._getStateCached()
-        self._observationDurationAverage.addValue(newValue = time.time()-t_preObs)
-        self._lastStepEndEnvTime = rospy.get_time()
+        self._observationDurationAverage.addValue(newValue = time.monotonic()-t_preObs)
+        self._lastStepEndEnvTime = self._ggEnv.getSimTimeFromEpStart()
 
         # Assess the situation
         done = self._ggEnv.checkEpisodeEnded(previousState, state)
@@ -143,14 +204,13 @@ class GymEnvWrapper(gym.Env):
                 "gz_gym_base_env_previous_state" : previousState,
                 "gz_gym_base_env_action" : action}
         info.update(self._ggEnv.getInfo())
-        info.update(self._reset_dbgInfo_timings)
+        info.update(self._info)
 
         self._totalEpisodeReward += reward
 
-        #rospy.loginfo("step() return")
+        #ggLog.info("step() return, reward = "+str(reward))
         ret = (observation, reward, done, info)
 
-        self._envStepDurationAverage.addValue(newValue = time.time()-t0)
 
         self._lastStepEndSimTimeFromStart = self._ggEnv.getSimTimeFromEpStart()
 
@@ -159,9 +219,15 @@ class GymEnvWrapper(gym.Env):
         # for r in ret:
         #     print(str(r))
         # time.sleep(1)
-        # rospy.logwarn("returning "+str(ret))
+        # ggLog.warning("returning "+str(ret))
+        if not self._done:
+            self._lastValidStepWallTime = time.monotonic()
         self._done = done
 
+        stepDuration = time.monotonic() - t0
+        self._envStepDurationAverage.addValue(newValue = stepDuration)
+        self._timeSpentStepping_ep += stepDuration
+        #ggLog.info("stepped")
         return ret
 
 
@@ -178,42 +244,36 @@ class GymEnvWrapper(gym.Env):
             the initial observation.
 
         """
-        #rospy.loginfo("reset()")
+        #ggLog.info("reset()")
         self._resetCount += 1
         if self._verbose:
-            rospy.loginfo(" ------- Resetting Environment (#"+str(self._resetCount)+")-------")
+            ggLog.info(" ------- Resetting Environment (#"+str(self._resetCount)+")-------")
 
         if self._framesCounter == 0:
-            rospy.loginfo("No step executed in this episode")
+            ggLog.info("No step executed in this episode")
         else:
-            avgSimTimeStepDuration = self._lastStepEndSimTimeFromStart/self._framesCounter
-            totEpisodeWallDuration = time.time() - self._lastResetTime
-            resetWallDuration = self._lastPostResetTime-self._lastResetTime
-            self._reset_dbgInfo_timings["avg_env_step_wall_duration"] = self._envStepDurationAverage.getAverage()
-            self._reset_dbgInfo_timings["avg_sim_step_wall_duration"] = self._wallStepDurationAverage.getAverage()
-            self._reset_dbgInfo_timings["avg_act_wall_duration"] = self._ggEnv.submitActionDurationAverage.getAverage()
-            self._reset_dbgInfo_timings["avg_obs_wall_duration"] = self._observationDurationAverage.getAverage()
-            self._reset_dbgInfo_timings["avg_step_sim_duration"] = avgSimTimeStepDuration
-            self._reset_dbgInfo_timings["tot_ep_wall_duration"] = totEpisodeWallDuration
-            self._reset_dbgInfo_timings["reset_wall_duration"] = resetWallDuration
-            self._reset_dbgInfo_timings["ep_frames_count"] = self._framesCounter
-            self._reset_dbgInfo_timings["ep_reward"] = self._totalEpisodeReward
-            self._reset_dbgInfo_timings["wall_fps"] = self._framesCounter/(time.time()-self._envResetTime)
+            self._setInfo()
+            if self._logEpisodeInfo:
+                self._logInfoCsv()
             if self._verbose:
-                for k,v in self._reset_dbgInfo_timings.items():
-                    rospy.loginfo(k," = ",v)
+                for k,v in self._info.items():
+                    ggLog.info(k," = ",v)
             elif not self._quiet:
-                rospy.loginfo(  "ep_reward = {:f}".format(self._reset_dbgInfo_timings["ep_reward"])+
-                                " \t ep_frames_count = {:d}".format(self._reset_dbgInfo_timings["ep_frames_count"])+
-                                " \t wall_fps = {:f}".format(self._reset_dbgInfo_timings["wall_fps"]))
+                ggLog.info( "ep_reward = {:.3f}".format(self._info["ep_reward"])+
+                            " step_frames = {:d}".format(self._info["ep_frames_count"])+
+                            " wall_fps = {:.3f}".format(self._info["wall_fps"])+
+                            " avg_env_step_wall_dur = {:f}".format(self._info["avg_env_step_wall_duration"])+
+                            " wall_fps_until_done = {:.3f}".format(self._info["wall_fps_until_done"])+
+                            " tstep_on_ttot = {:.2f}".format(self._info["ratio_time_spent_stepping_until_done"])+
+                            " reset_cnt = {:d}".format(self._info["reset_count"]))
 
-        self._lastResetTime = time.time()
+        self._lastPreResetTime = time.monotonic()
         #reset simulation state
         self._ggEnv.performReset()
-        self._lastPostResetTime = time.time()
+        self._lastPostResetTime = time.monotonic()
 
         if self._framesCounter!=0 and self._cumulativeImagesAge!=0:
-            rospy.logwarn("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
+            ggLog.warning("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
 
         self._framesCounter = 0
         self._cumulativeImagesAge = 0
@@ -222,9 +282,9 @@ class GymEnvWrapper(gym.Env):
         self._lastStepGotState = -1
         self._lastState = None
         self._totalEpisodeReward = 0
-        self._envResetTime = time.time()
+        self._lastValidStepWallTime = -1
+        self._timeSpentStepping_ep = 0
 
-        self._ggEnv.onResetDone()
         #time.sleep(1)
 
 
@@ -236,7 +296,7 @@ class GymEnvWrapper(gym.Env):
         self._observationDurationAverage.reset()
         self._wallStepDurationAverage.reset()
 
-        #rospy.loginfo("reset() return")
+        #ggLog.info("reset() return")
         observation = self._ggEnv.getObservation(self._getStateCached())
         # print("observation space = "+str(self.observation_space)+" high = "+str(self.observation_space.high)+" low = "+str(self.observation_space.low))
         # print("observation = "+str(observation))
@@ -276,10 +336,10 @@ class GymEnvWrapper(gym.Env):
         npArrImage, imageTime = self._ggEnv.getRendering()
 
         if imageTime < self._lastStepStartEnvTime:
-            rospy.logwarn("render(): The most recent camera image is older than the start of the last step! (by "+str(self._lastStepStartEnvTime-imageTime)+"s)")
+            ggLog.warning("render(): The most recent camera image is older than the start of the last step! (by "+str(self._lastStepStartEnvTime-imageTime)+"s)")
 
         cameraImageAge = self._lastStepEndEnvTime - imageTime
-        #rospy.loginfo("Rendering image age = "+str(cameraImageAge)+"s")
+        #ggLog.info("Rendering image age = "+str(cameraImageAge)+"s")
         self._cumulativeImagesAge += cameraImageAge
 
 
@@ -299,6 +359,8 @@ class GymEnvWrapper(gym.Env):
         Environments will automatically close() themselves when
         garbage collected or when the program exits.
         """
+        if self._logEpisodeInfo:
+            self._logFile.close()
         self._ggEnv.close()
 
 

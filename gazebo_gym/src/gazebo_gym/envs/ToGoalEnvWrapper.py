@@ -12,7 +12,12 @@ from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 class ToGoalEnvWrapper(gym.GoalEnv):
     """This is a wrapper that transforms a gazebo_gym.envs.BaseEnv from being gym.Env compliant to being gym.GoalEnv compliant."""
 
-    def __init__(self, env : gazebo_gym.envs.BaseEnv, observationMask : Tuple, desiredGoalMask : Tuple, achievedGoalMask : Tuple):
+    def __init__(   self,
+                    env : gazebo_gym.envs.BaseEnv,
+                    observationMask : Tuple,
+                    desiredGoalMask : Tuple,
+                    achievedGoalMask : Tuple,
+                    episodeInfoLogFile : str = None):
         if len(observationMask) != len(desiredGoalMask) or len(observationMask) != len(achievedGoalMask):
             raise AttributeError("Masks should have all the same size")
 
@@ -20,7 +25,7 @@ class ToGoalEnvWrapper(gym.GoalEnv):
             raise AttributeError("Environment observation space and masks don't have the same size! ("+str(len(observationMask))+" vs "+str(env.observation_space.shape[0])+")")
 
         self._ggEnv = env
-        self._gymEnv = GymEnvWrapper(env)
+        self._gymEnv = GymEnvWrapper(env, episodeInfoLogFile = episodeInfoLogFile)
         self._observationMask = observationMask
         self._desiredGoalMask = desiredGoalMask
         self._achievedGoalMask = achievedGoalMask

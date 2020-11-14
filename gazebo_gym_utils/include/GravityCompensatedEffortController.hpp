@@ -20,6 +20,7 @@
 namespace gazebo_gym_utils
 {
 
+
   /**
    * \brief Controls a set of joint with effort control, adding gravity compensation torques
    *

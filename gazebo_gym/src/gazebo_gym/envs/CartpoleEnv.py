@@ -20,10 +20,7 @@ from gazebo_gym.envs.ControlledEnv import ControlledEnv
 from gazebo_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
 
 class CartpoleEnv(ControlledEnv):
-    """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
-
-    It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
-    """
+    """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup."""
 
     high = np.array([   2.5 * 2,
                         np.finfo(np.float32).max,
@@ -87,7 +84,7 @@ class CartpoleEnv(ControlledEnv):
         elif action == 1:
             direction = 1
         else:
-            raise AttributeError("action can only be 1 or 0")
+            raise AttributeError("Invalid action (it's "+str(action)+")")
 
         self._environmentController.setJointsEffort(jointTorques = [("cartpole_v0","foot_joint", direction * 20)])
 
@@ -137,11 +134,11 @@ class CartpoleEnv(ControlledEnv):
         """
 
 
-        t0 = time.time()
+        #t0 = time.monotonic()
         states = self._environmentController.getJointsState(requestedJoints=[("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
         #print("states['foot_joint'] = "+str(states["foot_joint"]))
         #print("Got joint state "+str(states))
-        t1 = time.time()
+        #t1 = time.monotonic()
         #rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
 
         state = ( states[("cartpole_v0","foot_joint")].position[0],
@@ -151,14 +148,14 @@ class CartpoleEnv(ControlledEnv):
 
         #print(state)
 
-        return state
+        return np.array(state)
 
     def buildSimulation(self, backend : str = "gazebo"):
         if backend != "gazebo":
             raise NotImplementedError("Backend "+backend+" not supported")
 
         self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("gazebo_gym")+"/launch/cartpole_gazebo_sim.launch",
-                                                                                       cli_args=["gui:=true"])
+                                                                                       cli_args=["gui:=false"])
         self._mmRosLauncher.launchAsync()
 
         if isinstance(self._environmentController, GazeboControllerNoPlugin):

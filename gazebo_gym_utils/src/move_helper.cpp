@@ -31,6 +31,7 @@ const robot_state::JointModelGroup* joint_model_group;
 std::string planning_group_name;
 
 
+
 int waitActionCompletion(moveit::planning_interface::MoveGroupInterface& move_group)
 {
   move_group.getMoveGroupClient().waitForResult(ros::Duration(0, 0));//TODO: set a sensible timeout

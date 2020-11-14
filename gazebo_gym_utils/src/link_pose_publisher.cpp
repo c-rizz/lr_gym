@@ -11,18 +11,15 @@
 #include <geometry_msgs/PoseArray.h>
 #include "../include/ForwardKinematicsComputer.hpp"
 
-ros::Publisher linkStatesPublisher;
 ros::Publisher linkStatesDbgPublisher;
 std::shared_ptr<gazebo_gym_utils::ForwardKinematicsComputer> forwardKinematicsComputer;
 
 
-void jointStatesCallback(const sensor_msgs::JointStateConstPtr& msg)
+void jointStatesCallback(const gazebo_gym_utils::LinkStatesConstPtr& msg)
 {
 
-  gazebo_gym_utils::LinkStates linkStates = forwardKinematicsComputer->computeLinkStates(*msg);
-  geometry_msgs::PoseArray poseArrayDbg = forwardKinematicsComputer->getLinkPoses(linkStates);
+  geometry_msgs::PoseArray poseArrayDbg = forwardKinematicsComputer->getLinkPoses(*msg);
 
-  linkStatesPublisher.publish(linkStates);
   linkStatesDbgPublisher.publish(poseArrayDbg);
 }
 
@@ -30,17 +27,16 @@ void jointStatesCallback(const sensor_msgs::JointStateConstPtr& msg)
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "link_states_publisher");
+  ros::init(argc, argv, "link_pose_publisher");
   ros::NodeHandle node_handle;
 
   forwardKinematicsComputer = std::make_shared<gazebo_gym_utils::ForwardKinematicsComputer>();
 
-  ros::Subscriber jointStatesSub = node_handle.subscribe("joint_states", 1, jointStatesCallback);
+  ros::Subscriber jointStatesSub = node_handle.subscribe("link_states", 1, jointStatesCallback);
 
-  linkStatesPublisher = node_handle.advertise<gazebo_gym_utils::LinkStates>("link_states", 1);
   linkStatesDbgPublisher = node_handle.advertise<geometry_msgs::PoseArray>("link_poses_dbg", 1);
 
-  ROS_INFO("Link state publisher started");
+  ROS_INFO("Link pose publisher started");
   ros::spin();
   return 0;
 }

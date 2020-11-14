@@ -17,7 +17,7 @@ from typing import Any
 from typing import Sequence
 import time
 
-import utils
+import gazebo_gym.utils.utils
 
 
 class BaseEnv():
@@ -27,6 +27,7 @@ class BaseEnv():
 
     You can extend this class with a sub-class to implement specific environments.
     """
+    #TODO: This should be an abstract class, defined via python's ABC
 
     action_space = None
     observation_space = None
@@ -127,7 +128,7 @@ class BaseEnv():
         raise NotImplementedError()
 
 
-    def getObservation(self) -> Sequence:
+    def getObservation(self, state) -> np.ndarray:
         """To be implemented in subclass.
 
         Get an observation of the environment.
@@ -174,7 +175,7 @@ class BaseEnv():
         This method is called by the reset method to allow the sub-class to reset environment-specific details
 
         """
-        pass
+        pass #TODO: should be moved to ControlledEnv which should be abstract (actually it shouldn't exist)
 
 
     def performStep(self) -> None:
@@ -220,15 +221,21 @@ class BaseEnv():
         return self._maxActionsPerEpisode
 
     def setGoalInState(self, state, goal):
-        """Update the provided state with the provided goal. Useful for goal-oriented environments, especially when using HER. It's used by ToGoalEnvWrapper."""
+        """To be implemented in subclass.
+
+        Update the provided state with the provided goal. Useful for goal-oriented environments, especially when using HER. It's used by ToGoalEnvWrapper."""
         raise NotImplementedError()
 
     def buildSimulation(self, backend : str = "gazebo"):
-        """Build a simulation for the environment."""
-        raise NotImplementedError()
+        """To be implemented in subclass.
+
+        Build a simulation for the environment."""
+        raise NotImplementedError() #TODO: Move this into the environmentControllers
 
     def _destroySimulation(self):
-        """Destroy a simulation built by buildSimulation."""
+        """To be implemented in subclass.
+
+        Destroy a simulation built by buildSimulation."""
         pass
 
     def getSimTimeFromEpStart(self):

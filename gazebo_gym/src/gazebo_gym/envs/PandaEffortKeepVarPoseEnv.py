@@ -165,48 +165,31 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
 
         goal = state[20:26]
 
-        posDist_new = np.linalg.norm(state[0:3] - goal[0:3])
-        posDist_old = np.linalg.norm(previousState[0:3] - goal[0:3])
+        #posDist_new = np.linalg.norm(state[0:3] - goal[0:3])
+        #posDist_old = np.linalg.norm(previousState[0:3] - goal[0:3])
         # if posDist_new < 0.05:
         #     return 1
         # else:
         #     return 0
         #rospy.loginfo("computed reward = "+str(reward)+" for goal "+str(goal))
 
-        #posDist_new, orientDist_new = self._getDist2goal(state, goal)
-        #posDist_old, orientDist_old = self._getDist2goal(previousState, goal)
+        posDist_new, orientDist_new = self._getDist2goal(state, goal)
+        posDist_old, orientDist_old = self._getDist2goal(previousState, goal)
+
 
         posDistImprovement  = posDist_old - posDist_new
-        #orientDistImprovement = orientDist_old - orientDist_new
+        orientDistImprovement = orientDist_old - orientDist_new
 
         # make the malus for going farther worse then the bonus for improving
         # Having them asymmetric should avoid oscillations around the target
         # Intuitively, with this correction the agent cannot go away, come back, and get the reward again
         if posDistImprovement<0:
             posDistImprovement*=2
-        #if orientDistImprovement<0:
-        #    orientDistImprovement*=2
-
-        positionClosenessBonus    = math.pow(2*(2-posDist_new)/2, 2)
-        #orientationClosenessBonus = math.pow(0.1*(math.pi-orientDist_new)/math.pi, 2)
-
-
-        reward = positionClosenessBonus + posDistImprovement # + orientationClosenessBonus + orientDistImprovement
-        #rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
-
-        posDistImprovement  = posDist_old - posDist_new
-        #orientDistImprovement = orientDist_old - orientDist_new
-
-        # make the malus for going farther worse then the bonus for improving
-        # Having them asymmetric should avoid oscillations around the target
-        # Intuitively, with this correction the agent cannot go away, come back, and get the reward again
-        if posDistImprovement<0:
-            posDistImprovement*=2
-        #if orientDistImprovement<0:
-        #    orientDistImprovement*=2
+        if orientDistImprovement<0:
+            orientDistImprovement*=2
 
         positionClosenessBonus    = 1.0*(-(posDist_new/2))
-        #orientationClosenessBonus = 0.1*(-orientDist_new/math.pi)
+        orientationClosenessBonus = 0.1*(-orientDist_new/math.pi)
 
 
         norm_joint_pose = self._normalizedJointPositions(state)
@@ -214,7 +197,7 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
         atLimitMalus = -amountJointsAtLimit
 
 
-        reward = positionClosenessBonus + 1000*(posDistImprovement) + atLimitMalus
+        reward = positionClosenessBonus + 1000*(posDistImprovement) + atLimitMalus + orientationClosenessBonus
         # reward = positionClosenessBonus + orientationClosenessBonus + 1000*(posDistImprovement + orientDistImprovement) + atLimitMalus
 
 

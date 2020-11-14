@@ -98,14 +98,14 @@ class PandaEffortBaseEnv(ControlledEnv):
         if environmentController is None:
             environmentController = EffortRosControlController(
                              effortControllersInfos = { "panda_arm_effort_effort_compensated_controller" : ("panda_arm_effort_effort_compensated_controller",
-                                                                                                "panda",
-                                                                                                ("panda_joint1",
-                                                                                                 "panda_joint2",
-                                                                                                 "panda_joint3",
-                                                                                                 "panda_joint4",
-                                                                                                 "panda_joint5",
-                                                                                                 "panda_joint6",
-                                                                                                 "panda_joint7"))},
+                                                                                                            "panda",
+                                                                                                            ("panda_joint1",
+                                                                                                             "panda_joint2",
+                                                                                                             "panda_joint3",
+                                                                                                             "panda_joint4",
+                                                                                                             "panda_joint5",
+                                                                                                             "panda_joint6",
+                                                                                                             "panda_joint7"))},
                              trajectoryControllersInfos = {"panda_arm_effort_trajectory_controller" :   ("panda_arm_effort_trajectory_controller",
                                                                                                          "panda",
                                                                                                          ("panda_joint1",
@@ -253,3 +253,9 @@ class PandaEffortBaseEnv(ControlledEnv):
 
         normalized_positions = (jnt_positions-min_limits)/jnt_ranges
         return normalized_positions
+
+    def checkEpisodeEnded(self, previousState, state) -> bool:
+        r = super().checkEpisodeEnded(previousState, state)
+        if r:
+            self.submitAction([0,0,0,0,0,0,0])
+        return r

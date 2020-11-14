@@ -13,7 +13,7 @@ import rospy
 from std_srvs.srv import Empty
 
 from gazebo_gym.envControllers.EnvironmentController import EnvironmentController
-from gazebo_gym.utils import JointState
+from gazebo_gym.utils.utils import JointState
 import os
 
 class GazeboControllerNoPlugin(EnvironmentController):
@@ -120,6 +120,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
         # Crete a publisher to manually send clock messages (used in reset, very ugly, sorry)
         self._clockPublisher = rospy.Publisher("/clock", rosgraph_msgs.msg.Clock, queue_size=1)
 
+        rospy.loginfo("ROS time is "+str(rospy.get_time())+" pid = "+str(os.getpid()))
         self.pauseSimulation()
         self.resetWorld()
 

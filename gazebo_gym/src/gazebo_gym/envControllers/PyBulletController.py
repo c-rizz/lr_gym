@@ -8,7 +8,7 @@ import sensor_msgs
 import pybullet as p
 import gazebo_msgs.msg
 
-from gazebo_gym.utils import JointState
+from gazebo_gym.utils.utils import JointState
 from gazebo_gym.envControllers.EnvironmentController import EnvironmentController
 
 

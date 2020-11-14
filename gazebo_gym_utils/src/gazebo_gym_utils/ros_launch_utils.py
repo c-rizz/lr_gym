@@ -64,7 +64,6 @@ class MultiMasterRosLauncher:
         self._gazeboMasterUri = "http://127.0.0.1:"+str(self._gazeboPort)
         os.environ["ROS_MASTER_URI"] = self._rosMasterUri
         os.environ["GAZEBO_MASTER_URI"] = self._gazeboMasterUri
-        print("MultiMasterRosLauncher will use port "+str(self._rosMasterPort))
 
     def __init__(self, launchFile : str, cli_args : List[str] = []):
         self._launchFile = launchFile
@@ -79,7 +78,10 @@ class MultiMasterRosLauncher:
 
         time.sleep(self._rosMasterPort-self._baseRosPort) #Very ugly way to avoid potential race conditions
 
-        print("Launching "+self._launchFile)
+        print("#######################################################################\n"+
+              "  MultiMasterRosLauncher launching with use ports "+str(self._rosMasterPort)+" and "+str(self._gazeboPort)+"\n"+
+              "   Launching "+self._launchFile+"\n"+
+              "#######################################################################")
         os.environ["ROSCONSOLE_FORMAT"] = '['+str(self._rosMasterPort)+'][${severity}] [${time}]: ${message}'
         self._popen_obj = subprocess.Popen(["roslaunch", self._launchFile]+self._cli_args)
 

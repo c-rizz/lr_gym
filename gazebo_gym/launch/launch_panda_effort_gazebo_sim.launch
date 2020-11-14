@@ -17,7 +17,7 @@
       <arg name="gui" value="$(arg gui)"/>
       <arg name="noplugin" value="$(arg noplugin)"/>
       <arg name="paused" value="false"/>
-      <arg name="physics_engine" value="ode"/>
+      <arg name="physics_engine" value="bullet"/>
     </include>
 
     <!-- Spawn and setup the panda robot -->
@@ -28,12 +28,17 @@
       <arg name="load_gripper" value="$(arg load_gripper)"/>
     </include>
 
-    <!-- publish the links states -->
+    <!-- publish the links states
     <node name="link_state_publisher" pkg="gazebo_gym_utils" type="link_state_publisher" />
-
+-->
     <!-- load the gravity-compensated effort controller -->
     <rosparam file="$(find gazebo_gym_utils)/config/ros_controllers.yaml" command="load" />
     <node name="controller_spawner_compensated" pkg="controller_manager" type="spawner" respawn="false" output="screen"
           args="--stopped panda_arm_effort_effort_compensated_controller" />
+
+
+    <!-- load the LinkstatePublisher controller -->
+    <node name="controller_spawner_link_state_pub" pkg="controller_manager" type="spawner" respawn="false" output="screen"
+          args=" link_state_controller" />
 
 </launch>

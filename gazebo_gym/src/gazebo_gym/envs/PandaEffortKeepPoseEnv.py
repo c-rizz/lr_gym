@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """This file implements PandaEffortKeepPoseEnvironment."""
 
-import rospy
+import gazebo_gym.utils.ggLog as ggLog
 
 import numpy as np
 from typing import Tuple
@@ -104,8 +104,8 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
         if orientDistImprovement<0:
             orientDistImprovement*=2
 
-        positionClosenessBonus    = 1.0*(-(posDist_new/2))
-        orientationClosenessBonus = 0.1*(-orientDist_new/math.pi)
+        positionClosenessBonus    = 1.0*(10000**(-posDist_new))
+        orientationClosenessBonus = 0.1*(10000**(-orientDist_new/math.pi))
 
 
         norm_joint_pose = self._normalizedJointPositions(state)
@@ -113,6 +113,6 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
         atLimitMalus = -amountJointsAtLimit
 
 
-        reward = positionClosenessBonus + orientationClosenessBonus + 1000*(posDistImprovement + orientDistImprovement) + atLimitMalus
-        #rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
+        reward = positionClosenessBonus + orientationClosenessBonus + 10*(posDistImprovement + 0.1*orientDistImprovement) + atLimitMalus
+        #ggLog.info("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new)+"   PrevDist = "+str(posDist_old)+"   OrDist = "+str(orientDist_new)+"   PrevOrDist = "+str(orientDist_old))
         return reward

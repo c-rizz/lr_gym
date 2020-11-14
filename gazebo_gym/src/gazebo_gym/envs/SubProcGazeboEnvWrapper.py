@@ -8,6 +8,7 @@ import numpy as np
 
 import os
 import signal
+import atexit
 
 class CloudpickleWrapper(object):
     def __init__(self, var):
@@ -25,18 +26,19 @@ class CloudpickleWrapper(object):
 
 def worker(child_connection, env_fn_wrapper):
     env = env_fn_wrapper.var()
+    print("######################## Worker pid = "+str(os.getpid()))
     while True:
         try:
             cmd, data = child_connection.recv()
 
             if cmd == "submitAction":
-                child_connection.send(env.submitAction(data))
+                child_connection.send(env.submitAction(*data))
             elif cmd == "checkEpisodeEnded":
-                child_connection.send(env.checkEpisodeEnded(data))
+                child_connection.send(env.checkEpisodeEnded(*data))
             elif cmd == "computeReward":
-              child_connection.send(env.computeReward(data))
+                child_connection.send(env.computeReward(*data))
             elif cmd == "getObservation":
-                child_connection.send(env.getObservation())
+                child_connection.send(env.getObservation(*data))
             elif cmd == "getState":
                 child_connection.send(env.getState())
             elif cmd == "getCameraToRenderName":
@@ -56,10 +58,11 @@ def worker(child_connection, env_fn_wrapper):
             elif cmd == "setGoalInState":
                 child_connection.send(env.setGoalInState())
             elif cmd == "buildSimulation":
-                child_connection.send(env.buildSimulation(data))
+                child_connection.send(env.buildSimulation(*data))
             elif cmd == "close":
                 child_connection.send(env.close())
                 child_connection.close()
+                break
             elif cmd == "getSimTimeFromEpStart":
                 child_connection.send(env.getSimTimeFromEpStart())
             elif cmd == 'get_spaces':
@@ -88,6 +91,10 @@ class SubProcGazeboEnvWrapper(gazebo_gym.envs.BaseEnv.BaseEnv):
         """
 
         """
+
+        print("######################## Main pid = "+str(os.getpid()))
+
+
         if start_method is None:
             # Fork is not a thread safe method (see issue #217)
             # but is more user friendly (does not require to wrap the code in
@@ -101,13 +108,15 @@ class SubProcGazeboEnvWrapper(gazebo_gym.envs.BaseEnv.BaseEnv):
         self._process.start()
         child_conn.close()
 
-        self.remotes[0].send(('get_spaces', None))
-        observation_space, action_space = self.remotes[0].recv()
+        self._parentConnection.send(('get_spaces', None))
+        self.observation_space, self.action_space = self._parentConnection.recv()
+        self._parentConnection.send(('get_attr', "metadata"))
+        self.metadata = self._parentConnection.recv()
 
-
+        atexit.register(self.close)
 
     def submitAction(self, action) -> None:
-        self._parentConnection.send(('submitAction', action))
+        self._parentConnection.send(('submitAction', (action,)))
         return self._parentConnection.recv()
 
     def checkEpisodeEnded(self, previousState, state) -> bool:
@@ -118,8 +127,8 @@ class SubProcGazeboEnvWrapper(gazebo_gym.envs.BaseEnv.BaseEnv):
         self._parentConnection.send(('computeReward', (previousState, state, action)))
         return self._parentConnection.recv()
 
-    def getObservation(self) -> Sequence:
-        self._parentConnection.send(('getObservation', None))
+    def getObservation(self, state) -> np.ndarray:
+        self._parentConnection.send(('getObservation', (state,)))
         return self._parentConnection.recv()
 
     def getState(self) -> Sequence:
@@ -159,7 +168,7 @@ class SubProcGazeboEnvWrapper(gazebo_gym.envs.BaseEnv.BaseEnv):
         return self._parentConnection.recv()
 
     def buildSimulation(self, backend : str = "gazebo"):
-        self._parentConnection.send(('buildSimulation', backend))
+        self._parentConnection.send(('buildSimulation', (backend,)))
         return self._parentConnection.recv()
 
     def close(self):

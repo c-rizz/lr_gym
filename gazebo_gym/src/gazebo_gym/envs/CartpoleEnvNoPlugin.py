@@ -255,7 +255,7 @@ class CartpoleEnvNoPlugin(gym.Env):
             return np.empty([0,0,3])
 
         #t1 = time.time()
-        npArrImage = utils.image_to_numpy(self._lastCameraImage)
+        npArrImage =gazebo_gym.utils.image_to_numpy(self._lastCameraImage)
         #t2 = time.time()
 
         #rospy.loginfo("render time = {:.4f}s".format(t1-t0)+"  conversion time = {:.4f}s".format(t2-t1))

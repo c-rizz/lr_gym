@@ -11,3 +11,8 @@ panda_arm_effort_effort_compensated_controller:
         - panda_joint7
         - panda_joint8
     gravity_acceleration: 9.80665
+
+# Not an actual controller, it just publishes the joint state of the robot
+link_state_controller:
+    type: gazebo_gym_utils/LinkStatePublisherController
+    publish_rate: 100

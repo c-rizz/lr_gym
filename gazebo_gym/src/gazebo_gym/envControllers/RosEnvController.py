@@ -7,7 +7,7 @@ import sensor_msgs
 import gazebo_msgs.msg
 from threading import Lock
 
-from gazebo_gym.utils import JointState
+from gazebo_gym.utils.utils import JointState
 from gazebo_gym.envControllers.EnvironmentController import EnvironmentController
 from gazebo_gym_utils.msg import LinkStates
 
@@ -15,6 +15,7 @@ import rospy
 import gazebo_gym
 import os
 import time
+import gazebo_gym.utils.ggLog as ggLog
 
 class RosEnvController(EnvironmentController):
     """This class allows to control the execution of a ROS-based environment.
@@ -45,15 +46,21 @@ class RosEnvController(EnvironmentController):
         self._jointStatesMutex = Lock() #To synchronize _jointStateCallback with getJointsState
         self._linkStatesMutex = Lock() #To synchronize _jointStateCallback with getJointsState
 
-        self._jointStateMsgAgeAvg = gazebo_gym.utils.AverageKeeper(bufferSize = 100)
-        self._linkStateMsgAgeAvg = gazebo_gym.utils.AverageKeeper(bufferSize = 100)
-        self._cameraMsgAgeAvg = gazebo_gym.utils.AverageKeeper(bufferSize = 100)
+        self._jointStateMsgAgeAvg = gazebo_gym.utils.utils.AverageKeeper(bufferSize = 100)
+        self._linkStateMsgAgeAvg = gazebo_gym.utils.utils.AverageKeeper(bufferSize = 100)
+        self._cameraMsgAgeAvg = gazebo_gym.utils.utils.AverageKeeper(bufferSize = 100)
+
 
     def step(self) -> None:
         """Wait for the step time to pass."""
         #TODO: it may make sense to keep track of the time spend in the rest of the processing
-        #rospy.loginfo("Sleeping "+str(self._stepLength_sec))
-        rospy.sleep(self._stepLength_sec)
+        sleepDuration = self._stepLength_sec - (rospy.get_time() - self._lastStepEnd)
+        if sleepDuration > 0:
+            #rospy.loginfo("Sleeping "+str(sleepDuration))
+            rospy.sleep(sleepDuration)
+        else:
+            ggLog.warn("Too much time passed since last step call. Cannot respect step frequency, required sleepDuration = "+str(sleepDuration))
+        self._lastStepEnd = rospy.get_time()
         #rospy.loginfo("Slept")
 
     def _imagesCallback(msg,args):
@@ -64,14 +71,17 @@ class RosEnvController(EnvironmentController):
 
 
     def _jointStateCallback(self,msg):
-
+        #ggLog.info("Got joint state")
         self._jointStatesMutex.acquire()
+        #ggLog.info("Wrote joint state")
         self._lastJointStatesReceived = msg
         self._jointStatesMutex.release()
 
 
     def _linkStatesCallback(self, msg):
+        #ggLog.info("Got link state")
         self._linkStatesMutex.acquire()
+        #ggLog.info("Wrote link state")
         self._lastLinkStatesReceived = msg
         self._linkStatesMutex.release()
 
@@ -112,7 +122,9 @@ class RosEnvController(EnvironmentController):
 
         rospy.init_node('ros_env_controller', anonymous=True)
 
-        self._simTimeStart = rospy.get_time()
+
+        self._simTimeStart = rospy.get_time() #Will be overwritten by resetWorld
+        self._lastStepEnd = self._simTimeStart #Will be overwritten by resetWorld
 
         self._imageSubscribers = []
         for cam_topic in self._camerasToObserve:
@@ -120,10 +132,10 @@ class RosEnvController(EnvironmentController):
             self._imageSubscribers.append(rospy.Subscriber("cam_topic", sensor_msgs.msg.Image, self._imagesCallback, callback_args=(self,cam_topic)))
 
         if len(self._jointsToObserve)>0:
-            self._jointStateSubscriber = rospy.Subscriber("joint_states", sensor_msgs.msg.JointState, self._jointStateCallback)
+            self._jointStateSubscriber = rospy.Subscriber("joint_states", sensor_msgs.msg.JointState, self._jointStateCallback, queue_size=1)
 
         if len(self._linksToObserve)>0:
-            self._linkStatesSubscriber = rospy.Subscriber("link_states", LinkStates, self._linkStatesCallback)
+            self._linkStatesSubscriber = rospy.Subscriber("link_states", LinkStates, self._linkStatesCallback, queue_size=1)
 
 
 
@@ -253,10 +265,11 @@ class RosEnvController(EnvironmentController):
         return ret
 
     def resetWorld(self):
-        rospy.loginfo("Average link_state age ="+str(self._linkStateMsgAgeAvg.getAverage()))
-        rospy.loginfo("Average joint_state age ="+str(self._jointStateMsgAgeAvg.getAverage()))
-        rospy.loginfo("Average camera image age ="+str(self._cameraMsgAgeAvg.getAverage()))
+        ggLog.info("Average link_state age ="+str(self._linkStateMsgAgeAvg.getAverage()))
+        ggLog.info("Average joint_state age ="+str(self._jointStateMsgAgeAvg.getAverage()))
+        ggLog.info("Average camera image age ="+str(self._cameraMsgAgeAvg.getAverage()))
         self._simTimeStart = rospy.get_time()
+        self._lastStepEnd = self._simTimeStart
 
 
     def getEnvSimTimeFromStart(self) -> float:

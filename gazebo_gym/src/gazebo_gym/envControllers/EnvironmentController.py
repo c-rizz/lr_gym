@@ -8,7 +8,7 @@ import sensor_msgs
 import gazebo_msgs.msg
 import rospy
 
-from gazebo_gym.utils import JointState
+from gazebo_gym.utils.utils import JointState
 
 
 class EnvironmentController():

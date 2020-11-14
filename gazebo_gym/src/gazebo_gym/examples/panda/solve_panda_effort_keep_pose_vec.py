@@ -18,12 +18,14 @@ import gazebo_gym
 from gazebo_gym.envs.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 from stable_baselines.common.callbacks import CheckpointCallback
+from gazebo_gym.utils.subproc_vec_env_no_reset import SubprocVecEnv_noReset
+from gazebo_gym.algorithms.sac_vec_sb2 import SAC_vec
 
 def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, numEpisodes : int = -1):
     #frames = []
     #do an average over a bunch of episodes
     episodesRan = 0
-    while numEpisodes<=0 or episodesRan>=numEpisodes:
+    while numEpisodes<=0 or episodesRan<numEpisodes:
         frame = 0
         episodeReward = 0
         done = False
@@ -37,31 +39,34 @@ def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, n
             #time.sleep(0.016)
             frame+=1
             episodeReward += stepReward
+        episodesRan += 1
         totDuration = time.time() - t0
         print("Ran for "+str(totDuration)+"s \t Reward: "+str(episodeReward))
 
-def buildModel(random_seed : int, env : gym.Env, folderName : str):
+def buildModel(random_seed : int, env : gym.Env, folderName : str, maxStepsPerEpisode : int, envsNum : int):
     n_actions = env.action_space.shape[-1]
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
     #hyperparameters taken by the RL baslines zoo repo
-    model = SAC( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
-                 buffer_size=200000, gamma=0.99,
-                 learning_rate=0.003, learning_starts=env.getBaseEnv().getMaxStepsPerEpisode()*10,
-                 policy_kwargs=dict(layers=[64, 128, 64]),
-                 gradient_steps=env.getBaseEnv().getMaxStepsPerEpisode(),
-                 train_freq=env.getBaseEnv().getMaxStepsPerEpisode(),
-                 seed = random_seed, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
-                 tensorboard_log="./solve_panda_effort_keep_tensorboard/")
+    model = SAC_vec(MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=64*envsNum,
+                    buffer_size=200000, gamma=0.99,
+                    learning_rate=0.003,
+                    learning_starts=maxStepsPerEpisode*envsNum*int(200/envsNum),
+                    policy_kwargs=dict(layers=[64, 128, 64]),
+                    gradient_steps = "ep_length",
+                    grad_steps_multiplier = 2.0, #/envsNum,
+                    train_freq=1,
+                    seed = random_seed, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
+                    tensorboard_log=folderName)
 
     return model
 
-def train(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, model, filename : str, folderName : str) -> None:
+def train(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainEps : int, model, filename : str, folderName : str, save_freq_steps : int) -> None:
     env.reset()
-    checkpoint_callback = CheckpointCallback(save_freq=100000, save_path=folderName+'/checkpoints/', name_prefix=filename)
+    checkpoint_callback = CheckpointCallback(save_freq=save_freq_steps, save_path=folderName+'/checkpoints/', name_prefix=filename)
     print("Learning...")
     t_preLearn = time.time()
-    model.learn(total_timesteps=trainIterations, log_interval=10, callback=checkpoint_callback)
+    model.learn(training_episodes=trainEps, log_interval=10, callback=checkpoint_callback)
     duration_learn = time.time() - t_preLearn
     print("Learned. Took "+str(duration_learn)+" seconds.")
     model.save(filename)
@@ -101,54 +106,72 @@ def load(model, filename : str, env : gazebo_gym.envs.BaseEnv.BaseEnv) -> None:
 
 def main(fileToLoad : str = None):
 
-    env = GymEnvWrapper(PandaEffortKeepPoseEnv( goalPose = (0.4,0.4,0.6, 1,0,0,0),
-                                                maxActionsPerEpisode = 300,
-                                                stepLength_sec = 0.01,
-                                                startSimulation = True))
+
+    trainEps = 15000
+    run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    filename = "sac_pandaEffortKeep_"+run_id+"s"+str(trainEps)
+    folderName = "./solve_panda_effort_keep_tensorboard/"+run_id
+    stepLength_sec = 0.1
+    maxStepsPerEpisode = int(1/stepLength_sec*5)
+
+    def constructEnv(i):
+        return GymEnvWrapper(PandaEffortKeepPoseEnv( goalPose = (0.4,0.4,0.6, 1,0,0,0),
+                                                     maxActionsPerEpisode = maxStepsPerEpisode,
+                                                     stepLength_sec = stepLength_sec,
+                                                     startSimulation = True,
+                                                     maxTorques=[87, 87, 87, 87, 12, 12, 12]),
+                             episodeInfoLogFile = folderName+"/GymEnvWrapper_log."+str(i)+".csv")
+
+    if fileToLoad is None:
+        env = SubprocVecEnv_noReset([lambda i=i: constructEnv(i) for i in range(args["envsNum"])])  # 7 is good on an 8-core cpu (tested on i7-6820HK, 4 cores, 8 threads)
+    else:
+        env = constructEnv(0)
+
+
     #setup seeds for reproducibility
     RANDOM_SEED=20200831
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
-    env_checker.check_env(env)
-    print("Checked environment gym compliance :)")
+    #env_checker.check_env(env)
+    #print("Checked environment gym compliance :)")
 
-    trainIterations = 4000000
-
-    filename = "sac_pandaEffortKeep_"+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+"s"+str(trainIterations)
-    folderName = "./solve_panda_effort_keep_tensorboard"
-
-    model = buildModel(random_seed = RANDOM_SEED, env = env, folderName = folderName)
+    model = buildModel( random_seed = RANDOM_SEED,
+                        env = env,
+                        folderName = folderName,
+                        maxStepsPerEpisode = maxStepsPerEpisode,
+                        envsNum = args["envsNum"])
 
     if fileToLoad is None:
-        model = train(env, trainIterations=trainIterations, model = model, filename = filename, folderName = folderName)
+        train(env, trainEps=trainEps, model = model, filename = filename, folderName = folderName, save_freq_steps = maxStepsPerEpisode*100)
         input("Press Enter to continue...")
         run(env,model)
     else:
         numEpisodes = -1
         if fileToLoad.endswith("*"):
-            folderName = os.dirname(fileToLoad)
-            fileNamePrefix = os.basename(fileToLoad)[:-1]
+            folderName = os.path.dirname(fileToLoad)
+            fileNamePrefix = os.path.basename(fileToLoad)[:-1]
             files = []
             for f in os.listdir(folderName):
                 if f.startswith(fileNamePrefix):
                     files.append(f)
             files = sorted(files, key = lambda x: int(x.split("_")[-2]))
-            fileToLoad = files
+            fileToLoad = [folderName+"/"+f for f in files]
             numEpisodes = 1
         if isinstance(fileToLoad, str):
             fileToLoad = [fileToLoad]
         for file in fileToLoad:
-            model = load(fileToLoad)
-            input("Press Enter to continue...")
+            model = load(filename = file, env = env, model = model)
+            #input("Press Enter to continue...")
             run(env,model, numEpisodes = numEpisodes)
 
-    input("Press Enter to continue...")
-    run(env,model)
+    #input("Press Enter to continue...")
+    #run(env,model)
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--load", default=None, type=str, help="load this model instead of perfomring the training")
+    ap.add_argument("--envsNum", required=False, default=4, type=int, help="Number of environments to run in parallel")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
     main(fileToLoad = args["load"])

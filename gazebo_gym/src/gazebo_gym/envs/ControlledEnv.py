@@ -9,7 +9,7 @@ import rospy
 import rospy.client
 
 import numpy as np
-import utils
+import gazebo_gym.utils.utils
 
 from gazebo_gym.envControllers.GazeboController import GazeboController
 from gazebo_gym.envs.BaseEnv import BaseEnv
@@ -83,6 +83,7 @@ class ControlledEnv(BaseEnv):
         super().performReset()
         self._environmentController.resetWorld()
         self._intendedSimTime = 0
+        self.onResetDone()
 
     def getRendering(self) -> np.ndarray:
 
@@ -95,7 +96,7 @@ class ControlledEnv(BaseEnv):
             return np.empty([0,0,3])
 
         #t1 = time.time()
-        npArrImage = utils.image_to_numpy(cameraImage)
+        npArrImage =gazebo_gym.utils.image_to_numpy(cameraImage)
 
         #rospy.loginfo("render time = {:.4f}s".format(t1-t0)+"  conversion time = {:.4f}s".format(t2-t1))
 

@@ -47,14 +47,13 @@ def buildModel(random_seed : int, env : gym.Env, folderName : str, maxStepsPerEp
     n_actions = env.action_space.shape[-1]
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
-    #hyperparameters taken by the RL baslines zoo repo
-    model = SAC_vec(MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=64*envsNum,
+    model = SAC_vec(MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=32*envsNum,
                     buffer_size=200000, gamma=0.99,
-                    learning_rate=0.003,
-                    learning_starts=maxStepsPerEpisode*envsNum*int(200/envsNum),
+                    learning_rate=0.006,
+                    learning_starts=maxStepsPerEpisode*envsNum*int(400/envsNum), #400 episodes of random exploration
                     policy_kwargs=dict(layers=[64, 128, 64]),
-                    gradient_steps = "ep_length",
-                    grad_steps_multiplier = 2.0, #/envsNum,
+                    gradient_steps = "last_ep_batch_steps",
+                    grad_steps_multiplier = 1.0/envsNum,
                     train_freq=1,
                     seed = random_seed, n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
                     tensorboard_log=folderName)
@@ -66,7 +65,7 @@ def train(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainEps : int, model, filename
     checkpoint_callback = CheckpointCallback(save_freq=save_freq_steps, save_path=folderName+'/checkpoints/', name_prefix=filename)
     print("Learning...")
     t_preLearn = time.time()
-    model.learn(training_episodes=trainEps, log_interval=10, callback=checkpoint_callback)
+    model.learn(training_episode_batches=trainEps, log_interval=10, callback=checkpoint_callback)
     duration_learn = time.time() - t_preLearn
     print("Learned. Took "+str(duration_learn)+" seconds.")
     model.save(filename)
@@ -100,6 +99,7 @@ def load(model, filename : str, env : gazebo_gym.envs.BaseEnv.BaseEnv) -> None:
     #print("full_tensorboard_log:   "+str(model.full_tensorboard_log))
     print("seed:                   "+str(model.seed))
     print("n_cpu_tf_sess:          "+str(model.n_cpu_tf_sess))
+    print("Loaded "+filename+".")
 
     return model
 
@@ -114,12 +114,14 @@ def main(fileToLoad : str = None):
     stepLength_sec = 0.1
     maxStepsPerEpisode = int(1/stepLength_sec*5)
 
+    frankaMaxTorques = [87, 87, 87, 87, 12, 12, 12]
+
     def constructEnv(i):
         return GymEnvWrapper(PandaEffortKeepPoseEnv( goalPose = (0.4,0.4,0.6, 1,0,0,0),
                                                      maxActionsPerEpisode = maxStepsPerEpisode,
                                                      stepLength_sec = stepLength_sec,
                                                      startSimulation = True,
-                                                     maxTorques=[87, 87, 87, 87, 12, 12, 12]),
+                                                     maxTorques=[0.1*i for i in frankaMaxTorques]),
                              episodeInfoLogFile = folderName+"/GymEnvWrapper_log."+str(i)+".csv")
 
     if fileToLoad is None:

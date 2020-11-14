@@ -13,6 +13,7 @@ import signal
 from typing import List
 import subprocess
 import atexit
+import gazebo_gym.utils.ggLog as ggLog
 
 class SystemMutex:
     def __init__(self, id : str):
@@ -79,7 +80,7 @@ class MultiMasterRosLauncher:
         time.sleep(self._rosMasterPort-self._baseRosPort) #Very ugly way to avoid potential race conditions
 
         print("#######################################################################\n"+
-              "  MultiMasterRosLauncher launching with use ports "+str(self._rosMasterPort)+" and "+str(self._gazeboPort)+"\n"+
+              "  MultiMasterRosLauncher launching with ports "+str(self._rosMasterPort)+" and "+str(self._gazeboPort)+"\n"+
               "   Launching "+self._launchFile+"\n"+
               "#######################################################################")
         os.environ["ROSCONSOLE_FORMAT"] = '['+str(self._rosMasterPort)+'][${severity}] [${time}]: ${message}'
@@ -95,21 +96,21 @@ class MultiMasterRosLauncher:
     def stop(self):
         """Stop a roscore started with launchAsync."""
         self._popen_obj.send_signal(signal.SIGINT)
-        print("Waiting for ros subprocess to finish")
+        ggLog.info("Waiting for ros subprocess to finish")
         try:
             self._popen_obj.wait(10)
         except subprocess.TimeoutExpired:
             if self._popen_obj.poll() is None:
-                rospy.logwarn("Terminating subprocess forcefully (SIGTERM)")
+                ggLog.warn("Terminating subprocess forcefully (SIGTERM)")
                 self._popen_obj.terminate()
                 try:
                     self._popen_obj.wait(10)
                 except subprocess.TimeoutExpired:
                     if self._popen_obj.poll():
-                        rospy.logwarn("Killing subprocess (SIGKILL)")
+                        ggLog.warn("Killing subprocess (SIGKILL)")
                         self._popen_obj.kill()
         self._mutex.release()
-        print("Ros subprocess finished")
+        ggLog.info("Ros subprocess finished")
 
     def getRosMasterUri(self):
         return self._rosMasterUri

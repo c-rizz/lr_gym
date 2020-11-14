@@ -21,7 +21,7 @@ class SAC_vec(SAC):
     def __init__(self, policy, env, gamma=0.99, learning_rate=3e-4, buffer_size=50000,
                  learning_starts=100, train_freq=1, batch_size=64,
                  tau=0.005, ent_coef='auto', target_update_interval=1,
-                 gradient_steps="ep_length", target_entropy='auto', action_noise=None,
+                 gradient_steps="last_ep_batch_steps", target_entropy='auto', action_noise=None,
                  random_exploration=0.0, verbose=0, tensorboard_log=None,
                  _init_setup_model=True, policy_kwargs=None, full_tensorboard_log=False,
                  seed=None, n_cpu_tf_sess=None,
@@ -30,7 +30,7 @@ class SAC_vec(SAC):
 
         - train_freq is per-episode-batch: train_freq=1 means perform a training after each episode batch. An episode batch is composed of one
           episode per parallel environment (e.g. a 4-envs vec_env will produce 4 episodes per episode-batch)
-        - gradient_steps can accept also the 'ep_length' string, meaning it will performas as many iterations as there are frames in
+        - gradient_steps can accept also the 'last_ep_batch_steps' string, meaning it will performas as many iterations as there are frames in
           the last episode batch.
         - There is the additional grad_steps_multiplier argument. It gets multiplied to the value dictated by gradient_steps to define the
           actual number of gradient steps
@@ -218,7 +218,7 @@ class SAC_vec(SAC):
         return ep_rewards, tt_step, tt_inf, tt_buf, tt_log, tt_cb, tt_rst
 
 
-    def learn(self, training_episodes, callback=None,
+    def learn(self, training_episode_batches, callback=None,
               log_interval=4, tb_log_name="SAC", reset_num_timesteps=True, replay_wrapper=None):
 
         new_tb_log = self._init_num_timesteps(reset_num_timesteps)
@@ -247,7 +247,7 @@ class SAC_vec(SAC):
             callback.on_training_start(locals(), globals())
             callback.on_rollout_start()
 
-            for episode in range(training_episodes):
+            for episode_batch in range(training_episode_batches):
                 timesteps_before = self.num_timesteps
                 t0_coll = time.monotonic()
                 ep_rewards, tt_step, tt_inf, tt_buf, tt_log, tt_cb, tt_rst = self._collect_episode(useRandomPolicy=self.num_timesteps < self.learning_starts, callback=callback, writer =writer)
@@ -256,13 +256,13 @@ class SAC_vec(SAC):
 
                 print("colleted episode batch, "+str(timesteps_collected)+" steps. fps =",timesteps_collected/tt_coll)
                 print("tt_step =",tt_step,"tt_inf = ",tt_inf,"tt_buf =",tt_buf," tt_log =",tt_log, "tt_cb =",tt_cb, "tt_rst =",tt_rst, "tt_coll =",tt_coll)
-                if episode % self.train_freq == 0:
+                if episode_batch % self.train_freq == 0:
                     #print("training..")
                     callback.on_rollout_end()
 
                     mb_infos_vals = []
                     if type(self.gradient_steps) == str:
-                        if self.gradient_steps == "ep_length":
+                        if self.gradient_steps == "last_ep_batch_steps":
                             grad_steps = timesteps_collected
                         else:
                             raise RuntimeError("invalid string in gradient_steps, it is "+self.gradient_steps)
@@ -279,7 +279,7 @@ class SAC_vec(SAC):
                             break
                         n_updates += 1
                         # Compute current learning_rate
-                        frac = 1.0 - episode / training_episodes
+                        frac = 1.0 - episode_batch / training_episode_batches
                         current_lr = self.learning_rate(frac)
                         # Update policy and critics (q functions)
                         mb_infos_vals.append(self._train_step(self.num_timesteps, writer, current_lr))

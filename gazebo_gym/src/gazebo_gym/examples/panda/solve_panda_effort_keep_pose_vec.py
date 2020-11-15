@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import rospy
 import time
 import argparse
 import gym
@@ -146,6 +145,8 @@ def main(fileToLoad : str = None):
     if fileToLoad is None:
         train(env, trainEps=trainEps, model = model, filename = filename, folderName = folderName, save_freq_steps = maxStepsPerEpisode*100)
         input("Press Enter to continue...")
+        env.close()
+        env = constructEnv(0)
         run(env,model)
     else:
         numEpisodes = -1
@@ -169,6 +170,7 @@ def main(fileToLoad : str = None):
     #input("Press Enter to continue...")
     #run(env,model)
 
+    env.close()
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()

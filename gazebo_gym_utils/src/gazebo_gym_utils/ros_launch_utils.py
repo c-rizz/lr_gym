@@ -32,12 +32,15 @@ class SystemMutex:
         return self._acquired
 
     def isAcquired(self) -> bool:
-        return self.acquired
+        return self._acquired
 
     def release(self):
-        fcntl.flock(self.fp.fileno(), fcntl.LOCK_UN)
-        self.fp.close()
-        self._acquired = False
+        try:
+            fcntl.flock(self.fp.fileno(), fcntl.LOCK_UN)
+            self.fp.close()
+            self._acquired = False
+        except ValueError:
+            pass #If already released (and closed the file)
 
     def __enter__(self):
         self.acquire()

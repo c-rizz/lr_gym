@@ -82,12 +82,24 @@ class MultiMasterRosLauncher:
 
         time.sleep(self._rosMasterPort-self._baseRosPort) #Very ugly way to avoid potential race conditions
 
-        print("#######################################################################\n"+
+        ggLog.info("#######################################################################\n"+
               "  MultiMasterRosLauncher launching with ports "+str(self._rosMasterPort)+" and "+str(self._gazeboPort)+"\n"+
               "   Launching "+self._launchFile+"\n"+
               "#######################################################################")
         os.environ["ROSCONSOLE_FORMAT"] = '['+str(self._rosMasterPort)+'][${severity}] [${time}]: ${message}'
-        self._popen_obj = subprocess.Popen(["roslaunch", self._launchFile]+self._cli_args)
+
+        def run_in_thread(on_exit, popen_args):
+                self._popen_obj = subprocess.Popen(["roslaunch", self._launchFile]+self._cli_args)
+                self._popen_obj.wait()
+                if self._popen_obj.returncode != 0:
+                    ggLog.error("Roslaunch failed with code "+str(self._popen_obj.returncode))
+                else:
+                    ggLog.info("Roslaunch exited.")
+                return
+        thread = threading.Thread(target=run_in_thread, args=(on_exit, popen_args))
+        thread.start()
+
+
 
         atexit.register(self.stop)
     # def launchAsync(self) -> mp.Process:

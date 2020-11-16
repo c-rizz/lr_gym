@@ -48,7 +48,7 @@ def buildModel(random_seed : int, env : gym.Env, folderName : str, maxStepsPerEp
 
     model = SAC_vec(MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=32*envsNum,
                     buffer_size=200000, gamma=0.99,
-                    learning_rate=0.006,
+                    learning_rate=0.0015*envsNum,
                     learning_starts=maxStepsPerEpisode*envsNum*int(400/envsNum), #400 episodes of random exploration
                     policy_kwargs=dict(layers=[64, 128, 64]),
                     gradient_steps = "last_ep_batch_steps",
@@ -146,7 +146,7 @@ def main(fileToLoad : str = None):
         train(env, trainEps=trainEps, model = model, filename = filename, folderName = folderName, save_freq_steps = maxStepsPerEpisode*100)
         input("Press Enter to continue...")
         env.close()
-        env = constructEnv(0)
+        env = constructEnv(-1)
         run(env,model)
     else:
         numEpisodes = -1

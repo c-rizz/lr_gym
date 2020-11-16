@@ -106,7 +106,7 @@ def load(model, filename : str, env : gazebo_gym.envs.BaseEnv.BaseEnv) -> None:
 def main(fileToLoad : str = None):
 
 
-    trainEps = 15000
+    trainEps = 3000
     run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
     filename = "sac_pandaEffortKeep_"+run_id+"s"+str(trainEps)
     folderName = "./solve_panda_effort_keep_tensorboard/"+run_id

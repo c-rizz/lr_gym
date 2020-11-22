@@ -144,8 +144,8 @@ def main(fileToLoad : str = None):
 
     if fileToLoad is None:
         train(env, trainEps=trainEps, model = model, filename = filename, folderName = folderName, save_freq_steps = maxStepsPerEpisode*100)
-        input("Press Enter to continue...")
         env.close()
+        input("Press Enter to continue...")
         env = constructEnv(-1)
         run(env,model)
     else:

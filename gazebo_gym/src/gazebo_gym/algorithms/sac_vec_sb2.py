@@ -15,6 +15,8 @@ from stable_baselines import SAC
 
 from typing import List
 import typing
+import gazebo_gym.utils.ggLog as ggLog
+
 
 class SAC_vec(SAC):
 
@@ -143,7 +145,8 @@ class SAC_vec(SAC):
         tt_buf = 0
         tt_log = 0
         tt_cb = 0
-        ep_rewards = [0] * self.env.num_envs
+        ep_rewards = [0] * self.env.num_envs # one total reward per environment
+        ep_buffers = [[]] * self.env.num_envs # one list per environment
         while not prev_dones.all():
             #print("colleting step...")
             # Only the envs that are not done will do a valid step. We still step all of them, but
@@ -183,13 +186,12 @@ class SAC_vec(SAC):
             t0_buff = time.monotonic()
             for i in range(self.env.num_envs):
                 if envs_validity[i]:
-                    # Store transition in the replay buffer.
-                    self.replay_buffer_add( prev_obss_unnorm[i],
+                    ep_buffers[i].append(  (prev_obss_unnorm[i],
                                             actions[i],
                                             rewards_unnorm[i],
                                             new_obss_unnorm[i],
                                             dones[i],
-                                            infos[i])
+                                            infos[i]))
             tt_buf += time.monotonic() - t0_buff
             prev_obss = new_obss
             # Save the unnormalized observation
@@ -215,6 +217,13 @@ class SAC_vec(SAC):
                                                             ep_done, writer, self.num_timesteps)
                         ep_rewards[i]+=ep_reward
             tt_log += time.monotonic()-t0_log
+
+        # Add the steps to the replay buffer sequentially
+        # Undoing step frames interleaving allows to use for example the HER implementation by stable baseines
+        for ep_buffer in ep_buffers:
+            for step_frame in ep_buffer:
+                #ggLog.info("step_frame = "+str(step_frame))
+                self.replay_buffer_add(*step_frame)
         return ep_rewards, tt_step, tt_inf, tt_buf, tt_log, tt_cb, tt_rst
 
 

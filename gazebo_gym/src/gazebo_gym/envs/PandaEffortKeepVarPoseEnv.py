@@ -188,8 +188,8 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
         if orientDistImprovement<0:
             orientDistImprovement*=2
 
-        positionClosenessBonus    = 1.0*(-(posDist_new/2))
-        orientationClosenessBonus = 0.1*(-orientDist_new/math.pi)
+        positionClosenessBonus    = 1.0*(10000**(-posDist_new))
+        orientationClosenessBonus = 0.1*(10000**(-orientDist_new/math.pi))
 
 
         norm_joint_pose = self._normalizedJointPositions(state)

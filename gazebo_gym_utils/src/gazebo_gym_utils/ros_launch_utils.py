@@ -14,6 +14,7 @@ from typing import List
 import subprocess
 import atexit
 import gazebo_gym.utils.ggLog as ggLog
+import threading
 
 class SystemMutex:
     def __init__(self, id : str):
@@ -88,7 +89,7 @@ class MultiMasterRosLauncher:
               "#######################################################################")
         os.environ["ROSCONSOLE_FORMAT"] = '['+str(self._rosMasterPort)+'][${severity}] [${time}]: ${message}'
 
-        def run_in_thread(on_exit, popen_args):
+        def run_in_thread():
                 self._popen_obj = subprocess.Popen(["roslaunch", self._launchFile]+self._cli_args)
                 self._popen_obj.wait()
                 if self._popen_obj.returncode != 0:
@@ -96,7 +97,7 @@ class MultiMasterRosLauncher:
                 else:
                     ggLog.info("Roslaunch exited.")
                 return
-        thread = threading.Thread(target=run_in_thread, args=(on_exit, popen_args))
+        thread = threading.Thread(target=run_in_thread)
         thread.start()
 
 

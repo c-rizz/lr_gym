@@ -37,6 +37,8 @@ def _worker(remote, parent_remote, env_fn_wrapper):
                 remote.send(getattr(env, data))
             elif cmd == 'set_attr':
                 remote.send(setattr(env, data[0], data[1]))
+            elif cmd == 'compute_reward':
+                remote.send(env.compute_reward(data[0],data[1],data[2]))
             else:
                 raise NotImplementedError("`{}` is not implemented in the worker".format(cmd))
         except EOFError:
@@ -158,6 +160,11 @@ class SubprocVecEnv_noReset(VecEnv):
         for remote in target_remotes:
             remote.send(('env_method', (method_name, method_args, method_kwargs)))
         return [remote.recv() for remote in target_remotes]
+
+    def compute_reward(self, achieved_goal, desired_goal, info):
+        """Call instance methods of vectorized environments."""
+        self.remotes[0].send(('compute_reward', (achieved_goal, desired_goal, info)))
+        return self.remotes[0].recv()
 
     def _get_target_remotes(self, indices):
         """

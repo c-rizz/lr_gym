@@ -63,14 +63,18 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
 
 
 
-    def _getDist2goal(self, state : NDArray[(20,), np.float32], goalPoseRpy : NDArray[(6,), np.float32] = None):
+    def _getDist2goal(self, state : NDArray[(20,), np.float32], goalPoseRpy : NDArray[(6,), np.float32] = None, goalPoseQuat : NDArray[(7,), np.float32] = None):
 
-        if goalPoseRpy is None:
-            goalPos  = self._goalPose[0:3]
-            goalQuat = quaternion.from_float_array([self._goalPose[6],self._goalPose[3],self._goalPose[4],self._goalPose[5]])
-        else:
+        if (goalPoseQuat is not None) and (goalPoseRpy is not None):
+            raise AttributeError("Only one betwee goalPoseRpy and goalPoseQuat")
+        if goalPoseQuat is not None:
+            goalPos  = goalPoseQuat[0:3]
+            goalQuat = quaternion.from_float_array([goalPoseQuat[6],goalPoseQuat[3],goalPoseQuat[4],goalPoseQuat[5]])
+        elif goalPoseRpy is not None:
             goalPos  = goalPoseRpy[0:3]
             goalQuat = quaternion.from_euler_angles(goalPoseRpy[3:6])
+        else:
+            raise AttributeError("No goal pose was specified")
 
         position = state[0:3]
         orientation_quat = quaternion.from_euler_angles(state[3:6])
@@ -90,8 +94,8 @@ class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):
 
     def computeReward(self, previousState : NDArray[(20,), np.float32], state : NDArray[(20,), np.float32], action : int) -> float:
 
-        posDist_new, orientDist_new = self._getDist2goal(state)
-        posDist_old, orientDist_old = self._getDist2goal(previousState)
+        posDist_new, orientDist_new = self._getDist2goal(state, goalPoseQuat = self._goalPose)
+        posDist_old, orientDist_old = self._getDist2goal(previousState, goalPoseQuat = self._goalPose)
 
         posDistImprovement  = posDist_old - posDist_new
         orientDistImprovement = orientDist_old - orientDist_new

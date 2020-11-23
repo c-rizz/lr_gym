@@ -111,7 +111,6 @@ def load(model, filename : str, env : gazebo_gym.envs.BaseEnv.BaseEnv) -> None:
 
 def main(fileToLoad : str = None, usePlugin : bool = False):
 
-    stepLength_sec = 0.05
     if usePlugin:
         envController = gazebo_gym.envControllers.GazeboController.GazeboController(stepLength_sec = stepLength_sec)
     else:
@@ -124,7 +123,8 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
     os.makedirs(folderName)
 
     frankaMaxTorques = [87, 87, 87, 87, 12, 12, 12]
-    maxStepsPerEpisode  = 50
+    stepLength_sec = 0.1
+    maxStepsPerEpisode = int(1/stepLength_sec*5)
     RANDOM_SEED=20200831
 
     def constructEnv(i):

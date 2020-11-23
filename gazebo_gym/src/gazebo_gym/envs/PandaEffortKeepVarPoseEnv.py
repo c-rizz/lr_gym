@@ -95,16 +95,21 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
 
     def onResetDone(self) -> None:
 
+        # center = np.array([0.45, 0.0, 0.92, 0, 1, 0, 0])
+        # radius = 0.2
+        center = np.array([0.0, 00, 0.92, 0, 1, 0, 0])
+        radius = 0.45
         r = self._numpyRndGenerator.uniform(0,4)
         if r<1:
-            self._goalPose = (0.50, 0,    0.92, 0,1,0,0) #(0.4,0,0.5, 1,0,0,0)
+            offset = np.array([radius,        0,    0,    0, 0, 0, 0])
         elif r<2:
-            self._goalPose = (0.40, 0,    0.92, 0,1,0,0) #(0,0.4,0.5, 1,0,0,0)
+            offset = np.array([-radius,       0,    0,    0, 0, 0, 0])
         elif r<3:
-            self._goalPose = (0.45, 0.05, 0.92, 0,1,0,0) #(-0.4,0,0.5, 1,0,0,0)
+            offset = np.array([0,        radius,    0,    0, 0, 0, 0])
         else:
-            self._goalPose = (0.45,-0.05, 0.92, 0,1,0,0) #(0,-0.4,0.5, 1,0,0,0)
+            offset = np.array([0,       -radius,    0,    0, 0, 0, 0])
 
+        self._goalPose = center + offset
 
         #considering the robot to be pointing forward on the x axis, y on its left, z pointing up
         # radius = self._numpyRndGenerator.uniform(0.30,0.8)
@@ -173,8 +178,8 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
         #     return 0
         #rospy.loginfo("computed reward = "+str(reward)+" for goal "+str(goal))
 
-        posDist_new, orientDist_new = self._getDist2goal(state, goal)
-        posDist_old, orientDist_old = self._getDist2goal(previousState, goal)
+        posDist_new, orientDist_new = self._getDist2goal(state, goalPoseRpy = goal)
+        posDist_old, orientDist_old = self._getDist2goal(previousState, goalPoseRpy = goal)
 
 
         posDistImprovement  = posDist_old - posDist_new
@@ -197,7 +202,7 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
         atLimitMalus = -amountJointsAtLimit
 
 
-        reward = positionClosenessBonus + 1000*(posDistImprovement) + atLimitMalus + orientationClosenessBonus
+        reward = positionClosenessBonus + orientationClosenessBonus + 10*(posDistImprovement + 0.1*orientDistImprovement) + atLimitMalus
         # reward = positionClosenessBonus + orientationClosenessBonus + 1000*(posDistImprovement + orientDistImprovement) + atLimitMalus
 
 

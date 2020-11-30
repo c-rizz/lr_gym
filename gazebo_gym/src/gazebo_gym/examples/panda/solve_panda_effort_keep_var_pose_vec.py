@@ -20,6 +20,8 @@ from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 from gazebo_gym.utils.subproc_vec_env_no_reset import SubprocVecEnv_noReset
 
 from stable_baselines.her.utils import HERGoalEnvWrapper
+from stable_baselines.ddpg.noise import NormalActionNoise
+import numpy as np
 
 
 def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, numEpisodes : int = -1):
@@ -46,19 +48,21 @@ def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, n
 
 def buildModel(random_seed : int, env : gym.Env, folderName : str, envsNum, maxStepsPerEpisode):
 
+    n_actions = 7
     model = HER_vec('MlpPolicy', env, SAC_vec, n_sampled_goal=4, goal_selection_strategy="future",
-                verbose=1,
+                    verbose=1,
 
-                batch_size=128,
-                buffer_size=100000, gamma=0.99,
-                learning_rate=0.006,
-                learning_starts=maxStepsPerEpisode*envsNum*int(400/envsNum),
-                policy_kwargs=dict(layers=[64, 128, 64]),
-                gradient_steps = "last_ep_batch_steps",
-                grad_steps_multiplier = 1.0/envsNum,
-                train_freq=1,
-                seed = random_seed, n_cpu_tf_sess=1, #n_cpu_tf_sess = 1 is needed for reproducibility
-                tensorboard_log=folderName)
+                    batch_size=128,
+                    buffer_size=100000, gamma=0.99,
+                    learning_rate=0.006,
+                    learning_starts=maxStepsPerEpisode*envsNum*int(400/envsNum),
+                    policy_kwargs=dict(layers=[64, 128, 64]),
+                    gradient_steps = "last_ep_batch_steps",
+                    grad_steps_multiplier = 1.0/envsNum,
+                    train_freq=1,
+                    action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1*np.ones(n_actions)),
+                    seed = random_seed, n_cpu_tf_sess=1, #n_cpu_tf_sess = 1 is needed for reproducibility
+                    tensorboard_log=folderName)
 
     return model
 
@@ -67,7 +71,7 @@ def train(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, model, f
     """Run the provided environment with a random agent."""
 
     env.reset()
-    checkpoint_callback = CheckpointCallback(save_freq=100000, save_path=folderName+'/checkpoints/', name_prefix=filename)
+    checkpoint_callback = CheckpointCallback(save_freq=1000, save_path=folderName+'/checkpoints/', name_prefix=filename)
     print("Learning...")
     t_preLearn = time.time()
     model.learn(total_timesteps=trainIterations, log_interval=10, callback=checkpoint_callback)
@@ -111,6 +115,11 @@ def load(model, filename : str, env : gazebo_gym.envs.BaseEnv.BaseEnv) -> None:
 
 def main(fileToLoad : str = None, usePlugin : bool = False):
 
+    frankaMaxTorques = [87, 87, 87, 87, 12, 12, 12]
+    stepLength_sec = 0.1
+    maxStepsPerEpisode = int(1/stepLength_sec*5)
+    RANDOM_SEED=20200831
+
     if usePlugin:
         envController = gazebo_gym.envControllers.GazeboController.GazeboController(stepLength_sec = stepLength_sec)
     else:
@@ -122,10 +131,6 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
     folderName = "./solve_panda_effort_keep_var_tensorboard/"+run_id
     os.makedirs(folderName)
 
-    frankaMaxTorques = [87, 87, 87, 87, 12, 12, 12]
-    stepLength_sec = 0.1
-    maxStepsPerEpisode = int(1/stepLength_sec*5)
-    RANDOM_SEED=20200831
 
     def constructEnv(i):
         env = ToGoalEnvWrapper(PandaEffortKeepVarPoseEnv(maxActionsPerEpisode = maxStepsPerEpisode,

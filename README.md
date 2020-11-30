@@ -27,7 +27,7 @@ The implementation of the environments has been split in two logically separated
 * The environment controllers, derived from EnvironmentController define the low-level, interfacing
  with the simulators or with the real world.
 
-This is not possible for all cases, but environment contreollers are meant to be interchangeable. This can
+This is not possible for all cases, but environment controllers are meant to be interchangeable. This can
 allow to implement an environment at a high abstraction level and run it without changes on different
 simulators, or even in the real world. An example of this is the HopperEnv environment, which can run in
 both Gazebo and PyBullet.
@@ -39,6 +39,8 @@ All of the environments are derived form EnvironmentController
 * PyBulletController allows to control a PyBullet simulation
 * RosEnvController uses ROS to control and observe the environment, this is meant to be usable both for
 simulations and for the real world (but it will be less efficient and "precise" than GazeboController)
+* EffortRosControlController is built on top of RosEnvController and uses ros_control effort controllers to
+command joint efforts
 
 
 ## Setup
@@ -49,22 +51,12 @@ You will also need to install some python3 modules, preferably in a python virtu
 environment. You can use the requirements.txt file in the gazebo_gym folder:
 
 ```
-pip3 install -r src/gazebo_gym/gazebo_gym/requirements.txt
+pip3 install -r src/gazebo_gym/gazebo_gym/requirements_sb.txt
 ```
 
-You can then proceed to build the workspace with catkin_make.
+You can then proceed to build the workspace with `catkin build`.
 
 ## Usage - Cartpole
-
-The cartpole environment can be launched with:
-
-```
-roslaunch gazebo_gym cartpole_gazebo_sim.launch
-```
-
-It is possible to specify the argument gui:=false to run the simulation without the
-Gazebo graphical interface
-
 
 The environment can be tested using a python script that executes a hard-coded policy
 through the python gym interface:
@@ -91,15 +83,15 @@ It is also possible to train a basic DQN policy by using the following:
 rosrun gazebo_gym solve_dqn_stable_baselines.py
 ```
 
+To see the simulation you can launch a gazebo client using the following:
+
+```
+GAZEBO_MASTER_URI=http://127.0.0.1:11414 ROS_MASTER_URI=127.0.0.1:11350 gzclient
+```
+
 ## Usage - Hopper
 
-You can launch the hopper Gazebo environment with
-```
-roslaunch gazebo_gym hopper_gazebo_sim.launch
-```
-
 You can execute a pre-trained policy with:
-
 ```
 rosrun gazebo_gym solve_hopper.py --load src/gazebo_gym/gazebo_gym/trained_models/td3_hopper_20200605-175927s140000gazebo-urdf-gazeboGym.zip
 ```
@@ -112,7 +104,7 @@ rosrun gazebo_gym solve_hopper.py
 
 You can specify the number of timesteps to train for with the --iterations option.
 
-You can also run the hopper environment directlyin pybullet specifynig the --pybullet option, in this mode you can also use an mjcf model (adapted from the OpenAI gym one) instead of the urdf one, using the --mjcf option. Trained models are also provided for these two modes.
+You can also run the hopper environment directly in pybullet specifynig the --pybullet option, in this mode you can also use an mjcf model (adapted from the OpenAI gym one) instead of the urdf one, using the --mjcf option. Trained models are also provided for these two modes.
 
 
 ## Moveit Panda Reaching Environment

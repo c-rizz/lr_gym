@@ -12,9 +12,13 @@ import gym
 import numpy as np
 from typing import Tuple
 
+import gazebo_gym_utils.ros_launch_utils
+import rospkg
+import gazebo_gym.utils.PyBulletUtils as PyBulletUtils
 from gazebo_gym.envs.ControlledEnv import ControlledEnv
 from gazebo_gym.envControllers.EnvironmentController import EnvironmentController
 from gazebo_gym.envControllers.GazeboController import GazeboController
+from gazebo_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
 #import tf2_py
 
 class HopperEnv(ControlledEnv):
@@ -54,7 +58,10 @@ class HopperEnv(ControlledEnv):
                     maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     stepLength_sec : float = 0.05,
-                    simulatorController : EnvironmentController = None):
+                    simulatorController : EnvironmentController = None,
+                    startSimulation : bool = True,
+                    simulationBackend : str = "gazebo",
+                    useMjcfFile : bool = False):
         """Short summary.
 
         Parameters
@@ -80,12 +87,14 @@ class HopperEnv(ControlledEnv):
             In case it gets interrupted while waiting for ROS servics
 
         """
-        if simulatorController is None:
-            simulatorController = GazeboController(stepLength_sec = stepLength_sec)
-        #print("HopperEnv: action_space = "+str(self.action_space))
+        self._useMjcfFile = useMjcfFile
         super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
                          stepLength_sec = stepLength_sec,
-                         environmentController = simulatorController)
+                         environmentController = simulatorController,
+                         startSimulation = startSimulation,
+                         simulationBackend = simulationBackend)
+
+        #print("HopperEnv: action_space = "+str(self.action_space))
         #print("HopperEnv: action_space = "+str(self.action_space))
         self._environmentController.setJointsToObserve([("hopper","torso_to_thigh"),
                                                         ("hopper","thigh_to_leg"),
@@ -94,6 +103,7 @@ class HopperEnv(ControlledEnv):
 
         self._environmentController.setLinksToObserve([("hopper","torso"),("hopper","thigh"),("hopper","leg"),("hopper","foot")])
 
+        self._stepLength_sec = stepLength_sec
         self._renderingEnabled = render
         if self._renderingEnabled:
             self._environmentController.setCamerasToObserve(["camera"])
@@ -127,7 +137,7 @@ class HopperEnv(ControlledEnv):
             done = False
         else:
             done = True
-        rospy.loginfo("height = {:1.4f}".format(torso_z_displacement)+"\t pitch = {:1.4f}".format(torso_pitch)+"\t done = "+str(done))
+        #rospy.loginfo("height = {:1.4f}".format(torso_z_displacement)+"\t pitch = {:1.4f}".format(torso_pitch)+"\t done = "+str(done))
         return done
 
 
@@ -185,7 +195,7 @@ class HopperEnv(ControlledEnv):
 
         torso_pose = linksState[("hopper","torso")].pose
 
-        if self._framesCounter == 0:
+        if self._actionsCounter == 0:
             self._initial_torso_z = torso_pose.position.z
             self._previousAvgPosX = avg_pos_x
 
@@ -221,3 +231,23 @@ class HopperEnv(ControlledEnv):
         self._previousAvgPosX = avg_pos_x
 
         return state
+
+
+    def buildSimulation(self, backend : str = "gazebo"):
+        if backend == "gazebo":
+            self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("gazebo_gym")+"/launch/hopper_gazebo_sim.launch",
+                                                                                           cli_args=["gui:=false"])
+            self._mmRosLauncher.launchAsync()
+
+            if isinstance(self._environmentController, GazeboControllerNoPlugin):
+                self._environmentController.setRosMasterUri(self._mmRosLauncher.getRosMasterUri())
+        elif backend == "bullet":
+            if self._useMjcfFile:
+                PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("gazebo_gym")+"/models/hopper.xml",fileFormat = "mjcf")
+            else:
+                PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("gazebo_gym")+"/models/hopper_v0.urdf")
+        else:
+            raise NotImplementedError("Backend "+backend+" not supported")
+
+    def _destroySimulation(self):
+        self._mmRosLauncher.stop()

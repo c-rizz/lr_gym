@@ -2,7 +2,6 @@
 from typing import List
 from typing import Tuple
 from typing import Dict
-from typing import Union
 
 import sensor_msgs
 import pybullet as p
@@ -29,6 +28,7 @@ class PyBulletController(EnvironmentController):
         """
         super().__init__(stepLength_sec = -1)
 
+    def startController(self):
         if not p.isConnected():
             raise ValueError("PyBullet is not connected")
 

@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 import rospy
-import gym
+import errno
 import time
 import tqdm
 import cv2
 import os
 import argparse
-import PyBulletUtils
-from gazebo_gym_utils.subproc_vec_env_nd import SubprocVecEnvNonDaemonic
+import gazebo_gym.utils.PyBulletUtils as PyBulletUtils
 import stable_baselines
 
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
@@ -56,7 +55,7 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
     wallTimeStart = time.time()
     rewards=[]
     totFrames=0
-    frames = []
+    #frames = []
     totalSimTime = 0
 
 
@@ -72,9 +71,9 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
         #rospy.loginfo("Episode "+str(episode)+" frame "+str(frame))
 
         if doRender:
-            img = env.render()
+            img = env.render(mode = 'rgb_array')
             if saveFrames and img.size!=0:
-                r = cv2.imwrite(imagesOutFolder+"/frame-"+str(episode)+"-"+str(frame)+".png",img)
+                r = cv2.imwrite(imagesOutFolder+"/frame-"+str(step_count)+".png",img)
                 if not r:
                     print("couldn't save image")
                 #else:

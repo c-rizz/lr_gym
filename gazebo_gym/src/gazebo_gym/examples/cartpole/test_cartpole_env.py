@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
 import rospy
-import gym
 import time
 import tqdm
 import cv2
 import os
 import argparse
 import gazebo_gym.utils.PyBulletUtils as PyBulletUtils
+import errno
 
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
@@ -53,7 +53,7 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
     rewards=[]
     totFrames=0
     totDuration=0
-    frames = []
+    #frames = []
     totalSimTime = 0
 
     #do an average over a bunch of episodes

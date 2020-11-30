@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
-import rospy
 import time
 import gazebo_gym.utils.PyBulletUtils as PyBulletUtils
-import os
 import argparse
 import rospkg
 
 from gazebo_gym.envs.HopperEnv import HopperEnv
-from gazebo_gym.PyBulletController import PyBulletController
+from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
+from gazebo_gym.envControllers.PyBulletController import PyBulletController
 
 def main(usePyBullet : bool = False) -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
@@ -21,15 +20,14 @@ def main(usePyBullet : bool = False) -> None:
     None
 
     """
-    rospy.init_node('solve_hopper', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
     if usePyBullet:
         stepLength_sec = 0.001
         PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("gazebo_gym")+"/models/hopper.urdf")
         simulatorController = PyBulletController(stepLength_sec = stepLength_sec)
-        env = HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, renderInStep=False, maxActionsPerEpisode = 50000)
+        env = GymEnvWrapper(HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, maxActionsPerEpisode = 50000))
     else:
-        env = HopperEnv(renderInStep=False)
+        env = GymEnvWrapper(HopperEnv())
 
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
@@ -54,6 +52,7 @@ def main(usePyBullet : bool = False) -> None:
         episodeReward += stepReward
     totDuration = time.time() - t0
     print("Ran for "+str(totDuration)+"s")
+    env.close()
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()

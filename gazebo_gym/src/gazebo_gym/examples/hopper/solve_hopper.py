@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import rospy
 import time
 from stable_baselines.td3.policies import MlpPolicy
 from stable_baselines import TD3
@@ -9,15 +8,11 @@ from stable_baselines.common import env_checker
 import numpy as np
 import argparse
 from datetime import datetime
-import gym
-import pybullet_envs
-import pybullet as p
 from pybullet_envs.gym_locomotion_envs import HopperBulletEnv
-import rospkg
 
 
-import gazebo_gym.utils.PyBulletUtils as PyBulletUtils as PyBulletUtils
 from gazebo_gym.envs.HopperEnv import HopperEnv
+from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 from gazebo_gym.envControllers.PyBulletController import PyBulletController
 from gazebo_gym.envControllers.GazeboController import GazeboController
 
@@ -27,10 +22,6 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
     Can use a different models/simuòlators
 
     """
-    rospy.init_node('solve_hopper', anonymous=True, log_level=rospy.WARN)
-    #env = gym.make('CartPoleStayUp-v0')
-
-
 
     print("Setting up environment...")
     stepLength_sec = 1/60
@@ -38,14 +29,14 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
         env = HopperBulletEnv(render=True)
     else:
         if usePyBullet:
-            if useMjcfFile:
-                PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("gazebo_gym")+"/models/hopper.xml",fileFormat = "mjcf")
-            else:
-                PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("gazebo_gym")+"/models/hopper_v0.urdf")
             simulatorController = PyBulletController()
         else:
             simulatorController = GazeboController(stepLength_sec = stepLength_sec)
-        env = HopperEnv(simulatorController = simulatorController, stepLength_sec = stepLength_sec, maxActionsPerEpisode = 20/stepLength_sec)
+        env = GymEnvWrapper(HopperEnv(  simulatorController = simulatorController,
+                                        stepLength_sec = stepLength_sec,
+                                        maxActionsPerEpisode = 20/stepLength_sec,
+                                        useMjcfFile = useMjcfFile,
+                                        simulationBackend = ("bullet" if usePyBullet else "gazebo")))
     print("Environment created")
 
     #setup seeds for reproducibility
@@ -136,6 +127,7 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
     duration_val = time.time() - t_preVal
     print("Computed average reward. Took "+str(duration_val)+" seconds ("+str(totFrames/totDuration)+" fps).")
     print("Average rewar = "+str(avgReward))
+    env.close()
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()

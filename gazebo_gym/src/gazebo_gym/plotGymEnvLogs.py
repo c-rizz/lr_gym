@@ -74,5 +74,6 @@ while not ctrl_c_received:
         plt.draw()
         plt.pause(0.001)
     if args["once"]:
+        plt.show(block=True)
         break
     time.sleep(1)

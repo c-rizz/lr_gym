@@ -7,7 +7,7 @@ import tqdm
 import cv2
 import os
 import argparse
-import PyBulletUtils
+import gazebo_gym.utils.PyBulletUtils as PyBulletUtils
 
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper

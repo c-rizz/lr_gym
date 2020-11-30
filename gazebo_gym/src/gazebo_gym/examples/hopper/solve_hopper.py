@@ -16,7 +16,7 @@ from pybullet_envs.gym_locomotion_envs import HopperBulletEnv
 import rospkg
 
 
-import gazebo_gym.PyBulletUtils as PyBulletUtils
+import gazebo_gym.utils.PyBulletUtils as PyBulletUtils as PyBulletUtils
 from gazebo_gym.envs.HopperEnv import HopperEnv
 from gazebo_gym.envControllers.PyBulletController import PyBulletController
 from gazebo_gym.envControllers.GazeboController import GazeboController

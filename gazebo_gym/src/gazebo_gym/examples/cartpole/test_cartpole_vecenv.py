@@ -7,7 +7,7 @@ import tqdm
 import cv2
 import os
 import argparse
-import PyBulletUtils
+import gazebo_gym.utils.PyBulletUtils as PyBulletUtils
 from gazebo_gym_utils.subproc_vec_env_nd import SubprocVecEnvNonDaemonic
 import stable_baselines
 

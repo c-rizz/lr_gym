@@ -2,7 +2,7 @@
 
 import rospy
 import time
-import PyBulletUtils
+import gazebo_gym.utils.PyBulletUtils as PyBulletUtils
 import os
 import argparse
 import rospkg

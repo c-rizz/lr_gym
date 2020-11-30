@@ -170,13 +170,13 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
 
         goal = state[20:26]
 
-        #posDist_new = np.linalg.norm(state[0:3] - goal[0:3])
-        #posDist_old = np.linalg.norm(previousState[0:3] - goal[0:3])
+        # posDist_new = np.linalg.norm(state[0:3] - goal[0:3])
         # if posDist_new < 0.05:
         #     return 1
         # else:
         #     return 0
-        #rospy.loginfo("computed reward = "+str(reward)+" for goal "+str(goal))
+        #----------------------------------------------------------------
+
 
         posDist_new, orientDist_new = self._getDist2goal(state, goalPoseRpy = goal)
         posDist_old, orientDist_old = self._getDist2goal(previousState, goalPoseRpy = goal)
@@ -193,8 +193,8 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
         if orientDistImprovement<0:
             orientDistImprovement*=2
 
-        positionClosenessBonus    = 1.0*(10000**(-posDist_new))
-        orientationClosenessBonus = 0.1*(10000**(-orientDist_new/math.pi))
+        positionClosenessBonus    = 1.0*(10**(-posDist_new*10))
+        orientationClosenessBonus = 0.1*(10**(-orientDist_new/math.pi*10))
 
 
         norm_joint_pose = self._normalizedJointPositions(state)

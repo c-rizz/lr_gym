@@ -7,7 +7,7 @@ from stable_baselines3.dqn import MlpPolicy
 from stable_baselines3 import DQN
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
-import gazebo_gym.utils.ggLog as ggLog
+import gazebo_gym.utils.dbg.ggLog as ggLog
 
 def main() -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.

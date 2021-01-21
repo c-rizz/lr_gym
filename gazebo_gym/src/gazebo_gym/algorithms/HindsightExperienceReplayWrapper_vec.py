@@ -1,7 +1,7 @@
 from stable_baselines.her.replay_buffer import HindsightExperienceReplayWrapper
 from stable_baselines.her.replay_buffer import GoalSelectionStrategy
 import copy
-import gazebo_gym.utils.ggLog as ggLog
+import gazebo_gym.utils.dbg.ggLog as ggLog
 
 
 class HindsightExperienceReplayWrapper_vec(HindsightExperienceReplayWrapper):

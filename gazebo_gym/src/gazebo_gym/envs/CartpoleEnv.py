@@ -6,8 +6,6 @@ Based on ControlledEnv
 """
 
 
-import rospy
-import rospy.client
 
 import gym
 import numpy as np
@@ -54,12 +52,6 @@ class CartpoleEnv(ControlledEnv):
         simulatorController : EnvironmentController
             Specifies which simulator controller to use. By default it connects to Gazebo
 
-        Raises
-        -------
-        rospy.ROSException
-            In cause it fails to find the required ROS services
-        ROSInterruptException
-            In case it gets interrupted while waiting for ROS servics
 
         """
 
@@ -104,7 +96,6 @@ class CartpoleEnv(ControlledEnv):
         else:
             done = False
 
-        #rospy.loginfo("checkEpisodeEnded returning "+str(done)+" cartPosition = "+str(cartPosition)+" poleAngle = "+str(poleAngle))
         return done
 
 

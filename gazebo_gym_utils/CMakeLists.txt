@@ -147,6 +147,8 @@ add_library(gazebo_gym_utils
 src/GravityCompensatedEffortController.cpp
 src/LinkStatePublisherController.cpp
 src/ForwardKinematicsComputer.cpp
+src/KdlHelper.cpp
+src/CartesianPositionController.cpp
 )
 
 add_dependencies(gazebo_gym_utils

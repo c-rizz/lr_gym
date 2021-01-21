@@ -8,6 +8,7 @@ import time
 import cv2
 import collections
 from typing import List
+import os
 
 name_to_dtypes = {
     "rgb8":    (np.uint8,  3),
@@ -106,6 +107,22 @@ def image_to_numpy(rosMsg : sensor_msgs.msg.Image) -> np.ndarray:
         data = data[...,0]
     return data
 
+def numpyImg_to_ros(img : np.ndarray) -> sensor_msgs.msg.Image:
+    """
+    """
+    if img.shape[2] == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    rosMsg = sensor_msgs.msg.Image()
+    rosMsg.data = img.tobytes()
+    rosMsg.step = img.strides[0]
+    rosMsg.is_bigendian = (img.dtype.byteorder == '>')
+
+    if img.shape[2] == 3:
+        rosMsg.encoding = "rgb8"
+    elif img.shape[2] == 1:
+        rosMsg.encoding = "mono8"
+
 
 class JointState:
     # These are lists because the joint may have multiple DOF
@@ -148,3 +165,16 @@ def buildPoseStamped(position_xyz, orientation_xyzw, frame_id):
     pose.pose.orientation.z = orientation_xyzw[2]
     pose.pose.orientation.w = orientation_xyzw[3]
     return pose
+
+def pyTorch_makeDeterministic():
+    """ Make pytorch as deterministic as possible.
+        Still, DOES NOT ENSURE REPRODUCIBILTY ACROSS DIFFERENT TORCH/CUDA BUILDS AND
+        HARDWARE ARCHITECTURES
+    """
+    import torch
+    torch.manual_seed(0)
+    np.random.seed(0)
+    torch.backends.cudnn.benchmark = False
+    torch.set_deterministic(True)
+    # Following may make things better, see https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"

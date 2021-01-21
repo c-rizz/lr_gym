@@ -6,7 +6,7 @@ The provided class must be extended to define a specific environment
 """
 
 
-import gazebo_gym.utils.ggLog as ggLog
+import gazebo_gym.utils.dbg.ggLog as ggLog
 
 import gym
 import numpy as np

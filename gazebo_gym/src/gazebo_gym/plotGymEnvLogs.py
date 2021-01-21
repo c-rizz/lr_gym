@@ -44,6 +44,7 @@ ap.add_argument("--once", default=False, action='store_true', help="Plot only on
 ap.add_argument("--usetime", default=False, action='store_true', help="Use time on the x axis")
 ap.add_argument("--useenvsteps", default=False, action='store_true', help="Use environment steps on the x axis")
 ap.add_argument("--maxx", required=False, default=None, type=float, help="Maximum x value to plot")
+ap.add_argument("--period", required=False, default=5, type=float, help="Seconds to wait between plot update")
 ap.set_defaults(feature=True)
 args = vars(ap.parse_args())
 signal.signal(signal.SIGINT, signal_handler)
@@ -67,13 +68,16 @@ else:
 
 #fig, ax = plt.subplots(figsize=(11, 8.5))
 while not ctrl_c_received:
+    #print("Plotting")
     makePlot(args["csvfile"], x_data_id, max_x = args["maxx"])
     plt.savefig(os.path.dirname(args["csvfile"])+"/reward.pdf")
     #plt.show(block=True)
     if not args["nogui"]:
         plt.draw()
         plt.pause(0.001)
+        if args["once"]:
+            plt.show(block=True)
+            break
     if args["once"]:
-        plt.show(block=True)
         break
-    time.sleep(1)
+    time.sleep(args["period"])

@@ -13,7 +13,7 @@ import signal
 from typing import List
 import subprocess
 import atexit
-import gazebo_gym.utils.ggLog as ggLog
+import gazebo_gym.utils.dbg.ggLog as ggLog
 import threading
 
 class SystemMutex:

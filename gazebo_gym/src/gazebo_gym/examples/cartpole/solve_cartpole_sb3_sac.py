@@ -5,10 +5,12 @@ import time
 import tqdm
 from stable_baselines3 import SAC
 from stable_baselines3.sac import MlpPolicy
-from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
+from gazebo_gym.envs.CartpoleContinuousEnv import CartpoleContinuousEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
-import gazebo_gym.utils.ggLog as ggLog
+import gazebo_gym.utils.dbg.ggLog as ggLog
 import gym
+import datetime
+import gazebo_gym.utils.utils
 
 def main() -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
@@ -21,19 +23,40 @@ def main() -> None:
     None
 
     """
-    logFolder = "./solve_cartpole_env_sb3_sac"
+
+    run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    folderName = "./solve_cartpole_env_sb3_sac/"+run_id
+    gazebo_gym.utils.utils.pyTorch_makeDeterministic()
     #logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s.%(msecs)03d][%(levelname)s] %(message)s', datefmt='%Y-%m-%d,%H:%M:%S')
 
     #rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('Pendulum-v0')
-    env = GymEnvWrapper(CartpoleEnv(render=False, startSimulation = True), episodeInfoLogFile = logFolder+"/GymEnvWrapper_log.csv")
+    ggEnv = CartpoleContinuousEnv(render=False, startSimulation = True)
+    env = GymEnvWrapper(ggEnv, episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
     env._max_episode_steps = 500 #limit episode length
 
-    model = SAC(MlpPolicy, env, verbose=1, buffer_size=20000, batch_size = 64, learning_rate=0.0025, policy_kwargs=dict(net_arch=[32,32]), target_entropy = 0.9)
+    # model = SAC(MlpPolicy, env, verbose=1,
+    #             buffer_size=20000,
+    #             batch_size = 64,
+    #             learning_rate=0.0025,
+    #             policy_kwargs=dict(net_arch=[32,32]),
+    #             target_entropy = 0.9)
+
+    model = SAC( MlpPolicy, env, verbose=1,
+                 batch_size=32,
+                 buffer_size=50000,
+                 gamma=0.99,
+                 learning_rate=0.0025,
+                 learning_starts=1000,
+                 policy_kwargs=dict(net_arch=[64, 64]),
+                 gradient_steps=-1,
+                 train_freq=1,
+                 seed = RANDOM_SEED)
+
     ggLog.info("Learning...")
     t_preLearn = time.time()
     model.learn(total_timesteps=25000)

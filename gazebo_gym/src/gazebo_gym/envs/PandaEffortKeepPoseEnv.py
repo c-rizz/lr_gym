@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """This file implements PandaEffortKeepPoseEnvironment."""
 
-import gazebo_gym.utils.ggLog as ggLog
+import gazebo_gym.utils.dbg.ggLog as ggLog
 
 import numpy as np
 from typing import Tuple

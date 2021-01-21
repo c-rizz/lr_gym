@@ -3,12 +3,19 @@
 import rospy
 import time
 import tqdm
-from stable_baselines.common.policies import CnnPolicy
-from stable_baselines import DQN
+from gazebo_gym.algorithms.AutoencodingSAC import AutoencodingSAC
+from stable_baselines3.sac import MlpPolicy
 from gazebo_gym.envs.CartpoleContinuousVisualEnv import CartpoleContinuousVisualEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 import gazebo_gym.utils.dbg.ggLog as ggLog
+import gym
 from gazebo_gym.envControllers.GazeboController import GazeboController
+import datetime
+import torch as th
+import gazebo_gym
+
+from pytorch_autoencoders.SimpleAutoencoder import SimpleAutoencoder
+
 
 def main() -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
@@ -21,22 +28,48 @@ def main() -> None:
     None
 
     """
-    logFolder = "./solve_cartpole_vis"
     #logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s.%(msecs)03d][%(levelname)s] %(message)s', datefmt='%Y-%m-%d,%H:%M:%S')
 
     #rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.WARN)
-    #env = gym.make('CartPoleStayUp-v0')
-    env = GymEnvWrapper(CartpoleContinuousVisualEnv(startSimulation = True, simulatorController=GazeboController(stepLength_sec = 0.05)), episodeInfoLogFile = logFolder+"/GymEnvWrapper_log.csv")
+    #env = gym.make('Pendulum-v0')
+    #env = GymEnvWrapper(CartpoleContinuousVisualEnv(render=False, startSimulation = True), episodeInfoLogFile = logFolder+"/GymEnvWrapper_log.csv")
+
+    trainSteps = 1000000
+    run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    folderName = "./solve_cartpole_env_sb3_sac_autoenc/"+run_id
+    gazebo_gym.utils.utils.pyTorch_makeDeterministic()
+    stepLength_sec = 0.03333
+    env = GymEnvWrapper(CartpoleContinuousVisualEnv(startSimulation = True,
+                                                    simulatorController = GazeboController(stepLength_sec = stepLength_sec),
+                                                    stepLength_sec = stepLength_sec),
+                                                    episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
+
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
     env._max_episode_steps = 500 #limit episode length
 
-    model = DQN(CnnPolicy, env, verbose=1, seed=RANDOM_SEED, n_cpu_tf_sess=1) #seed=RANDOM_SEED, n_cpu_tf_sess=1 are needed to get deterministic results
+    device = "cuda"
+    autoencoder = SimpleAutoencoder(encoding_size = 6,
+                                    image_channels_num = 3).to(device)
+    model = AutoencodingSAC(autoencoder,
+                            MlpPolicy, env, verbose=1,
+                            batch_size=32,
+                            buffer_size=50000,
+                            gamma=0.99,
+                            learning_rate=0.0025,
+                            learning_starts=1000,
+                            policy_kwargs=dict(net_arch=[64, 64]),
+                            gradient_steps=-1, #do as many as the steps collected in the last rollout
+                            train_freq=1, #Train at every step (each rollout does one step)
+                            seed = RANDOM_SEED,
+                            device = device,
+                            autoencDbgOutFolder = folderName+"/dbg")
+
     ggLog.info("Learning...")
     t_preLearn = time.time()
-    model.learn(total_timesteps=25000)
+    model.learn(total_timesteps=trainSteps)
     duration_learn = time.time() - t_preLearn
     ggLog.info("Learned. Took "+str(duration_learn)+" seconds.")
 
@@ -56,7 +89,7 @@ def main() -> None:
         t0 = time.time()
         while not done:
             #ggLog.info("Episode "+str(episode)+" frame "+str(frame))
-            action, _states = model.predict(obs)
+            action, _states = model.predict(th.as_tensor(obs).to(device).unsqueeze(0))
             obs, stepReward, done, info = env.step(action)
             #frames.append(env.render("rgb_array"))
             #time.sleep(0.016)
@@ -69,7 +102,7 @@ def main() -> None:
     avgReward = sum(rewards)/len(rewards)
     duration_val = time.time() - t_preVal
     ggLog.info("Computed average reward. Took "+str(duration_val)+" seconds ("+str(totFrames/totDuration)+" fps).")
-    ggLog.info("Average rewar = "+str(avgReward))
+    ggLog.info("Average reward = "+str(avgReward))
 
 if __name__ == "__main__":
     main()

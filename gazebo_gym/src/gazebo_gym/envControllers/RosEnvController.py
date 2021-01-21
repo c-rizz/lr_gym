@@ -15,7 +15,7 @@ import rospy
 import gazebo_gym
 import os
 import time
-import gazebo_gym.utils.ggLog as ggLog
+import gazebo_gym.utils.dbg.ggLog as ggLog
 
 class RosEnvController(EnvironmentController):
     """This class allows to control the execution of a ROS-based environment.

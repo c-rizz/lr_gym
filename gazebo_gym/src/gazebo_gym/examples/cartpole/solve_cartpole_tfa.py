@@ -25,7 +25,7 @@ from tf_agents.trajectories.policy_step import PolicyStep
 import time
 import datetime
 
-import gazebo_gym.utils.ggLog as ggLog
+import gazebo_gym.utils.dbg.ggLog as ggLog
 import argparse
 import numpy as np
 

@@ -1,7 +1,7 @@
 
 #include "../include/GravityCompensatedEffortController.hpp"
+#include "../include/KdlHelper.hpp"
 #include <pluginlib/class_list_macros.h>
-#include <urdf/model.h>
 
 
 namespace gazebo_gym_utils
@@ -12,93 +12,20 @@ namespace gazebo_gym_utils
 
   }
 
+
+
+
+
   GravityCompensatedEffortController::~GravityCompensatedEffortController()
   {
     sub_command_.shutdown();
   }
 
-  bool GravityCompensatedEffortController::getSegmentForJoint(std::string jointName, KDL::Tree tree, KDL::Segment& segment)
-  {
-    ROS_INFO_STREAM("Getting segment for joint "<<jointName);
-    std::vector<KDL::Segment> candidateSegments;
-    KDL::SegmentMap allSegments = tree.getSegments();
-    for(auto it : allSegments)
-    {
-      ROS_INFO_STREAM("Segment "<<it.second.segment.getName()<<" has joint "<<it.second.segment.getJoint().getName());
-      if(it.second.segment.getJoint().getName() == jointName)
-        candidateSegments.push_back(it.second.segment);
-
-    }
-    if(candidateSegments.size()>1)
-    {
-      ROS_ERROR_STREAM("There are multiple links for joint "<<jointName<<". Cannot get link for joint.");
-      return false;
-    }
-    if(candidateSegments.size()<1)
-    {
-      ROS_ERROR_STREAM("No links for joint "<<jointName<<". Cannot get link for joint.");
-      return false;
-    }
-    segment = candidateSegments[0];
-    return true;
-  }
 
 
-  bool GravityCompensatedEffortController::getSegmentParent(KDL::Segment& segment, KDL::Tree tree, KDL::Segment& parent)
-  {
-    KDL::SegmentMap allSegments = tree.getSegments();
-    for(auto it : allSegments)
-    {
-      //ROS_INFO_STREAM("Segment "<<it.second.segment.getName()<<" has joint "<<it.second.segment.getJoint().getName());
-      if(it.second.segment.getName() == segment.getName())
-        parent = it.second.parent->second.segment;
-    }
-    return true;
-  }
-
-  KDL::Chain GravityCompensatedEffortController::getChainFromJoints(const KDL::Tree& tree, std::vector<std::string> jointNames)
-  {
-    KDL::Segment firstSegment;
-    bool r = getSegmentForJoint(jointNames[0], tree, firstSegment);
-    if(!r)
-      throw std::runtime_error("Could not get segment (=link) for joint "+jointNames[0]);
-
-    KDL::Segment rootSegment;
-    r = getSegmentParent(firstSegment, tree, rootSegment);
-    if(!r)
-      throw std::runtime_error("Could not get parent of segment (=link) "+firstSegment.getName()+". First segment must have a parent to create a KDL chain.");
-
-    KDL::Segment tipSegment;
-    r = getSegmentForJoint(jointNames.back(), tree, tipSegment);
-    if(!r)
-      throw std::runtime_error("Could not get segment (=link) for joint "+jointNames.back());
-
-    std::string rootLinkName = rootSegment.getName();
-    std::string tipLinkName = tipSegment.getName();
-    ROS_INFO_STREAM("RootLinkName = "<<rootLinkName<<"   tipLinkName = "<<tipLinkName);
-
-    KDL::Chain chain;
-    r = tree.getChain(rootLinkName,tipLinkName,chain);
-    if(!r)
-      throw std::runtime_error("KDL::Tree::getChain failed. Cannot get chain from link "+rootLinkName+" to "+tipLinkName);
-
-    ROS_INFO_STREAM("Built chain with segments:");
-    for(KDL::Segment& seg : chain.segments)
-      ROS_INFO_STREAM(" - \""<<seg.getName()<<"\" (joint = \""<<seg.getJoint().getName()<<"\" of type "<<seg.getJoint().getTypeName()<<")");
 
 
-    for(unsigned int i=0; i<jointNames.size(); i++)
-    {
-      if(chain.getSegment(i).getJoint().getName() != jointNames.at(i))
-      {
-        throw std::runtime_error( "Specified joints do not correspond to a chain starting from joint "+
-                                  chain.getSegment(0).getJoint().getName()+
-                                  " ("+chain.getSegment(i).getJoint().getName() +" != "+ jointNames.at(i)+", i = "+std::to_string(i)+")");
-      }
-    }
 
-    return chain;
-  }
 
 
   bool GravityCompensatedEffortController::init(hardware_interface::EffortJointInterface* hw, ros::NodeHandle &n)
@@ -115,11 +42,9 @@ namespace gazebo_gym_utils
     std::string g_param_name = "gravity_acceleration";
     if(!n.getParam(g_param_name, gravity_acceleration))
     {
-      ROS_ERROR_STREAM("Failed to getParam '" << gravity_acceleration << "' (namespace: " << n.getNamespace() << ").");
+      ROS_ERROR_STREAM("Failed to getParam '" << g_param_name << "' (namespace: " << n.getNamespace() << ").");
       return false;
     }
-
-
 
     if(joint_names.size() == 0)
     {
@@ -129,31 +54,14 @@ namespace gazebo_gym_utils
 
     command_buffer.writeFromNonRT(std::vector<double>(joint_names.size(), 0.0));
 
-
     std::string joint_names_str = "";
     for(std::string jn : joint_names)
       joint_names_str+=jn +", ";
     ROS_INFO_STREAM("Got joint_names = ["<<joint_names_str<<"]");
 
-
-    // gets the location of the robot description on the parameter server
-    urdf::Model model;
-    if (!model.initParam("robot_description"))
-    {
-      ROS_ERROR("Failed to get robot_description");
-      return false;
-    }
-
-    KDL::Tree tree;
-    if (!kdl_parser::treeFromUrdfModel(model, tree))
-    {
-      ROS_ERROR("Failed to extract kdl tree from xml robot description");
-      return false;
-    }
-
     try
     {
-      robotChain = getChainFromJoints(tree, joint_names);
+      robotChain = KdlHelper::getChainFromJoints(joint_names, "robot_description");
     }
     catch(const std::runtime_error& e)
     {
@@ -164,7 +72,6 @@ namespace gazebo_gym_utils
     KDL::Vector gravityVector(0,0,-gravity_acceleration);
     chainDynParam = std::make_shared<KDL::ChainDynParam>(robotChain, gravityVector);
 
-
     ROS_INFO_STREAM("Built chain with segments:");
     for(KDL::Segment& seg : robotChain.segments)
     {
@@ -174,7 +81,6 @@ namespace gazebo_gym_utils
         notFixedJointsNames.push_back(seg.getJoint().getName());
       }
     }
-
 
     for(std::string jn : notFixedJointsNames)
     {
@@ -193,11 +99,29 @@ namespace gazebo_gym_utils
     return true;
   }
 
+
+
+
+
+
+
+
+
+
+
   void GravityCompensatedEffortController::starting(const ros::Time& time)
   {
     // Start controller with 0.0 efforts
     command_buffer.readFromRT()->assign(notFixedJointsNames.size(), 0.0);
   }
+
+
+
+
+
+
+
+
 
 
   void GravityCompensatedEffortController::commandCB(const std_msgs::Float64MultiArrayConstPtr& msg)
@@ -209,6 +133,15 @@ namespace gazebo_gym_utils
     }
     command_buffer.writeFromNonRT(msg->data);
   }
+
+
+
+
+
+
+
+
+
 
 
   KDL::JntArray GravityCompensatedEffortController::computeGravityCompensation()
@@ -231,6 +164,15 @@ namespace gazebo_gym_utils
 
     return gravityCompensationTorquesArr;
   }
+
+
+
+
+
+
+
+
+
 
 
   void GravityCompensatedEffortController::update(const ros::Time& /*time*/, const ros::Duration& /*period*/)

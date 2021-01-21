@@ -5,7 +5,7 @@ from stable_baselines.common.vec_env import VecEnvWrapper
 from collections import OrderedDict
 import numpy as np
 from gym import spaces
-import gazebo_gym.utils.ggLog as ggLog
+import gazebo_gym.utils.dbg.ggLog as ggLog
 import inspect
 
 class HERGoalEnvWrapper_vec(VecEnvWrapper, HERGoalEnvWrapper):

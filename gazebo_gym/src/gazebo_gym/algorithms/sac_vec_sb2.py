@@ -15,7 +15,7 @@ from stable_baselines import SAC
 
 from typing import List
 import typing
-import gazebo_gym.utils.ggLog as ggLog
+import gazebo_gym.utils.dbg.ggLog as ggLog
 
 
 class SAC_vec(SAC):

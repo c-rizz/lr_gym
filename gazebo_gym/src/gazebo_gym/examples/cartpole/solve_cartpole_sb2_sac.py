@@ -6,7 +6,7 @@ from stable_baselines.sac.policies import MlpPolicy
 from stable_baselines import SAC
 from gazebo_gym.envs.CartpoleContinuousEnv import CartpoleContinuousEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
-import gazebo_gym.utils.ggLog as ggLog
+import gazebo_gym.utils.dbg.ggLog as ggLog
 import datetime
 import gym
 

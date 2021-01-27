@@ -107,3 +107,7 @@ class ControlledEnv(BaseEnv):
 
     def getInfo(self):
         return {"simTime":self._intendedSimTime}
+
+
+    def getSimTimeFromEpStart(self):
+        return self._environmentController.getEnvSimTimeFromStart()

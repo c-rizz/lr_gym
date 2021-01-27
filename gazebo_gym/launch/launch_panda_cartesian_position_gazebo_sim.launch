@@ -1,6 +1,6 @@
 <launch>
 
-    <!-- Launches gazebo with the a Panda arm controlled via joint efforts
+    <!-- Launches gazebo with the a Panda arm controlled via joint efofrts
          all the nodes necessary to control and monitor the cartpole
          via ROS.
     -->
@@ -17,11 +17,11 @@
       <arg name="gui" value="$(arg gui)"/>
       <arg name="noplugin" value="$(arg noplugin)"/>
       <arg name="paused" value="false"/>
-      <arg name="physics_engine" value="bullet"/>
+      <arg name="physics_engine" value="ode"/>
     </include>
 
     <!-- Spawn and setup the panda robot -->
-    <include file="$(find panda)/launch/panda_effort_control.launch" >
+    <include file="$(find panda)/launch/panda_position_control.launch" >
       <arg name="simulated" value="true"/>
       <arg name="launch_gazebo" value="false"/>
       <arg name="start_controllers" value="$(arg start_controllers)"/>
@@ -31,10 +31,10 @@
     <!-- publish the links states
     <node name="link_state_publisher" pkg="gazebo_gym_utils" type="link_state_publisher" />
 -->
-    <!-- load the gravity-compensated effort controller -->
+    <!-- load the cartesian position controller -->
     <rosparam file="$(find gazebo_gym_utils)/config/ros_controllers.yaml" command="load" />
-    <node name="controller_spawner_compensated" pkg="controller_manager" type="spawner" respawn="false" output="screen"
-          args="--stopped panda_arm_effort_effort_compensated_controller" />
+    <node name="controller_spawner_cartesian" pkg="controller_manager" type="spawner" respawn="false" output="screen"
+          args="--stopped panda_arm_cartesian_position_controller" />
 
 
     <!-- load the LinkstatePublisher controller -->

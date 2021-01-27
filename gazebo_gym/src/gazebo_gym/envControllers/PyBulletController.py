@@ -20,13 +20,10 @@ class PyBulletController(EnvironmentController):
     def __init__(self):
         """Initialize the Simulator controller.
 
-        Raises
-        -------
-        ROSException
-            If it fails to find the gazebo services
 
         """
-        super().__init__(stepLength_sec = -1)
+        super().__init__()
+        self._stepLength_sec = -1
 
     def startController(self):
         if not p.isConnected():
@@ -77,7 +74,7 @@ class PyBulletController(EnvironmentController):
         p.restoreState(self._startStateId)
         self._simTime = 0
 
-    def step(self, performRendering : bool = False, camerasToRender : List[str] = []) -> None:
+    def step(self, performRendering : bool = False, camerasToRender : List[str] = []) -> float:
         """Run the simulation for the specified time.
 
         Parameters
@@ -101,6 +98,7 @@ class PyBulletController(EnvironmentController):
         #p.setTimeStep(self._stepLength_sec) #This is here, but still, as stated in the pybulelt quickstart guide this should not be changed often
         p.stepSimulation()
         self._simTime += self._stepLength_sec
+        return self._stepLength_sec
 
 
     def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:

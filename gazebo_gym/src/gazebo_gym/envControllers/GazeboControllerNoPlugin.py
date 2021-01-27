@@ -48,8 +48,9 @@ class GazeboControllerNoPlugin(EnvironmentController):
             If it fails to find the gazebo services
 
         """
-        super().__init__(stepLength_sec=stepLength_sec)
+        super().__init__()
 
+        self._stepLength_sec = stepLength_sec
         self._lastUnpausedTime = 0
         self._episodeSimDuration = 0
         self._episodeRealSimDuration = 0
@@ -243,7 +244,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
         return ret
 
 
-    def step(self) -> None:
+    def step(self) -> float:
         """Run the simulation for the specified time.
 
         It unpauses and the simulation, sleeps and then pauses it back. It may not be precise.
@@ -280,6 +281,8 @@ class GazeboControllerNoPlugin(EnvironmentController):
         rospy.loginfo("Unpaused for a duration between "+str(t2-t1)+"s and "+str(t3-t0)+"s")
 
         self._stepsTaken+=1
+
+        return self._stepLength_sec
 
 
 

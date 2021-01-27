@@ -11,19 +11,22 @@ import argparse
 from datetime import datetime
 from stable_baselines.common import env_checker
 
-from gazebo_gym.envs.PandaMoveitReachingEnv import PandaMoveitReachingEnv
+from gazebo_gym.envs.PandaMoveitReachingEnv2 import PandaMoveitReachingEnv
+from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 
-def main(trainIterations : int = 120000) -> None:
+def main(trainIterations : int) -> None:
     """Solve the gazebo Panda reaching environment."""
 
 
-    rospy.init_node('solve_panda_reaching_moveit', anonymous=True, log_level=rospy.WARN)
+    #rospy.init_node('solve_panda_reaching_moveit', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('CartPoleStayUp-v0')
 
     runId = datetime.now().strftime('%Y%m%d-%H%M%S')
+    folderName = "./solve_pandaReaching/"+runId
 
     print("Setting up environment...")
-    env = PandaMoveitReachingEnv([0.3,-0.3,0.5,-1,0,0,0], maxActionsPerEpisode = 30)
+    env = GymEnvWrapper(PandaMoveitReachingEnv([0.3,-0.3,0.5,-1,0,0,0], maxActionsPerEpisode = 30),
+                        episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
     print("Environment created")
 
     #setup seeds for reproducibility

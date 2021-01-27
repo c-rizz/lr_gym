@@ -16,6 +16,7 @@
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl_conversions/kdl_msg.h>
 #include <kdl/chaindynparam.hpp>
+#include <random>
 
 namespace gazebo_gym_utils
 {
@@ -44,22 +45,35 @@ namespace gazebo_gym_utils
     void update(const ros::Time& /*time*/, const ros::Duration& /*period*/);
 
 private:
-    KDL::JntArray computeIk(std::vector<double> requestedCartesianPose);
-    std::vector<double> getCurrentJointPose();
 
-    std::vector< hardware_interface::JointHandle > joints_;
-    
+    int attempts;
+    int iterations;
+    double precision;
+
+    std::vector< hardware_interface::JointHandle > joint_handles;
+
     KDL::Chain robotChain;
     std::vector<std::string> notFixedJointsNames;
     std::shared_ptr<KDL::ChainDynParam> chainDynParam;
     KDL::JntArray joint_limits_low;
     KDL::JntArray joint_limits_high;
 
-
     realtime_tools::RealtimeBuffer<std::vector<double> > command_buffer;
+    std::vector<double> lastSuccessfulCommand;
+    std::vector<double> lastJointPose;
 
-    ros::Subscriber sub_command_;
+    ros::Subscriber commandSubscriber;
+
+    std::mt19937 randomEngine;
+
+    void setJointPose(std::vector<double> jointPose);
+    std::string poseToStr(std::vector<double> p);
+    std::vector<double> computeFk(std::vector<double> jointPose);
+    std::vector<double> computeIk(std::vector<double> requestedCartesianPose);
+    std::vector<double> getCurrentJointPose();
     void commandCB(const std_msgs::Float64MultiArrayConstPtr& msg);
+    KDL::JntArray randomJointPose();
+
   };
 
 }

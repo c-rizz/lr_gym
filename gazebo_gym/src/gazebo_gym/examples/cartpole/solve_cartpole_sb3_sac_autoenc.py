@@ -38,7 +38,8 @@ def main() -> None:
     run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
     folderName = "./solve_cartpole_env_sb3_sac_autoenc/"+run_id
     gazebo_gym.utils.utils.pyTorch_makeDeterministic()
-    stepLength_sec = 0.03333
+    targetFps = 10
+    stepLength_sec = (1/targetFps)/3 #Frame stacking reduces by 3 the fps
     env = GymEnvWrapper(CartpoleContinuousVisualEnv(startSimulation = True,
                                                     simulatorController = GazeboController(stepLength_sec = stepLength_sec),
                                                     stepLength_sec = stepLength_sec),
@@ -56,7 +57,7 @@ def main() -> None:
     model = AutoencodingSAC(autoencoder,
                             MlpPolicy, env, verbose=1,
                             batch_size=32,
-                            buffer_size=50000,
+                            buffer_size=3600*targetFps, #1 hour of experience
                             gamma=0.99,
                             learning_rate=0.0025,
                             learning_starts=1000,
@@ -65,7 +66,11 @@ def main() -> None:
                             train_freq=1, #Train at every step (each rollout does one step)
                             seed = RANDOM_SEED,
                             device = device,
-                            autoencDbgOutFolder = folderName+"/dbg")
+                            autoencDbgOutFolder = folderName+"/dbg",
+                            autoencoderBatchSize = 32,
+                            autoencoderPretrainEpochs = 100,
+                            autoencoderGradientSteps = 100,
+                            autoencoderTrainPeriod = "episode")
 
     ggLog.info("Learning...")
     t_preLearn = time.time()

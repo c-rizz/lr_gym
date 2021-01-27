@@ -33,8 +33,8 @@ class RosEnvController(EnvironmentController):
             If it fails to find the gazebo services
 
         """
-        super().__init__(stepLength_sec = stepLength_sec)
-
+        super().__init__()
+        self._stepLength_sec = stepLength_sec
 
         self._forced_ros_master_uri = forced_ros_master_uri
         self._listenersStarted = False
@@ -51,7 +51,7 @@ class RosEnvController(EnvironmentController):
         self._cameraMsgAgeAvg = gazebo_gym.utils.utils.AverageKeeper(bufferSize = 100)
 
 
-    def step(self) -> None:
+    def step(self) -> float:
         """Wait for the step time to pass."""
         #TODO: it may make sense to keep track of the time spend in the rest of the processing
         sleepDuration = self._stepLength_sec - (rospy.get_time() - self._lastStepEnd)
@@ -62,6 +62,7 @@ class RosEnvController(EnvironmentController):
             ggLog.warn("Too much time passed since last step call. Cannot respect step frequency, required sleepDuration = "+str(sleepDuration))
         self._lastStepEnd = rospy.get_time()
         #rospy.loginfo("Slept")
+        return self._stepLength_sec if sleepDuration > 0 else self._stepLength_sec-sleepDuration
 
     def _imagesCallback(msg,args):
         self = args[0]

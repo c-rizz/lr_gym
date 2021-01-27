@@ -16,3 +16,20 @@ panda_arm_effort_effort_compensated_controller:
 link_state_controller:
     type: gazebo_gym_utils/LinkStatePublisherController
     publish_rate: 100
+
+# JointGroupPositionController for the arm, allows to set the position of the joints
+panda_arm_cartesian_position_controller:
+    type: gazebo_gym_utils/CartesianPositionController
+    joint_chain:
+        - panda_joint1
+        - panda_joint2
+        - panda_joint3
+        - panda_joint4
+        - panda_joint5
+        - panda_joint6
+        - panda_joint7
+        - panda_joint8
+
+    attempts: 1000
+    iterations: 10000
+    precision: 0.0001

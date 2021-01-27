@@ -15,7 +15,7 @@ class EffortRosControlController(RosEnvController):
     """This class allows to control the execution of a ROS-based environment.
 
     Controls robot joints using ros_control's effort controllers and trajectory controllers.
-    Effort controllers are to implement the actions of the robot agent. trajectory
+    Effort controllers are to used for performing the actions of the RL agent. rajectory
     controllers are only used to reset robot positions.
 
 

@@ -7,6 +7,8 @@ from typing import Dict
 import sensor_msgs
 import gazebo_msgs.msg
 import rospy
+from nptyping import NDArray
+import numpy as np
 
 from gazebo_gym.utils.utils import JointState
 
@@ -17,7 +19,7 @@ class EnvironmentController():
     It is an abstract class, it is meant to be extended with sub-classes for specific simulators
     """
 
-    def __init__(   self, stepLength_sec : float = 0.001):
+    def __init__(   self):
         """Initialize the Simulator controller.
 
         Raises
@@ -26,8 +28,6 @@ class EnvironmentController():
             If it fails to find the gazebo services
 
         """
-        self._stepLength_sec = stepLength_sec
-        rospy.loginfo("stepLength_sec set to "+str(self._stepLength_sec))
         self.setJointsToObserve([])
         self.setLinksToObserve([])
         self.setCamerasToObserve([])
@@ -71,8 +71,13 @@ class EnvironmentController():
         """Start up the controller. This must be called after setCamerasToObserve, setLinksToObserve and setJointsToObserve."""
         pass
 
-    def step(self) -> None:
-        """Run the simulation for the specified time."""
+    def step(self) -> float:
+        """Run a simulation step.
+
+        Returns
+        -------
+        float
+            Duration of the step in simulation time (in seconds)"""
 
         raise NotImplementedError()
 
@@ -96,13 +101,56 @@ class EnvironmentController():
         """Set the efforts to be applied on a set of joints.
 
         Effort means either a torque or a force, depending on the type of joint.
-        For Gazebo this is implemented applying the effort directly on the joint, without using ros_control. This
-        should be equivalent to using ros_control joint_effor_controller (see https://github.com/ros-controls/ros_controllers/blob/melodic-devel/effort_controllers/include/effort_controllers/joint_effort_controller.h)
 
         Parameters
         ----------
         jointTorques : List[Tuple[str,str,float]]
-            List containing the effort command for each joint. Each element of the list is a tuple of the form (model_name, joint_name, effort)
+            List containing the effort command for each joint. Each element of the list
+            is a tuple of the form (model_name, joint_name, effort)
+
+        Returns
+        -------
+        None
+            Nothing is returned
+
+        """
+        raise NotImplementedError()
+
+
+    def setJointsPosition(self, jointPositions : Dict[Tuple[str,str],float]) -> None:
+        """Set the position to be requested on a set of joints.
+
+        The position can be an angle (in radiants) or a length (in meters), depending
+        on the type of joint.
+
+        Parameters
+        ----------
+        jointPositions : Dict[Tuple[str,str],float]]
+            List containing the position command for each joint. Each element of the list
+            is a tuple of the form (model_name, joint_name, position)
+
+        Returns
+        -------
+        None
+            Nothing is returned
+
+        """
+        raise NotImplementedError()
+
+
+
+    def setCartesianPose(self, linkPoses : Dict[Tuple[str,str],NDArray[(7,), np.float32]]) -> None:
+        """Request a set of links to be placed at a specific cartesian pose.
+
+        This is mainly meant as a way to perform cartesian end effector control. Meaning
+        inverse kinematics will be computed to accomodate the request.
+
+        Parameters
+        ----------
+        linkPoses : Dict[Tuple[str,str],NDArray[(7,), np.float32]]]
+            Dict containing the pose command for each link. Each element of the dict
+            is identified by a key of the form (model_name, joint_name). The pose is specified as
+            a numpy array in the format: (pos_x, pos_y, pos_z, quat_x, quat_y, quat_z, quat_w)
 
         Returns
         -------
@@ -153,11 +201,7 @@ class EnvironmentController():
             Nothing is returned
 
         """
-        raise NotImplementedError()
 
-    def getStepLength(self) -> float:
-        """Get the configured step length used by the step() function."""
-        return self._stepLength_sec
 
     def getEnvSimTimeFromStart(self) -> float:
         """Get the current time within the simulation."""

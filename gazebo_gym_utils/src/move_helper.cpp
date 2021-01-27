@@ -37,7 +37,7 @@ int waitActionCompletion(moveit::planning_interface::MoveGroupInterface& move_gr
   move_group.getMoveGroupClient().waitForResult(ros::Duration(0, 0));//TODO: set a sensible timeout
   if (move_group.getMoveGroupClient().getState() != actionlib::SimpleClientGoalState::SUCCEEDED)
   {
-    throw std::runtime_error(move_group.getMoveGroupClient().getState().toString() + ": " + move_group.getMoveGroupClient().getState().getText()+"\n"+
+    throw std::runtime_error(move_group.getMoveGroupClient().getState().toString() + ": " + move_group.getMoveGroupClient().getState().getText()+". "+
                             "Action execution failed with MoveItErrorCode "+std::to_string(move_group.getMoveGroupClient().getResult()->error_code.val));
   }
 

@@ -54,7 +54,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
 
         """
 
-
+        self._stepLength_sec = stepLength_sec
         super(CartpoleEnv, self).__init__(  maxActionsPerEpisode = maxActionsPerEpisode,
                                             stepLength_sec = stepLength_sec,
                                             environmentController = simulatorController,
@@ -166,7 +166,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
                 img = np.empty([self._obs_img_height, self._obs_img_width,3])
             img = self._reshapeFrame(img)
             self._stackedImg[i] = img
-            self._intendedSimTime += self._environmentController.getStepLength()
+            self._intendedSimTime += self._stepLength_sec
 
 
 

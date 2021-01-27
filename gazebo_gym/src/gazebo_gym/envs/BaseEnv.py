@@ -239,7 +239,7 @@ class BaseEnv():
         pass
 
     def getSimTimeFromEpStart(self):
-        return self._environmentController.getEnvSimTimeFromStart()
+        raise NotImplemented()
 
     def close(self):
         self._destroySimulation()

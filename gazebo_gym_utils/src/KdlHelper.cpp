@@ -115,7 +115,7 @@ KDL::Chain KdlHelper::getChainFromJoints(std::vector<std::string> jointNames, st
 
 }
 
-std::vector<std::pair<double, double>> getJointLimits(const urdf::Model& model, const std::vector<std::string>& jointNames)
+std::vector<std::pair<double, double>> KdlHelper::getJointLimits(const urdf::Model& model, const std::vector<std::string>& jointNames)
 {
   //See code at:
   //  https://github.com/ros/urdfdom_headers/blob/master/urdf_model/include/urdf_model/model.h
@@ -132,12 +132,12 @@ std::vector<std::pair<double, double>> getJointLimits(const urdf::Model& model, 
   return ret;
 }
 
-std::vector<std::pair<double, double>> getJointLimits(std::string robot_description_param_name, const std::vector<std::string>& jointNames)
+std::vector<std::pair<double, double>> KdlHelper::getJointLimits(std::string robot_description_param_name, const std::vector<std::string>& jointNames)
 {
   urdf::Model model;
   if (!model.initParam(robot_description_param_name))
     throw std::runtime_error("Failed to get robot description from parameter "+robot_description_param_name);
-  
+
   return getJointLimits(model, jointNames);
 }
 

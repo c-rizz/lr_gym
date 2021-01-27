@@ -85,7 +85,7 @@ class GazeboController(GazeboControllerNoPlugin):
         self._jointEffortsToRequest = []
 
 
-    def step(self) -> None:
+    def step(self) -> float:
         """Run the simulation for the step time and optionally get some information.
 
         Parameters
@@ -162,6 +162,8 @@ class GazeboController(GazeboControllerNoPlugin):
         #print("Step done, joint state = "+str(self._simulationState.jointsState))
         if not response.success:
             rospy.logerr("Simulation stepping failed")
+
+        return self._stepLength_sec
 
     def _performRender(self, requestedCameras : List[str]):
         req = gazebo_gym_env_plugin.srv.RenderCamerasRequest()

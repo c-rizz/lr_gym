@@ -1,0 +1,31 @@
+<launch>
+
+    <!-- Launches gazebo with the a Panda arm controlled via joint efofrts
+         all the nodes necessary to control and monitor the cartpole
+         via ROS.
+    -->
+    <env name="ROSCONSOLE_FORMAT" value="[${severity}] [${walltime}] [${node}]: ${message}" />
+<!--
+    <include file="$(find gazebo_ros)/launch/empty_world.launch" >
+        <arg name="verbose" value="True"/>
+        <arg name="physics" value="bullet"/>
+        <arg name="gui" value="true"/>
+        <arg name="use_sim_time" value="true"/>
+    </include>
+-->
+
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="debug" value="false" />
+        <arg name="gui" value="true" />
+        <arg name="physics" value="bullet"/>
+        <arg name="verbose" value="True"/>
+        <arg name="use_sim_time" value="true" />
+    </include>
+
+    <!-- Spawn and setup the panda robot -->
+    <include file="$(find panda)/launch/panda_position_control.launch" >
+      <arg name="simulated" value="true"/>
+      <arg name="launch_gazebo" value="false"/>
+    </include>
+
+</launch>

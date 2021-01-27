@@ -51,7 +51,11 @@ class AutoencodingSAC(SAC):
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
-        autoencDbgOutFolder : str = None):
+        autoencDbgOutFolder : str = None,
+        autoencoderBatchSize : int = 64,
+        autoencoderPretrainEpochs : int = 100,
+        autoencoderGradientSteps : int = 100,
+        autoencoderTrainPeriod : Union[int,str] = "episode"):
 
         self._autoencoder = autoencoder
         self._optimizer = th.optim.Adam(self._autoencoder.parameters(), lr = 0.001)
@@ -90,9 +94,13 @@ class AutoencodingSAC(SAC):
         plt.ion()
         plt.show()
 
-        self._autoenc_batch_size = 4
+        self._autoenc_batch_size = autoencoderBatchSize
+        self._autoencPretrainEpochs = autoencoderPretrainEpochs
+        self._autoencGradientSteps = autoencoderGradientSteps
+        self._autoencTrainPeriod = autoencoderTrainPeriod
         self._figure_autoenc_train = plt.figure(num = 1, figsize=(16, 4)) # size in inches
-        self._dbg_autoenc_figs = [self._figure_autoenc_train.add_subplot(2,self._autoenc_batch_size,i+1) for i in range(self._autoenc_batch_size*2)]
+        self._dbg_autoenc_figs_num = min([5, self._autoenc_batch_size])
+        self._dbg_autoenc_figs = [self._figure_autoenc_train.add_subplot(2,self._dbg_autoenc_figs_num,i+1) for i in range(self._dbg_autoenc_figs_num*2)]
         #plt.gray()
         self._figure_autoenc_train.show()
         self._autoencDbgOutFolder = autoencDbgOutFolder
@@ -285,12 +293,13 @@ class AutoencodingSAC(SAC):
             #Perform autoencoder training with pre-train data
             if self.num_timesteps >= self.learning_starts and neverTrainedEncoder:
                 print("Starting autoencoder training")
+                if self._autoenc_batch_size > self.replay_buffer.size():
+                    raise RuntimeError("Not enough samples in replay buffer for autoencoder pretraining")
                 neverTrainedEncoder = False
-                epochs = 100
                 bestLoss = float("inf")
-                for epoch in range(epochs):
+                for epoch in range(self._autoencPretrainEpochs):
                     #Train
-                    for i in range(self.replay_buffer.size()):
+                    for i in range(int(self.replay_buffer.size()/self._autoenc_batch_size)):
                         replay_data = self.replay_buffer.sample(self._autoenc_batch_size, env=self._vec_normalize_env)
                         batchTensor = replay_data.observations
                         self._optimizer.zero_grad()
@@ -317,9 +326,9 @@ class AutoencodingSAC(SAC):
                     resizedImgs = self._autoencoder.resizeToInputSize(batchTensor.to(self.device))
                     with th.no_grad():
                         encodedDecodedImgs = self._autoencoder(resizedImgs)
-                    for i in range(self._autoenc_batch_size):
+                    for i in range(self._dbg_autoenc_figs_num):
                         self._dbg_autoenc_figs[i].imshow(torchvision.transforms.ToPILImage(mode="RGB")(batchTensor[i]))
-                        self._dbg_autoenc_figs[i+self._autoenc_batch_size].imshow(torchvision.transforms.ToPILImage(mode="RGB")(encodedDecodedImgs[i]))
+                        self._dbg_autoenc_figs[i+self._dbg_autoenc_figs_num].imshow(torchvision.transforms.ToPILImage(mode="RGB")(encodedDecodedImgs[i]))
                     if self._autoencDbgOutFolder is not None:
                         self._figure_autoenc_train.savefig(fname=self._autoencDbgOutFolder+"/autoencPretrain_epoch"+str(epoch))
                     #self._figure.canvas.draw_idle()
@@ -332,9 +341,18 @@ class AutoencodingSAC(SAC):
 
             t0_autoencOpt = time.monotonic()
             if self.num_timesteps > self.learning_starts:
-                gradient_steps = int(rollout.episode_timesteps/self._autoenc_batch_size*0.1)+1
+                if type(self._autoencTrainPeriod)==int:
+                    if self.num_timesteps % self._autoencTrainPeriod == 0:
+                        autoenc_grad_steps = self._autoencGradientSteps
+                elif (type(self._autoencTrainPeriod)==str and self._autoencTrainPeriod == "episode"):
+                    autoenc_grad_steps = rollout.n_episodes * self._autoencGradientSteps
+                else:
+                    raise AttributeError("Invalid autoencoder training period '"+str(self._autoencTrainPeriod)+"'")
+
+                if autoenc_grad_steps != 0:
+                    print("Performing "+str(autoenc_grad_steps)+" autoencoder gradient steps")
                 #print(f"Performing {gradient_steps} gradient steps on the autoencoder")
-                for gradient_step in range(gradient_steps):
+                for gradient_step in range(autoenc_grad_steps):
                     replay_data = self.replay_buffer.sample(self._autoenc_batch_size, env=self._vec_normalize_env)
                     batchTensor = replay_data.observations
                     self._optimizer.zero_grad()

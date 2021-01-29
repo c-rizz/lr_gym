@@ -21,11 +21,13 @@
     </include>
 
     <!-- Spawn and setup the panda robot -->
-    <include file="$(find panda)/launch/panda_effort_control.launch" >
+    <include file="$(find panda)/launch/panda_generic.launch" >
       <arg name="simulated" value="true"/>
       <arg name="launch_gazebo" value="false"/>
       <arg name="start_controllers" value="$(arg start_controllers)"/>
       <arg name="load_gripper" value="$(arg load_gripper)"/>
+      <arg name="control_mode" value="effort"/>
+      <arg name="robot_name" value="panda"/>
     </include>
 
     <!-- publish the links states

@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="panda">
+<!--
+  <xacro:arg name="name"/>
+  <xacro:arg name="static"/>
+  <xacro:arg name="label_format"/>
+  <xacro:arg name="topics_ns"/>
+  <xacro:arg name="enable_gravity"/>
+  <xacro:arg name="color_width"/>
+  <xacro:arg name="color_height"/>
+  <xacro:arg name="color_fps"/>
+  <xacro:arg name="enable_color"/>
+  <xacro:arg name="enable_label"/>
+  <xacro:arg name="infra_width"/>
+  <xacro:arg name="infra_height"/>
+  <xacro:arg name="infra_fps"/>
+  <xacro:arg name="enable_infra1"/>
+  <xacro:arg name="enable_infra2"/>
+  <xacro:arg name="depth_width"/>
+  <xacro:arg name="depth_height"/>
+  <xacro:arg name="depth_fps"/>
+  <xacro:arg name="enable_depth"/>
+  <xacro:arg name="enable_gyro"/>
+  <xacro:arg name="enable_accel"/>
+  <xacro:arg name="gyro_fps"/>
+-->
+
+
+  <xacro:include filename="$(find realsense)/urdf/d435i.urdf.xacro" />
+  <xacro:include filename="$(find panda)/urdf/panda_arm_generic.xacro"/>
+
+  <xacro:panda_arm_generic  x="$(arg robot_base_x)"
+                            y="$(arg robot_base_y)"
+                            z="$(arg robot_base_z)"
+                            roll="$(arg robot_base_roll)"
+                            pitch="$(arg robot_base_pitch)"
+                            yaw="$(arg robot_base_yaw)"
+                            connected_to="$(arg robot_parent_link)"
+                            control_mode="$(arg control_mode)"
+                            robot_name="$(arg robot_name)"
+                            load_hand="$(arg load_hand)"/>
+
+  <xacro:sensor_d435i
+          parent="$(arg robot_name)_link8"
+          name="$(arg camera_name)"
+          static="$(arg static)"
+          label_format="$(arg label_format)"
+          color_width="$(arg color_width)"
+          color_height="$(arg color_height)"
+          color_fps="$(arg color_fps)"
+          enable_color="$(arg enable_color)"
+          infra_width="$(arg infra_width)"
+          infra_height="$(arg infra_height)"
+          infra_fps="$(arg infra_fps)"
+          enable_infra1="$(arg enable_infra1)"
+          enable_infra2="$(arg enable_infra2)"
+          depth_width="$(arg depth_width)"
+          depth_height="$(arg depth_height)"
+          depth_fps="$(arg depth_fps)"
+          enable_depth="$(arg enable_depth)"
+          enable_label="$(arg enable_label)"
+          gyro_fps="$(arg gyro_fps)"
+          accel_fps="$(arg accel_fps)"
+          enable_accel="$(arg enable_accel)"
+          enable_gyro="$(arg enable_gyro)"
+          enable_gravity="true">
+    <origin xyz="0 0 0.02" rpy="${180/180*pi} ${-90/180*pi} 0"/>
+  </xacro:sensor_d435i>
+</robot>

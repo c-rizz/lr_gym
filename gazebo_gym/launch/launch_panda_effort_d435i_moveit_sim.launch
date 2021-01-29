@@ -1,0 +1,44 @@
+<launch>
+
+    <!-- Launches gazebo with the a Panda arm controlled via joint efofrts
+         all the nodes necessary to control and monitor the cartpole
+         via ROS.
+    -->
+    <env name="ROSCONSOLE_FORMAT" value="[${severity}] [${walltime}] [${node}]: ${message}" />
+
+    <arg name="gui" default="true"/>
+    <arg name="noplugin" default="false"/>
+    <arg name="start_controllers" default="true"/>
+    <arg name="load_gripper" default="true"/>
+    <arg name="robot_name" value="panda"/> <!-- robot name must be panda for the moveit config to work -->
+
+    <remap from="robot_description" to="$(arg robot_name)_description"/>
+
+    <!-- Launch gazebo simulation -->
+    <include file="$(find gazebo_gym)/launch/launch_panda_effort_d435i_gazebo_sim.launch" >
+      <arg name="gui" value="$(arg gui)"/>
+      <arg name="noplugin" value="false"/>
+      <arg name="start_controllers" value="true"/>
+      <arg name="load_gripper" value="false"/>
+      <arg name="robot_name" value="$(arg robot_name)"/>
+    </include>
+
+
+    <!-- Launch moveit -->
+    <include file="$(find simple_panda_moveit_config)/launch/move_group.launch" >
+      <!-- reduce output logs -->
+      <!-- <env name="ROSCONSOLE_CONFIG_FILE" value="$(find gazebo_gym)/config/rosconsole_warn.config" /> -->
+      <arg name="robot_description_name" value="$(arg robot_name)_description"/>
+      <arg name="load_gripper" value="false"/>
+    </include>
+
+    <!-- launch moveit helper -->
+    <node name="move_helper" pkg="gazebo_gym_utils" type="move_helper" respawn="true" output="screen">
+      <!-- reduce output logs -->
+      <!-- <env name="ROSCONSOLE_CONFIG_FILE" value="$(find gazebo_gym)/config/rosconsole_warn.config" /> -->
+      <param name="planning_group_name" type="str" value="panda_arm"/>
+      <param name="default_ee_link" type="str" value="panda_link8"/>
+    </node>
+
+
+</launch>

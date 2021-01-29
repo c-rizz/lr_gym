@@ -192,8 +192,12 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "move_helper");
   ros::NodeHandle node_handle("~");
 
-  planning_group_name = "panda_arm";
-  defaultEeLink = "panda_link8";
+  std::string planning_group_name_param_name = "planning_group_name";
+  node_handle.param<std::string>(planning_group_name_param_name, planning_group_name, "panda_arm");
+  ROS_INFO_STREAM("Will use planning group "<<planning_group_name);
+  std::string default_ee_link_param_name = "default_ee_link";
+  node_handle.param<std::string>(default_ee_link_param_name, defaultEeLink, "panda_link8");
+  ROS_INFO_STREAM("Will use default ee link "<<defaultEeLink);
   ros::AsyncSpinner spinner(2);
   spinner.start();
 

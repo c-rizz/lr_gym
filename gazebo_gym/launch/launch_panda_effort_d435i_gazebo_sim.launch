@@ -25,7 +25,7 @@
     <arg name="accel_fps" default="400"/>
 
     <!-- aRM PARAMS -->
-    <arg name="robot_name" default="panda_d435i"/>
+    <arg name="robot_name" default="panda"/>
     <arg name="robot_base_x" default="0"/>
     <arg name="robot_base_y" default="0"/>
     <arg name="robot_base_z" default="0"/>

@@ -27,7 +27,7 @@
 -->
 
 
-  <xacro:include filename="$(find realsense)/urdf/d435i.urdf.xacro" />
+  <xacro:include filename="$(find lr_realsense)/urdf/d435i_sim.xacro" />
   <xacro:include filename="$(find panda)/urdf/panda_arm_generic.xacro"/>
 
   <xacro:panda_arm_generic  x="$(arg robot_base_x)"
@@ -41,7 +41,7 @@
                             robot_name="$(arg robot_name)"
                             load_hand="$(arg load_hand)"/>
 
-  <xacro:sensor_d435i
+  <xacro:d435i_sim
           parent="$(arg robot_name)_link8"
           name="$(arg camera_name)"
           static="$(arg static)"
@@ -66,5 +66,5 @@
           enable_gyro="$(arg enable_gyro)"
           enable_gravity="true">
     <origin xyz="0 0 0.02" rpy="${180/180*pi} ${-90/180*pi} 0"/>
-  </xacro:sensor_d435i>
+  </xacro:d435i_sim>
 </robot>

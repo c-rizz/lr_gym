@@ -11,7 +11,7 @@ import argparse
 from datetime import datetime
 from stable_baselines.common import env_checker
 
-from gazebo_gym.envs.PandaMoveitReachingEnv2 import PandaMoveitReachingEnv
+from gazebo_gym.envs.PandaMoveitReachingEnv import PandaMoveitReachingEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 
 def main(trainIterations : int) -> None:

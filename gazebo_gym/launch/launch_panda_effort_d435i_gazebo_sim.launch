@@ -43,7 +43,6 @@
 
 
     <remap from="robot_description" to="$(arg robot_name)_description"/>
-    <remap from="robot_description_semantic" to="$(arg robot_name)_description_semantic"/>
 
     <include file="$(find gazebo_gym)/launch/fixed_camera_gazebo_sim.launch" >
       <arg name="gui" value="$(arg gui)"/>

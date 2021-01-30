@@ -10,8 +10,11 @@
     <arg name="noplugin" default="false"/>
     <arg name="start_controllers" default="true"/>
     <arg name="load_gripper" default="true"/>
+    <arg name="robot_name" default="panda"/>
 
 
+    <remap from="robot_description" to="$(arg robot_name)_description"/>
+    
     <!-- Launch gazebo -->
     <include file="$(find gazebo_gym)/launch/fixed_camera_gazebo_sim.launch" >
       <arg name="gui" value="$(arg gui)"/>
@@ -27,7 +30,7 @@
       <arg name="start_controllers" value="$(arg start_controllers)"/>
       <arg name="load_gripper" value="$(arg load_gripper)"/>
       <arg name="control_mode" value="effort"/>
-      <arg name="robot_name" value="panda"/>
+      <arg name="robot_name" value="$(arg robot_name)"/>
     </include>
 
     <!-- publish the links states

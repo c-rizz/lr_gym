@@ -13,6 +13,7 @@
     <arg name="robot_name" value="panda"/> <!-- robot name must be panda for the moveit config to work -->
 
     <remap from="robot_description" to="$(arg robot_name)_description"/>
+    <remap from="robot_description_semantic" to="$(arg robot_name)_description_semantic"/>
 
     <!-- Launch gazebo simulation -->
     <include file="$(find gazebo_gym)/launch/launch_panda_effort_d435i_gazebo_sim.launch" >

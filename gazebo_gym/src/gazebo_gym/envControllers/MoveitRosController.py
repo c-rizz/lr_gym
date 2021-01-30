@@ -21,6 +21,7 @@ from nptyping import NDArray
 import gazebo_gym.utils
 
 from gazebo_gym.utils.utils import buildPoseStamped
+import gazebo_gym.utils.dbg.ggLog as ggLog
 
 
 class MoveitRosController(RosEnvController):
@@ -174,7 +175,7 @@ class MoveitRosController(RosEnvController):
             try:
                 callback()
             except Exception:
-                print("Action completion failed during step()")
+                ggLog.info("Moveit action failed during step() (this is not necessarily a bad thing")
                 self._actionsFailsInLastStepCounter+=1
 
 

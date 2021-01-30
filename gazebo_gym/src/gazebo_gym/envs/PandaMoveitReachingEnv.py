@@ -13,22 +13,12 @@ import gazebo_gym_utils.msg
 import gazebo_gym_utils.srv
 from geometry_msgs.msg import PoseStamped
 import actionlib
+import rospkg
 
 from gazebo_gym.envs.BaseEnv import BaseEnv
-from gazebo_gym.envControllers.RosEnvController import RosEnvController
+from gazebo_gym.envControllers.MoveitRosController import MoveitRosController
+import gazebo_gym_utils.ros_launch_utils
 
-
-def _buildPoseStamped(position_xyz, orientation_xyzw, frame_id):
-    pose = PoseStamped()
-    pose.header.frame_id = frame_id
-    pose.pose.position.x = position_xyz[0]
-    pose.pose.position.y = position_xyz[1]
-    pose.pose.position.z = position_xyz[2]
-    pose.pose.orientation.x = orientation_xyzw[0]
-    pose.pose.orientation.y = orientation_xyzw[1]
-    pose.pose.orientation.z = orientation_xyzw[2]
-    pose.pose.orientation.w = orientation_xyzw[3]
-    return pose
 
 
 class PandaMoveitReachingEnv(BaseEnv):
@@ -37,9 +27,9 @@ class PandaMoveitReachingEnv(BaseEnv):
     As moveit_commander is not working with python3 this environment relies on an intermediate ROS node for sending moveit commands.
     """
     #TODO: This should be refacotred creating a MoveitEnvController and subclassing from ControlledEnv instead of BaseEnv
-    action_space_high = np.array([  0.1,
-                                    0.1,
-                                    0.1])
+    action_space_high = np.array([  1,
+                                    1,
+                                    1])
     action_space = gym.spaces.Box(-action_space_high,action_space_high) # 3D translatiomn vector, maximum 10cm
 
 
@@ -56,9 +46,9 @@ class PandaMoveitReachingEnv(BaseEnv):
                                         np.finfo(np.float32).max, # joint 5 position
                                         np.finfo(np.float32).max, # joint 6 position
                                         np.finfo(np.float32).max, # joint 7 position
-                                        np.finfo(np.float32).max, # 1 if last move failed
-                                        np.finfo(np.float32).max  # 1 if we reached non-recoverable failure state
+                                        np.finfo(np.float32).max, # flag indicating action fails (zero if there were no fails in last step)
                                         ])
+
     observation_space = gym.spaces.Box(-observation_space_high, observation_space_high)
     metadata = {'render.modes': ['rgb_array']}
 
@@ -67,7 +57,8 @@ class PandaMoveitReachingEnv(BaseEnv):
                     maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
-                    goalToleranceOrientation_rad : float = 0.0175*5):
+                    goalToleranceOrientation_rad : float = 0.0175*5,
+                    startSimulation : bool = True):
         """Short summary.
 
         Parameters
@@ -89,43 +80,55 @@ class PandaMoveitReachingEnv(BaseEnv):
         """
 
 
-        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode)
-        self._envController = RosEnvController()
+        self._environmentController = MoveitRosController(jointsOrder = [("panda","panda_joint1"),
+                                                                         ("panda","panda_joint2"),
+                                                                         ("panda","panda_joint3"),
+                                                                         ("panda","panda_joint4"),
+                                                                         ("panda","panda_joint5"),
+                                                                         ("panda","panda_joint6"),
+                                                                         ("panda","panda_joint7")],
+                                                          endEffectorLink  = ("panda", "panda_link8"),
+                                                          referenceFrame   = "panda_link8",
+                                                          initialJointPose = {("panda","panda_joint1") : 0,
+                                                                              ("panda","panda_joint2") : 0,
+                                                                              ("panda","panda_joint3") : 0,
+                                                                              ("panda","panda_joint4") :-1,
+                                                                              ("panda","panda_joint5") : 0,
+                                                                              ("panda","panda_joint6") : 1,
+                                                                              ("panda","panda_joint7") : 0})
+
+        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, startSimulation = startSimulation)
 
         self._renderingEnabled = render
         if self._renderingEnabled:
-            self._envController.setCamerasToObserve(["camera"]) #TODO: fix the camera topic
+            self._environmentController.setCamerasToObserve(["camera"]) #TODO: fix the camera topic
+
+        self._environmentController.setJointsToObserve( [("panda","panda_joint1"),
+                                                        ("panda","panda_joint2"),
+                                                        ("panda","panda_joint3"),
+                                                        ("panda","panda_joint4"),
+                                                        ("panda","panda_joint5"),
+                                                        ("panda","panda_joint6"),
+                                                        ("panda","panda_joint7")])
+
+
+        self._environmentController.setLinksToObserve( [("panda","panda_link1"),
+                                                        ("panda","panda_link2"),
+                                                        ("panda","panda_link3"),
+                                                        ("panda","panda_link4"),
+                                                        ("panda","panda_link5"),
+                                                        ("panda","panda_link6"),
+                                                        ("panda","panda_link7"),
+                                                        ("panda","panda_link8")])
 
         self._goalPose = goalPose
         self._goalTolerancePosition = goalTolerancePosition
         self._goalToleranceOrientation_rad = goalToleranceOrientation_rad
         self._lastMoveFailed = False
+        self._maxMoveLength = 0.1
 
+        self._environmentController.startController()
 
-        self._moveEeClient = actionlib.SimpleActionClient('/move_helper/move_to_ee_pose', gazebo_gym_utils.msg.MoveToEePoseAction)
-        rospy.loginfo("Waiting for action "+self._moveEeClient.action_client.ns+"...")
-        self._moveEeClient.wait_for_server()
-        rospy.loginfo("Connected.")
-
-
-        self._moveJointClient = actionlib.SimpleActionClient('/move_helper/move_to_joint_pose', gazebo_gym_utils.msg.MoveToJointPoseAction)
-        rospy.loginfo("Waiting for action "+self._moveJointClient.action_client.ns+"...")
-        self._moveJointClient.wait_for_server()
-        rospy.loginfo("Connected.")
-
-        eeServiceName = "/move_helper/get_ee_pose"
-        rospy.loginfo("Waiting for service "+eeServiceName+"...")
-        rospy.wait_for_service(eeServiceName)
-        self._getEePoseService = rospy.ServiceProxy(eeServiceName, gazebo_gym_utils.srv.GetEePose)
-        rospy.loginfo("Connected.")
-
-        jointServiceName = "/move_helper/get_joint_state"
-        rospy.loginfo("Waiting for service "+jointServiceName+"...")
-        rospy.wait_for_service(jointServiceName)
-        self._getJointStateService = rospy.ServiceProxy(jointServiceName, gazebo_gym_utils.srv.GetJointState)
-        rospy.loginfo("Connected.")
-
-        self._initialJointState = [0, 0, 0, -1, 0, 1, 0] # self._getJointStateService()
 
 
 
@@ -136,17 +139,21 @@ class PandaMoveitReachingEnv(BaseEnv):
         Parameters
         ----------
         action : Tuple[float, float, float]
-            Relative end-effector movement in cartesian space
+            Relative end-effector movement in cartesian space. It is normalized to the max movement distance, i.e.
+            this funciont shoult receive values in the [-1,1] range, which are then converted to the proper
+            value range.
 
         """
         super().submitAction(action)
-        clippedAction = np.clip(np.array(action, dtype=np.float32),-0.1,0.1)
+        clippedAction = np.clip(np.array(action, dtype=np.float32),-1,1)
+        action = clippedAction*self._maxMoveLength
 
+        #print("attempting action "+str(action))
 
-        goal = gazebo_gym_utils.msg.MoveToEePoseGoal()
-        goal.pose = _buildPoseStamped(clippedAction,[0,0,0,1],"panda_link8") #move 10cm back
-        goal.end_effector_link = "panda_link8"
-        self._moveEeClient.send_goal(goal)
+        self._environmentController.setCartesianPose(linkPoses = {("panda","panda_link8") : np.array([action[0],
+                                                                                                      action[1],
+                                                                                                      action[2],
+                                                                                                      0,0,0,1])})
         #rospy.loginfo("Moving Ee of "+str(clippedAction))
 
 
@@ -165,16 +172,7 @@ class PandaMoveitReachingEnv(BaseEnv):
             Why the exception is raised.
 
         """
-        r = self._moveEeClient.wait_for_result()
-        if not r:
-            rospy.logerr("Action failed to complete with result:"+str(self._moveEeClient.get_result()))
-        else:
-            res = self._moveEeClient.get_result()
-            if not res.succeded:
-                rospy.loginfo("Move failed with message: "+str(res.error_message))
-                self._lastMoveFailed = True
-                return
-        self._lastMoveFailed = False
+        self._environmentController.step()
 
     def _getDist2goal(self, state : NDArray[(15,), np.float32]):
         position = state[0:3]
@@ -202,25 +200,16 @@ class PandaMoveitReachingEnv(BaseEnv):
     def checkEpisodeEnded(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32]) -> bool:
         if super().checkEpisodeEnded(previousState, state):
             return True
-        unrecoverableFailure = state[14]
-        if unrecoverableFailure:
-            return True
 
-        isdone = bool(self._checkGoalReached(state))
+        #return bool(self._checkGoalReached(state))
         #print("isdone = ",isdone)
-        return isdone
+        return False
 
 
     def computeReward(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32], action : int) -> float:
 
-        lastStepFailed = state[13]
-        if lastStepFailed:
-            return -0.5
-
-        unrecoverableFailure = state[14]
-        if unrecoverableFailure:
-            return -1000
-
+        if state[13] != 0:
+            return -10
         posDist_new, orientDist_new = self._getDist2goal(state)
         posDist_old, orientDist_old = self._getDist2goal(previousState)
 
@@ -229,6 +218,7 @@ class PandaMoveitReachingEnv(BaseEnv):
 
         if self._checkGoalReached(state):
             finishBonus = 100
+            ggLog.info("Goal Reached")
         else:
             finishBonus = 0
 
@@ -240,7 +230,7 @@ class PandaMoveitReachingEnv(BaseEnv):
         #closenessBonus = 1-posDist_new
 
         reward = posImprovement + orientImprovement + finishBonus + almostFinishBonus# + closenessBonus
-        rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
+        #rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
         return reward
 
 
@@ -249,17 +239,9 @@ class PandaMoveitReachingEnv(BaseEnv):
 
 
     def performReset(self) -> None:
-        goal = gazebo_gym_utils.msg.MoveToJointPoseGoal()
-        goal.pose = self._initialJointState
-        self._moveJointClient.send_goal(goal)
-        rospy.loginfo("Moving to initial position...")
-        r = self._moveJointClient.wait_for_result()
+        super().performReset()
+        self._environmentController.resetWorld()
         self._lastResetSimTime = rospy.get_time()
-        if r:
-            if self._moveJointClient.get_result().succeded:
-                return
-        else:
-            raise RuntimeError("Failed ot reset environment: "+str(self._moveJointClient.get_result()))
 
 
     def getObservation(self, state) -> np.ndarray:
@@ -275,8 +257,15 @@ class PandaMoveitReachingEnv(BaseEnv):
 
         """
 
-        eePose = self._getEePoseService("panda_link8").pose.pose
-        jointState = self._getJointStateService().joint_poses
+        eePose = self._environmentController.getLinksState(requestedLinks=[("panda","panda_link8")])[("panda","panda_link8")].pose
+        jointStates = self._environmentController.getJointsState([("panda","panda_joint1"),
+                                                                 ("panda","panda_joint2"),
+                                                                 ("panda","panda_joint3"),
+                                                                 ("panda","panda_joint4"),
+                                                                 ("panda","panda_joint5"),
+                                                                 ("panda","panda_joint6"),
+                                                                 ("panda","panda_joint7")])
+
 
         quat = quaternion.from_float_array([eePose.orientation.w,eePose.orientation.x,eePose.orientation.y,eePose.orientation.z])
         eeOrientation_rpy = quaternion.as_euler_angles(quat)
@@ -293,19 +282,29 @@ class PandaMoveitReachingEnv(BaseEnv):
                     eeOrientation_rpy[0],
                     eeOrientation_rpy[1],
                     eeOrientation_rpy[2],
-                    jointState[0],
-                    jointState[1],
-                    jointState[2],
-                    jointState[3],
-                    jointState[4],
-                    jointState[5],
-                    jointState[6],
-                    1.0 if self._lastMoveFailed else 0.0,
-                    0.0] # No unrecoverable failure states
+                    jointStates[("panda","panda_joint1")].position[0],
+                    jointStates[("panda","panda_joint2")].position[0],
+                    jointStates[("panda","panda_joint3")].position[0],
+                    jointStates[("panda","panda_joint4")].position[0],
+                    jointStates[("panda","panda_joint5")].position[0],
+                    jointStates[("panda","panda_joint6")].position[0],
+                    jointStates[("panda","panda_joint7")].position[0],
+                    self._environmentController.actionsFailsInLastStep()]
 
         return np.array(state,dtype=np.float32)
 
+    def buildSimulation(self, backend : str = "gazebo"):
+        if backend != "gazebo":
+            raise NotImplementedError("Backend "+backend+" not supported")
 
+        self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher( rospkg.RosPack().get_path("gazebo_gym")+
+                                                                                        "/launch/launch_panda_effort_moveit_sim.launch",
+                                                                                        cli_args=["gui:=false", "load_gripper:=false"])
+        self._mmRosLauncher.launchAsync()
+
+
+    def _destroySimulation(self):
+        self._mmRosLauncher.stop()
 
     def getSimTimeFromEpStart(self):
         return rospy.get_time() - self._lastResetSimTime

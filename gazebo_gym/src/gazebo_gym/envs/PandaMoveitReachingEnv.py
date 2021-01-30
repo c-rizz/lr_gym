@@ -6,7 +6,7 @@ import rospy.client
 
 import gym
 import numpy as np
-from typing import Tuple
+from typing import Tuple, Union, Callable
 from nptyping import NDArray
 import quaternion
 import gazebo_gym_utils.msg
@@ -18,6 +18,7 @@ import rospkg
 from gazebo_gym.envs.BaseEnv import BaseEnv
 from gazebo_gym.envControllers.MoveitRosController import MoveitRosController
 import gazebo_gym_utils.ros_launch_utils
+import gazebo_gym.utils.dbg.ggLog as ggLog
 
 
 
@@ -53,7 +54,7 @@ class PandaMoveitReachingEnv(BaseEnv):
     metadata = {'render.modes': ['rgb_array']}
 
     def __init__(   self,
-                    goalPose : Tuple[float,float,float,float,float,float,float] = (0,0,0, 0,0,0,0),
+                    goalPose : Union[NDArray[(7,), np.float32], Callable[[],NDArray[(7,), np.float32]]] = np.array([0,0,0, 0,0,0,0]),
                     maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
@@ -63,8 +64,8 @@ class PandaMoveitReachingEnv(BaseEnv):
 
         Parameters
         ----------
-        goalPose : Tuple[float,float,float,float,float,float,float]
-            end-effector pose to reach (x,y,z, qx,qy,qz,qw)
+        goalPose : Union[NDArray[(7,), np.float32], Callable[[],NDArray[(7,), np.float32]]]
+            end-effector pose to reach (x,y,z, qx,qy,qz,qw), or a function that samples a new goal (called at each reset)
         maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
@@ -121,11 +122,15 @@ class PandaMoveitReachingEnv(BaseEnv):
                                                         ("panda","panda_link7"),
                                                         ("panda","panda_link8")])
 
-        self._goalPose = goalPose
         self._goalTolerancePosition = goalTolerancePosition
         self._goalToleranceOrientation_rad = goalToleranceOrientation_rad
         self._lastMoveFailed = False
         self._maxMoveLength = 0.1
+
+        if callable(goalPose):
+            self._goalPoseSampleFunc = goalPose
+        else:
+            self._goalPoseSampleFunc = lambda: goalPose
 
         self._environmentController.startController()
 
@@ -242,6 +247,8 @@ class PandaMoveitReachingEnv(BaseEnv):
         super().performReset()
         self._environmentController.resetWorld()
         self._lastResetSimTime = rospy.get_time()
+
+        self._goalPose = self._goalPoseSampleFunc()
 
 
     def getObservation(self, state) -> np.ndarray:

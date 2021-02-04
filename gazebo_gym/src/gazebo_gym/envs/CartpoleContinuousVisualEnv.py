@@ -132,10 +132,10 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
 
         #print(state)
 
-        return (  states[("cartpole_v0","foot_joint")].position[0],
-                  states[("cartpole_v0","foot_joint")].rate[0],
-                  states[("cartpole_v0","cartpole_joint")].position[0],
-                  states[("cartpole_v0","cartpole_joint")].rate[0],
+        return (  np.array([states[("cartpole_v0","foot_joint")].position[0],
+                            states[("cartpole_v0","foot_joint")].rate[0],
+                            states[("cartpole_v0","cartpole_joint")].position[0],
+                            states[("cartpole_v0","cartpole_joint")].rate[0]]),
                   self._stackedImg)
 
     def checkEpisodeEnded(self, previousState : Tuple[float,float,float,float, np.ndarray], state : Tuple[float,float,float,float, np.ndarray]) -> bool:

@@ -25,21 +25,10 @@ def main(trainIterations : int) -> None:
     #env = gym.make('CartPoleStayUp-v0')
 
     runId = datetime.now().strftime('%Y%m%d-%H%M%S')
-    folderName = "./solve_pandaReaching/"+runId
-
-    def sampleGoal():
-        #sample a position in a 2d rectangle in front of the robot
-        position = np.random.uniform(low=(0.5, -0.25, 0.2), high=(0.5, 0.25, 0.6))
-        orientation = np.array([-1,0,0,0])
-        ret = np.concatenate([position, orientation])
-        ggLog.info("sampled goal "+str(ret))
-        return ret
-
+    folderName = "./solve_pandaMoveitReaching/"+runId
 
     print("Setting up environment...")
-    #env = GymEnvWrapper(PandaMoveitReachingEnv(goalPose=[0.3,-0.3,0.5,-1,0,0,0], maxActionsPerEpisode = 30), episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
-    env = GymEnvWrapper(PandaMoveitReachingEnv(goalPose=sampleGoal, maxActionsPerEpisode = 30),
-                        episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
+    env = GymEnvWrapper(PandaMoveitReachingEnv(goalPose=[0.3,-0.3,0.5,-1,0,0,0], maxActionsPerEpisode = 30), episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
     print("Environment created")
 
     #setup seeds for reproducibility

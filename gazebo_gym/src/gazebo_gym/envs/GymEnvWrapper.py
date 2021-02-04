@@ -24,6 +24,8 @@ import gazebo_gym
 from gazebo_gym.envs.BaseEnv import BaseEnv
 import os
 import traceback
+import gazebo_gym.utils.dbg.ggLog as ggLog
+
 
 class GymEnvWrapper(gym.Env):
     """This class is a wrapper to convert gazebo_gym environments in OpenAI Gym environments.
@@ -101,6 +103,7 @@ class GymEnvWrapper(gym.Env):
             wallFps = self._framesCounter/totEpisodeWallDuration
             wall_fps_until_done = self._framesCounter/epWallDurationUntilDone
             ratio_time_spent_stepping_until_done = self._timeSpentStepping_ep/epWallDurationUntilDone
+            ratio_time_spent_stepping = self._timeSpentStepping_ep/totEpisodeWallDuration
         else:
             avgSimTimeStepDuration = float("NaN")
             totEpisodeWallDuration = 0
@@ -108,6 +111,7 @@ class GymEnvWrapper(gym.Env):
             wallFps = float("NaN")
             wall_fps_until_done = float("NaN")
             ratio_time_spent_stepping_until_done = 0
+            ratio_time_spent_stepping = 0
 
         self._info["avg_env_step_wall_duration"] = self._envStepDurationAverage.getAverage()
         self._info["avg_sim_step_wall_duration"] = self._wallStepDurationAverage.getAverage()
@@ -122,6 +126,7 @@ class GymEnvWrapper(gym.Env):
         self._info["wall_fps_until_done"] = wall_fps_until_done
         self._info["reset_count"] = self._resetCount
         self._info["ratio_time_spent_stepping_until_done"] = ratio_time_spent_stepping_until_done
+        self._info["ratio_time_spent_stepping"] = ratio_time_spent_stepping
         self._info["time_from_start"] = time.monotonic() - self._init_time
         self._info["total_steps"] = self._totalSteps
 
@@ -205,7 +210,7 @@ class GymEnvWrapper(gym.Env):
                 "gz_gym_base_env_action" : action}
         info.update(self._ggEnv.getInfo())
         info.update(self._info)
-
+        # ggLog.debug(" s="+str(previousState)+"\n a="+str(action)+"\n s'="+str(state) +"\n r="+str(reward))
         self._totalEpisodeReward += reward
 
         #ggLog.info("step() return, reward = "+str(reward))
@@ -260,11 +265,12 @@ class GymEnvWrapper(gym.Env):
                     ggLog.info(k," = ",v)
             elif not self._quiet:
                 ggLog.info( "ep_reward = {:.3f}".format(self._info["ep_reward"])+
-                            " step_frames = {:d}".format(self._info["ep_frames_count"])+
+                            " steps = {:d}".format(self._info["ep_frames_count"])+
                             " wall_fps = {:.3f}".format(self._info["wall_fps"])+
+                            " wall_fps_ud = {:.3f}".format(self._info["wall_fps_until_done"])+
                             " avg_env_step_wall_dur = {:f}".format(self._info["avg_env_step_wall_duration"])+
-                            " wall_fps_until_done = {:.3f}".format(self._info["wall_fps_until_done"])+
-                            " tstep_on_ttot = {:.2f}".format(self._info["ratio_time_spent_stepping_until_done"])+
+                            " tstep_on_ttotud = {:.2f}".format(self._info["ratio_time_spent_stepping_until_done"])+
+                            " tstep_on_ttot = {:.2f}".format(self._info["ratio_time_spent_stepping"])+
                             " reset_cnt = {:d}".format(self._info["reset_count"]))
 
         self._lastPreResetTime = time.monotonic()

@@ -14,7 +14,7 @@
 -->
   <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
 
-<disable_collisions link1="panda_d435i_bottom_screw_frame" link2="panda_link8" reason="Adjacent" />
-<disable_collisions link1="panda_d435i_bottom_screw_frame" link2="panda_link7" reason="Default" />
-<disable_collisions link1="panda_d435i_link"               link2="panda_link7" reason="Default" />
+  <disable_collisions link1="panda_d435i_bottom_screw_frame" link2="panda_link8" reason="Adjacent" />
+  <disable_collisions link1="panda_d435i_bottom_screw_frame" link2="panda_link7" reason="Default" />
+  <disable_collisions link1="panda_d435i_link"               link2="panda_link7" reason="Default" />
 </robot>

@@ -6,7 +6,7 @@ import rospy.client
 
 import gym
 import numpy as np
-from typing import Tuple, Union, Callable
+from typing import Tuple
 from nptyping import NDArray
 import quaternion
 import gazebo_gym_utils.msg
@@ -19,7 +19,7 @@ from gazebo_gym.envs.BaseEnv import BaseEnv
 from gazebo_gym.envControllers.MoveitRosController import MoveitRosController
 import gazebo_gym_utils.ros_launch_utils
 import gazebo_gym.utils.dbg.ggLog as ggLog
-
+import math
 
 
 class PandaMoveitReachingEnv(BaseEnv):
@@ -27,8 +27,11 @@ class PandaMoveitReachingEnv(BaseEnv):
 
     As moveit_commander is not working with python3 this environment relies on an intermediate ROS node for sending moveit commands.
     """
-    #TODO: This should be refacotred creating a MoveitEnvController and subclassing from ControlledEnv instead of BaseEnv
+
     action_space_high = np.array([  1,
+                                    1,
+                                    1,
+                                    1,
                                     1,
                                     1])
     action_space = gym.spaces.Box(-action_space_high,action_space_high) # 3D translatiomn vector, maximum 10cm
@@ -54,18 +57,19 @@ class PandaMoveitReachingEnv(BaseEnv):
     metadata = {'render.modes': ['rgb_array']}
 
     def __init__(   self,
-                    goalPose : Union[NDArray[(7,), np.float32], Callable[[],NDArray[(7,), np.float32]]] = np.array([0,0,0, 0,0,0,0]),
+                    goalPose : Tuple[float,float,float,float,float,float,float] = (0,0,0, 0,0,0,0),
                     maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 0.0175*5,
+                    operatingArea = np.array([[-1, -1, 0], [1, 1, 1.5]]),
                     startSimulation : bool = True):
         """Short summary.
 
         Parameters
         ----------
-        goalPose : Union[NDArray[(7,), np.float32], Callable[[],NDArray[(7,), np.float32]]]
-            end-effector pose to reach (x,y,z, qx,qy,qz,qw), or a function that samples a new goal (called at each reset)
+        goalPose : Tuple[float,float,float,float,float,float,float]
+            end-effector pose to reach (x,y,z, qx,qy,qz,qw)
         maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
@@ -89,13 +93,13 @@ class PandaMoveitReachingEnv(BaseEnv):
                                                                          ("panda","panda_joint6"),
                                                                          ("panda","panda_joint7")],
                                                           endEffectorLink  = ("panda", "panda_link8"),
-                                                          referenceFrame   = "panda_link8",
+                                                          referenceFrame   = "world",
                                                           initialJointPose = {("panda","panda_joint1") : 0,
                                                                               ("panda","panda_joint2") : 0,
                                                                               ("panda","panda_joint3") : 0,
                                                                               ("panda","panda_joint4") :-1,
                                                                               ("panda","panda_joint5") : 0,
-                                                                              ("panda","panda_joint6") : 1,
+                                                                              ("panda","panda_joint6") : 2.570795,
                                                                               ("panda","panda_joint7") : 0})
 
         super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, startSimulation = startSimulation)
@@ -122,23 +126,21 @@ class PandaMoveitReachingEnv(BaseEnv):
                                                         ("panda","panda_link7"),
                                                         ("panda","panda_link8")])
 
+        self._goalPose = goalPose
         self._goalTolerancePosition = goalTolerancePosition
         self._goalToleranceOrientation_rad = goalToleranceOrientation_rad
         self._lastMoveFailed = False
-        self._maxMoveLength = 0.1
-
-        if callable(goalPose):
-            self._goalPoseSampleFunc = goalPose
-        else:
-            self._goalPoseSampleFunc = lambda: goalPose
+        self._maxPositionChange = 0.1
+        self._maxOrientationChange = 5.0/180*3.14159 # 5 degrees
 
         self._environmentController.startController()
 
+        self._operatingArea = operatingArea #min xyz, max xyz
 
 
 
 
-    def submitAction(self, action : Tuple[float, float, float]) -> None:
+    def submitAction(self, action : NDArray[(6,), np.float32]) -> None:
         """Plan and execute moveit movement without blocking.
 
         Parameters
@@ -150,15 +152,25 @@ class PandaMoveitReachingEnv(BaseEnv):
 
         """
         super().submitAction(action)
+        #print("received action "+str(action))
         clippedAction = np.clip(np.array(action, dtype=np.float32),-1,1)
-        action = clippedAction*self._maxMoveLength
+        action_xyz = clippedAction[0:3]*self._maxPositionChange
+        action_rpy  = clippedAction[3:6]*self._maxOrientationChange
+        action_quat = quaternion.from_euler_angles(action_rpy)
+        #print("dist action_quat "+str(quaternion.rotation_intrinsic_distance(action_quat,      quaternion.from_euler_angles(0,0,0))))
 
+        currentPose = self.getState()[0:6]
+        currentPose_xyz = currentPose[0:3]
+        currentPose_rpy = currentPose[3:6]
+        currentPose_quat = quaternion.from_euler_angles(currentPose_rpy)
+
+        absolute_xyz = currentPose_xyz + action_xyz
+        absolute_quat = currentPose_quat * action_quat
+        absolute_quat_arr = np.array([absolute_quat.x, absolute_quat.y, absolute_quat.z, absolute_quat.w])
+        unnorm_action = np.concatenate([absolute_xyz, absolute_quat_arr])
         #print("attempting action "+str(action))
 
-        self._environmentController.setCartesianPose(linkPoses = {("panda","panda_link8") : np.array([action[0],
-                                                                                                      action[1],
-                                                                                                      action[2],
-                                                                                                      0,0,0,1])})
+        self._environmentController.setCartesianPose(linkPoses = {("panda","panda_link8") : unnorm_action})
         #rospy.loginfo("Moving Ee of "+str(clippedAction))
 
 
@@ -178,6 +190,9 @@ class PandaMoveitReachingEnv(BaseEnv):
 
         """
         self._environmentController.step()
+        if self._checkGoalReached(self.getState()):
+            ggLog.info("Goal Reached")
+
 
     def _getDist2goal(self, state : NDArray[(15,), np.float32]):
         position = state[0:3]
@@ -208,6 +223,12 @@ class PandaMoveitReachingEnv(BaseEnv):
 
         #return bool(self._checkGoalReached(state))
         #print("isdone = ",isdone)
+        print("state[0:3] =",state[0:3])
+        print("self._operatingArea =",self._operatingArea)
+        print("out of bounds = ",np.all(state[0:3] < self._operatingArea[0]), np.all(state[0:3] > self._operatingArea[1]))
+
+        if not(np.all(state[0:3] >= self._operatingArea[0]) and np.all(state[0:3] <= self._operatingArea[1])):
+            return True
         return False
 
 
@@ -218,23 +239,27 @@ class PandaMoveitReachingEnv(BaseEnv):
         posDist_new, orientDist_new = self._getDist2goal(state)
         posDist_old, orientDist_old = self._getDist2goal(previousState)
 
-        posImprovement = posDist_old-posDist_new
-        orientImprovement = orientDist_old-orientDist_new
+        posDistImprovement = posDist_old-posDist_new
+        orientDistImprovement = orientDist_old-orientDist_new
 
-        if self._checkGoalReached(state):
-            finishBonus = 100
-            ggLog.info("Goal Reached")
-        else:
-            finishBonus = 0
+        if not(np.all(state[0:3] >= self._operatingArea[0]) and np.all(state[0:3] <= self._operatingArea[1])):
+            #out of operating area
+            return -10
 
-        if self._getDist2goal(state)[0]<self._goalTolerancePosition*2:
-            almostFinishBonus = 10
-        else:
-            almostFinishBonus = 0
+        # make the malus for going farther worse then the bonus for improving
+        # Having them asymmetric should avoid oscillations around the target
+        # Intuitively, with this correction the agent cannot go away, come back, and get the reward again
+        if posDistImprovement<0:
+            posDistImprovement*=2
+        if orientDistImprovement<0:
+            orientDistImprovement*=2
 
-        #closenessBonus = 1-posDist_new
+        positionClosenessBonus    = 100.0*(10**(-posDist_new*20)) #Starts to kick in more or less at 20cm distance and gives 100 at zero distance
+        orientationClosenessBonus = 0.1*(10**(-orientDist_new/math.pi*10))
 
-        reward = posImprovement + orientImprovement + finishBonus + almostFinishBonus# + closenessBonus
+
+        reward = positionClosenessBonus + orientationClosenessBonus + 10*(posDistImprovement + 0.1*orientDistImprovement)
+
         #rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
         return reward
 
@@ -247,8 +272,6 @@ class PandaMoveitReachingEnv(BaseEnv):
         super().performReset()
         self._environmentController.resetWorld()
         self._lastResetSimTime = rospy.get_time()
-
-        self._goalPose = self._goalPoseSampleFunc()
 
 
     def getObservation(self, state) -> np.ndarray:

@@ -27,11 +27,11 @@ def _addRosMasterUri(msg):
     else:
         return "["+str(ros_master_uri)+"] "+msg
 
-def info(msg, *args, **kwargs):
-    logger.info(_addRosMasterUri(msg), *args, **kwargs)
-
 def debug(msg, *args, **kwargs):
     logger.debug(_addRosMasterUri(msg), *args, **kwargs)
+
+def info(msg, *args, **kwargs):
+    logger.info(_addRosMasterUri(msg), *args, **kwargs)
 
 def warn(msg, *args, **kwargs):
     logger.warn(_addRosMasterUri(msg), *args, **kwargs)

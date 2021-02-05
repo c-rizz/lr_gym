@@ -9,6 +9,7 @@ import cv2
 import collections
 from typing import List
 import os
+import quaternion
 
 name_to_dtypes = {
     "rgb8":    (np.uint8,  3),
@@ -178,3 +179,31 @@ def pyTorch_makeDeterministic():
     torch.set_deterministic(True)
     # Following may make things better, see https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
+
+def quaternionDistance(q1 : quaternion.quaternion ,q2 : quaternion.quaternion ):
+    """ Returns the minimum angle that separates two orientations.
+
+    Parameters
+    ----------
+    q1 : quaternion.quaternion
+        Description of parameter `q1`.
+    q2 : quaternion.quaternion
+        Description of parameter `q2`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    Raises
+    -------
+    ExceptionName
+        Why the exception is raised.
+
+    """
+    # q1a = quaternion.as_float_array(q1)
+    # q2a = quaternion.as_float_array(q2)
+    #
+    # return np.arccos(2*np.square(np.inner(q1a,q2a)) - 1)
+    return quaternion.rotation_intrinsic_distance(q1,q2)

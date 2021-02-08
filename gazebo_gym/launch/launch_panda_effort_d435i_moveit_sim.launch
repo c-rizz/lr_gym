@@ -24,6 +24,8 @@
       <arg name="robot_name" value="$(arg robot_name)"/>
     </include>
 
+    <param name="$(arg robot_name)_description_semantic"
+           command="$(find xacro)/xacro '$(find gazebo_gym)/models/panda_clipper_d435i.srdf.xacro'"   />
 
     <!-- Launch moveit -->
     <include file="$(find simple_panda_moveit_config)/launch/move_group.launch" >
@@ -31,6 +33,7 @@
       <!-- <env name="ROSCONSOLE_CONFIG_FILE" value="$(find gazebo_gym)/config/rosconsole_warn.config" /> -->
       <arg name="robot_description_name" value="$(arg robot_name)_description"/>
       <arg name="load_gripper" value="false"/>
+      <arg name="load_camera" value="false"/>
     </include>
 
     <!-- launch moveit helper -->

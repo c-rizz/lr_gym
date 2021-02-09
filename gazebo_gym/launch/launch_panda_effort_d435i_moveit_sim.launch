@@ -34,6 +34,7 @@
       <arg name="robot_description_name" value="$(arg robot_name)_description"/>
       <arg name="load_gripper" value="false"/>
       <arg name="load_camera" value="false"/>
+      <arg name="load_robot_description_semantic" value="false"/>      
     </include>
 
     <!-- launch moveit helper -->

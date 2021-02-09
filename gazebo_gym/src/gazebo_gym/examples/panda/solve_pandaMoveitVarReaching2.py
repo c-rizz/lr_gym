@@ -23,6 +23,7 @@ def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, n
     #do an average over a bunch of episodes
     herenv = stable_baselines.her.HERGoalEnvWrapper(env)
     episodesRan = 0
+    totReward = 0
     while numEpisodes<=0 or episodesRan>=numEpisodes:
         frame = 0
         episodeReward = 0
@@ -38,28 +39,20 @@ def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, n
             frame+=1
             episodeReward += stepReward
         totDuration = time.time() - t0
-        print("Ran for "+str(totDuration)+"s \t Reward: "+str(episodeReward))
+        totReward += episodeReward
+        avgReward = totReward / episodesRan
+        print(f"Episode ran for {totDuration}s \t Episode reward: {episodeReward} \t Tot average episodes reward: {avgReward}")
+    print(f"Average episode reward = {avgReward}")
 
 def buildModel(random_seed : int, env : gym.Env, folderName : str):
 
-    episode_length = env.getBaseEnv().getMaxStepsPerEpisode()
-    sampleGoalRatio = 0.1
-    # model = HER('MlpPolicy', env, SAC, n_sampled_goal=int(episode_length*sampleGoalRatio), goal_selection_strategy="future", verbose=1,
-    #             batch_size=128, buffer_size=100000, gamma=0.99,
-    #             learning_starts=episode_length*10, learning_rate=0.003, policy_kwargs=dict(layers=[60,60]),
-    #             train_freq=1,
-    #             gradient_steps=10,
-    #             seed = random_seed, n_cpu_tf_sess=None, #n_cpu_tf_sess = 1 is needed for reproducibility
-    #             tensorboard_log=folderName)
-
-    model = SAC('MlpPolicy', env, verbose=1,
-                batch_size=128, buffer_size=100000, gamma=0.99,
-                learning_starts=episode_length*10, learning_rate=0.003, policy_kwargs=dict(layers=[60,60]),
+    model = HER('MlpPolicy', env, SAC, n_sampled_goal=3, goal_selection_strategy="future", verbose=1,
+                batch_size=128, buffer_size=30*10000, gamma=0.99,
+                learning_starts=30*100, learning_rate=0.003, policy_kwargs=dict(layers=[50,50]),
                 train_freq=1,
                 gradient_steps=10,
-                seed = random_seed, n_cpu_tf_sess=None, #n_cpu_tf_sess = 1 is needed for reproducibility
+                seed = random_seed, n_cpu_tf_sess=1, #n_cpu_tf_sess = 1 is needed for reproducibility
                 tensorboard_log=folderName)
-
     return model
 
 
@@ -115,28 +108,29 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
     trainIterations = 10000000
     run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
     filename = "pandaMoveitVarReaching"+run_id+"s"+str(trainIterations)
-    folderName = "./solve_pandaMoveitVarReaching/"+run_id
+    folderName = "./solve_pandaMoveitVarReaching2/"+run_id
     os.makedirs(folderName)
 
     def sampleGoal():
         #sample a position in a 2d rectangle in front of the robot
         position = np.random.uniform(low=(0.5, -0.25, 0.2), high=(0.5, 0.25, 0.6))
-        orientation = np.array([0,0.707,0,0.707])
-        ret = np.concatenate([position, orientation])
-        ggLog.info("sampled goal "+str(ret))
-        return ret
+        # orientation = gazebo_gym.utils.utils.buildQuaternion(x=0, y=0.707, z=0, w=0.707)
+        # orientation = np.array([0,0.707,0,0.707])
+        # ret = np.concatenate([position, orientation])
+        p = gazebo_gym.utils.utils.Pose(position[0],position[1], position[2], qx=0, qy=0.707, qz=0, qw=0.707)
+        ggLog.info("sampled goal "+str(p))
+        return p
 
 
     print("Setting up environment...")
     env = PandaMoveitVarReachingEnv(goalPoseSamplFunc=sampleGoal,
                                     maxActionsPerEpisode = 30,
                                     operatingArea = np.array([[0, -1, 0.1], [1, 1, 1.35]]))
-    env = GymEnvWrapper(env, episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
-    # env = ToGoalEnvWrapper( env,
-    #                         observationMask  = (0,0,0,0,0,0,  1,1,1,1,1,1,1,1,  0,0,0,0,0,0),
-    #                         desiredGoalMask  = (0,0,0,0,0,0,  0,0,0,0,0,0,0,0,  1,1,1,1,1,1),
-    #                         achievedGoalMask = (1,1,1,1,1,1,  0,0,0,0,0,0,0,0,  0,0,0,0,0,0),
-    #                         episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
+    env = ToGoalEnvWrapper( env,
+                            observationMask  = (0,0,0,0,0,0,  1,1,1,1,1,1,1,1,  0,0,0,0,0,0),
+                            desiredGoalMask  = (0,0,0,0,0,0,  0,0,0,0,0,0,0,0,  1,1,1,1,1,1),
+                            achievedGoalMask = (1,1,1,1,1,1,  0,0,0,0,0,0,0,0,  0,0,0,0,0,0),
+                            episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
     print("Environment created")
 
 

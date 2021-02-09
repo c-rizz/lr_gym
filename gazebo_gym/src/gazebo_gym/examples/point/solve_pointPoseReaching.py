@@ -135,17 +135,16 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
     def sampleGoal():
         #sample a position in a 2d rectangle in front of the robot
         position = np.random.uniform(low=(0.5, -0.25, 0.2), high=(0.5, 0.25, 0.6))
-        orientation = np.array([0,0.707,0,0.707])
-        ret = np.concatenate([position, orientation])
-        ggLog.info("sampled goal "+str(ret))
-        return ret
+        p = gazebo_gym.utils.utils.Pose(x=position[0],y=position[1],z=position[2],qx=0, qy=0.707, qz=0, qw=0.707)
+        ggLog.info("sampled goal "+str(p))
+        return p
 
 
     print("Setting up environment...")
     env = PointPoseReachingEnv(  goalPoseSamplFunc=sampleGoal,
                                  maxActionsPerEpisode = 30,
                                  operatingArea = np.array([[0, -1, 0.1], [1, 1, 1.35]]),
-                                 startPose = np.array([0.46,0,0.83, 0, 0, 0, 1]))
+                                 startPose = gazebo_gym.utils.utils.Pose(0.46,0,0.83, 0, 0, 0, 1))
     # env = GymEnvWrapper(env, episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
     env = ToGoalEnvWrapper( env,
                             observationMask  = (0,0,0,0,0,0,  0,0,0,0,0,0),

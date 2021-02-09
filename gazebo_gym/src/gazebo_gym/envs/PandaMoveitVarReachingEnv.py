@@ -4,12 +4,13 @@
 
 import gym
 import numpy as np
-from typing import Callable
+from typing import Callable, Tuple
 from nptyping import NDArray
 import quaternion
 
 from gazebo_gym.envs.PandaMoveitReachingEnv import PandaMoveitReachingEnv
 import gazebo_gym.utils.dbg.ggLog as ggLog
+import gazebo_gym
 import math
 from geometry_msgs.msg import PoseStamped
 import rospy
@@ -45,7 +46,7 @@ class PandaMoveitVarReachingEnv(PandaMoveitReachingEnv):
     metadata = {'render.modes': ['rgb_array']}
 
     def __init__(   self,
-                    goalPoseSamplFunc : Callable[[],NDArray[(7,), np.float32]],
+                    goalPoseSamplFunc : Callable[[],gazebo_gym.utils.utils.Pose],
                     maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
@@ -56,8 +57,8 @@ class PandaMoveitVarReachingEnv(PandaMoveitReachingEnv):
 
         Parameters
         ----------
-        goalPosSample : Tuple[float,float,float,float,float,float,float]
-            function that samples an end-effector pose to reach (x,y,z, qx,qy,qz,qw)
+        goalPoseSamplFunc : Callable[[],Tuple[NDArray[(3,), np.float32], np.quaternion]]
+            function that samples an end-effector pose to reach ([x,y,z], quaternion)
         maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
@@ -109,13 +110,13 @@ class PandaMoveitVarReachingEnv(PandaMoveitReachingEnv):
 
         goalPoseStamped = PoseStamped()
         goalPoseStamped.header.frame_id = "world"
-        goalPoseStamped.pose.position.x = self._goalPose[0]
-        goalPoseStamped.pose.position.y = self._goalPose[1]
-        goalPoseStamped.pose.position.z = self._goalPose[2]
-        goalPoseStamped.pose.orientation.x = self._goalPose[4]
-        goalPoseStamped.pose.orientation.y = self._goalPose[5]
-        goalPoseStamped.pose.orientation.z = self._goalPose[6]
-        goalPoseStamped.pose.orientation.w = self._goalPose[3]
+        goalPoseStamped.pose.position.x = self._goalPose.position[0]
+        goalPoseStamped.pose.position.y = self._goalPose.position[1]
+        goalPoseStamped.pose.position.z = self._goalPose.position[2]
+        goalPoseStamped.pose.orientation.x = self._goalPose.orientation.x
+        goalPoseStamped.pose.orientation.y = self._goalPose.orientation.y
+        goalPoseStamped.pose.orientation.z = self._goalPose.orientation.z
+        goalPoseStamped.pose.orientation.w = self._goalPose.orientation.w
         self._dbgGoalpublisher.publish(goalPoseStamped)
 
 
@@ -147,8 +148,7 @@ class PandaMoveitVarReachingEnv(PandaMoveitReachingEnv):
 
         #print("got ee pose "+str(eePose))
 
-        goal_quat = quaternion.from_float_array([self._goalPose[6], self._goalPose[3], self._goalPose[4], self._goalPose[5]])
-        goal_rpy = quaternion.as_euler_angles(goal_quat)
+        goal_rpy = quaternion.as_euler_angles(self._goalPose.orientation)
 
 
 
@@ -167,9 +167,9 @@ class PandaMoveitVarReachingEnv(PandaMoveitReachingEnv):
                     jointStates[("panda","panda_joint6")].position[0],
                     jointStates[("panda","panda_joint7")].position[0],
                     self._environmentController.actionsFailsInLastStep(),
-                    self._goalPose[0],
-                    self._goalPose[1],
-                    self._goalPose[2],
+                    self._goalPose.position[0],
+                    self._goalPose.position[1],
+                    self._goalPose.position[2],
                     goal_rpy[0],
                     goal_rpy[1],
                     goal_rpy[2]]

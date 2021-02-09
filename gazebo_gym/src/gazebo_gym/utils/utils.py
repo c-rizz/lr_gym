@@ -1,4 +1,5 @@
 import typing
+from nptyping import NDArray
 import numpy as np
 import rospy
 import sensor_msgs
@@ -207,3 +208,17 @@ def quaternionDistance(q1 : quaternion.quaternion ,q2 : quaternion.quaternion ):
     #
     # return np.arccos(2*np.square(np.inner(q1a,q2a)) - 1)
     return quaternion.rotation_intrinsic_distance(q1,q2)
+
+def buildQuaternion(x,y,z,w):
+    return quaternion.quaternion(w,x,y,z)
+
+class Pose:
+    position : NDArray[(3,), np.float32]
+    orientation : np.quaternion
+
+    def __init__(self, x,y,z, qx,qy,qz,qw):
+        self.position = np.array([x,y,z])
+        self.orientation = buildQuaternion(x=qx,y=qy,z=qz,w=qw)
+
+    def __str__(self):
+        return f"[{self.position[0],self.position[1],self.position[2],self.orientation.x,self.orientation.y,self.orientation.z,self.orientation.w}]"

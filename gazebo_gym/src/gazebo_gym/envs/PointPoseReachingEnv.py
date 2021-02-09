@@ -48,18 +48,18 @@ class PointPoseReachingEnv(BaseEnv):
     metadata = {'render.modes': ['rgb_array']}
 
     def __init__(   self,
-                    goalPoseSamplFunc : Callable[[],NDArray[(7,), np.float32]],
+                    goalPoseSamplFunc : Callable[[],gazebo_gym.utils.utils.Pose],
                     maxActionsPerEpisode : int = 30,
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 5*3.14159/180,
                     operatingArea = np.array([[-1, -1, 0], [1, 1, 1.5]]),
-                    startPose : NDArray[(7,), np.float32] = np.array([0,0,0,0,0,0,1])):
+                    startPose : gazebo_gym.utils.utils.Pose = gazebo_gym.utils.utils.Pose(x=0,y=0,z=0,qx=0,qy=0,qz=0,qw=1)):
         """Short summary.
 
         Parameters
         ----------
-        goalPoseSamplFunc : Tuple[float,float,float,float,float,float,float]
-            end-effector pose to reach (x,y,z, qx,qy,qz,qw)
+        goalPoseSamplFunc : Callable[[],Tuple[NDArray[(3,), np.float32], np.quaternion]]
+            function that samples an end-effector pose to reach ([x,y,z], quaternion)
         maxActionsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
@@ -82,8 +82,8 @@ class PointPoseReachingEnv(BaseEnv):
         self._operatingArea = operatingArea #min xyz, max xyz
         self._startPose = startPose
 
-        self._currentPosition = startPose[0:3]
-        self._currentQuat = quaternion.from_float_array(self._startPose[3:7])
+        self._currentPosition = self._startPose.position
+        self._currentQuat = self._startPose.orientation
         self._simTime = 0
 
 
@@ -210,7 +210,7 @@ class PointPoseReachingEnv(BaseEnv):
         #reward = positionClosenessBonus + 10*posDistImprovement
         #reward = distBonus
         #reward = posDistImprovement
-        ggLog.info("Computed reward {:.04f}".format(reward)+" \tDistance = {:.04f}".format(posDist)+" \tOrDist = {:.04f}".format(minAngleDist))
+        #ggLog.info("Computed reward {:.04f}".format(reward)+" \tDistance = {:.04f}".format(posDist)+" \tOrDist = {:.04f}".format(minAngleDist))
         return reward
 
 
@@ -220,8 +220,8 @@ class PointPoseReachingEnv(BaseEnv):
 
     def performReset(self) -> None:
         super().performReset()
-        self._currentPosition = self._startPose[0:3]
-        self._currentQuat = quaternion.from_float_array(self._startPose[3:7])
+        self._currentPosition = self._startPose.position
+        self._currentQuat = self._startPose.orientation
         self._goalPose = self._goalPoseSamplFunc()
         self._lastResetSimTime = 0
 
@@ -243,7 +243,7 @@ class PointPoseReachingEnv(BaseEnv):
 
 
         eeOrientation_rpy = quaternion.as_euler_angles(self._currentQuat)
-        goal_rpy = quaternion.as_euler_angles(quaternion.from_float_array(self._goalPose[3:7]))
+        goal_rpy = quaternion.as_euler_angles(self._goalPose.orientation)
         #print("got ee pose "+str(eePose))
 
 
@@ -256,9 +256,9 @@ class PointPoseReachingEnv(BaseEnv):
                     eeOrientation_rpy[0],
                     eeOrientation_rpy[1],
                     eeOrientation_rpy[2],
-                    self._goalPose[0],
-                    self._goalPose[1],
-                    self._goalPose[2],
+                    self._goalPose.position[0],
+                    self._goalPose.position[1],
+                    self._goalPose.position[2],
                     goal_rpy[0],
                     goal_rpy[1],
                     goal_rpy[2]]

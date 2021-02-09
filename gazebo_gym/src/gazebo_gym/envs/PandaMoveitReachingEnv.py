@@ -223,9 +223,9 @@ class PandaMoveitReachingEnv(BaseEnv):
 
         #return bool(self._checkGoalReached(state))
         #print("isdone = ",isdone)
-        print("state[0:3] =",state[0:3])
-        print("self._operatingArea =",self._operatingArea)
-        print("out of bounds = ",np.all(state[0:3] < self._operatingArea[0]), np.all(state[0:3] > self._operatingArea[1]))
+        # print("state[0:3] =",state[0:3])
+        # print("self._operatingArea =",self._operatingArea)
+        # print("out of bounds = ",np.all(state[0:3] < self._operatingArea[0]), np.all(state[0:3] > self._operatingArea[1]))
 
         if not(np.all(state[0:3] >= self._operatingArea[0]) and np.all(state[0:3] <= self._operatingArea[1])):
             return True
@@ -235,30 +235,18 @@ class PandaMoveitReachingEnv(BaseEnv):
     def computeReward(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32], action : int) -> float:
 
         if state[13] != 0:
-            return -10
-        posDist_new, orientDist_new = self._getDist2goal(state)
-        posDist_old, orientDist_old = self._getDist2goal(previousState)
+            return -1
 
-        posDistImprovement = posDist_old-posDist_new
-        orientDistImprovement = orientDist_old-orientDist_new
+        posDist, minAngleDist = self._getDist2goal(state)
 
-        if not(np.all(state[0:3] >= self._operatingArea[0]) and np.all(state[0:3] <= self._operatingArea[1])):
-            #out of operating area
-            return -10
+        mixedDistance = np.linalg.norm([posDist,minAngleDist])
 
-        # make the malus for going farther worse then the bonus for improving
-        # Having them asymmetric should avoid oscillations around the target
-        # Intuitively, with this correction the agent cannot go away, come back, and get the reward again
-        if posDistImprovement<0:
-            posDistImprovement*=2
-        if orientDistImprovement<0:
-            orientDistImprovement*=2
-
-        positionClosenessBonus    = 100.0*(10**(-posDist_new*20)) #Starts to kick in more or less at 20cm distance and gives 100 at zero distance
-        orientationClosenessBonus = 0.1*(10**(-orientDist_new/math.pi*10))
-
-
-        reward = positionClosenessBonus + orientationClosenessBonus + 10*(posDistImprovement + 0.1*orientDistImprovement)
+        # reward = 100.0*(10**(-mixedDistance*20)) #Nope
+        # reward = 1/(1/100 + 20*mixedDistance) #Not really
+        # reward = 1-mixedDistance #Almost!
+        reward = 1-mixedDistance + 1/(1/100 + mixedDistance)
+        if np.isnan(reward):
+            raise RuntimeError("Reward is nan! mixedDistance="+str(mixedDistance))
 
         #rospy.loginfo("Computed reward {:.04f}".format(reward)+"   Distance = "+str(posDist_new))
         return reward

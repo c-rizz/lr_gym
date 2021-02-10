@@ -117,7 +117,7 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
         # orientation = gazebo_gym.utils.utils.buildQuaternion(x=0, y=0.707, z=0, w=0.707)
         # orientation = np.array([0,0.707,0,0.707])
         # ret = np.concatenate([position, orientation])
-        p = gazebo_gym.utils.utils.Pose(position[0],position[1], position[2], qx=0, qy=0.707, qz=0, qw=0.707)
+        p = gazebo_gym.utils.utils.Pose(position[0],position[1], position[2], qx=-0.707, qy=0, qz=-0.707, qw=0)
         ggLog.info("sampled goal "+str(p))
         return p
 

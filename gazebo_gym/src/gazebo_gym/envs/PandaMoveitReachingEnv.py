@@ -234,8 +234,8 @@ class PandaMoveitReachingEnv(BaseEnv):
 
     def computeReward(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32], action : int) -> float:
 
-        if state[13] != 0:
-            return -1
+        # if state[13] != 0:
+        #     return -1
 
         posDist, minAngleDist = self._getDist2goal(state)
 

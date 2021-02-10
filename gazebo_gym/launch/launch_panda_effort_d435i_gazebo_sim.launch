@@ -32,7 +32,6 @@
     <arg name="robot_base_roll" default="0"/>
     <arg name="robot_base_pitch" default="0"/>
     <arg name="robot_base_yaw" default="0"/>
-    <arg name="robot_parent_link" default="world"/>
     <arg name="control_mode" default="effort"/>
 
     <!-- GENERAL PARAMS -->
@@ -52,7 +51,7 @@
     </include>
 
     <param name="$(arg robot_name)_description"
-           command="$(find xacro)/xacro '$(find gazebo_gym)/models/panda_clipper_d435i.urdf.xacro'
+           command="$(find xacro)/xacro '$(find gazebo_gym)/models/panda_d435i.urdf.xacro'
                       robot_name:=$(arg robot_name)
                       robot_base_x:=$(arg robot_base_x)
                       robot_base_y:=$(arg robot_base_y)
@@ -60,7 +59,6 @@
                       robot_base_roll:=$(arg robot_base_roll)
                       robot_base_pitch:=$(arg robot_base_pitch)
                       robot_base_yaw:=$(arg robot_base_yaw)
-                      robot_parent_link:=$(arg robot_parent_link)
                       control_mode:=$(arg control_mode)
                       load_hand:=$(arg load_gripper)
 

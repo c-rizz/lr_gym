@@ -30,13 +30,14 @@
   <xacro:include filename="$(find lr_realsense)/urdf/d435i_sim.xacro" />
   <xacro:include filename="$(find panda)/urdf/panda_arm_generic.xacro"/>
 
+  <link name="world"/>
   <xacro:panda_arm_generic  x="$(arg robot_base_x)"
                             y="$(arg robot_base_y)"
                             z="$(arg robot_base_z)"
                             roll="$(arg robot_base_roll)"
                             pitch="$(arg robot_base_pitch)"
                             yaw="$(arg robot_base_yaw)"
-                            connected_to="$(arg robot_parent_link)"
+                            connected_to="world"
                             control_mode="$(arg control_mode)"
                             robot_name="$(arg robot_name)"
                             load_hand="$(arg load_hand)"/>

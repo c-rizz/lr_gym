@@ -76,14 +76,14 @@ def buildModel(random_seed : int, env : gym.Env, folderName : str):
     return model
 
 
-def train(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainIterations : int, model, filename : str, folderName : str) -> None:
+def train(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainEnvSteps : int, model, filename : str, folderName : str) -> None:
     """Run the provided environment with a random agent."""
 
     env.reset()
     checkpoint_callback = CheckpointCallback(save_freq=30*100, save_path=folderName+'/checkpoints/', name_prefix=filename)
     print("Learning...")
     t_preLearn = time.time()
-    model.learn(total_timesteps=trainIterations, log_interval=10, callback=checkpoint_callback)
+    model.learn(total_timesteps=trainEnvSteps, log_interval=10, callback=checkpoint_callback)
     duration_learn = time.time() - t_preLearn
     print("Learned. Took "+str(duration_learn)+" seconds.")
 
@@ -127,9 +127,9 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
 
     rospy.init_node('solve_pointPoseReaching', anonymous=True, log_level=rospy.WARN)
 
-    trainIterations = 10000000
+    trainEnvSteps = 22000
     run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-    filename = "pointPositionReaching"+run_id+"s"+str(trainIterations)
+    filename = "pointPositionReaching"+run_id+"s"+str(trainEnvSteps)
     folderName = "./solve_pointPoseReaching/"+run_id
     os.makedirs(folderName)
 
@@ -169,7 +169,7 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
     model = buildModel(random_seed = RANDOM_SEED, env = env, folderName = folderName)
 
     if fileToLoad is None:
-        model = train(env, trainIterations=trainIterations, model = model, filename = filename, folderName = folderName)
+        model = train(env, trainEnvSteps=trainEnvSteps, model = model, filename = filename, folderName = folderName)
         input("Press Enter to continue...")
         run(env,model)
     else:

@@ -26,14 +26,6 @@ class PandaMoveitVarReachingEnv(PandaMoveitReachingEnv):
                                         np.finfo(np.float32).max, # end-effector roll position
                                         np.finfo(np.float32).max, # end-effector pitch position
                                         np.finfo(np.float32).max, # end-effector yaw position
-                                        np.finfo(np.float32).max, # joint 1 position
-                                        np.finfo(np.float32).max, # joint 2 position
-                                        np.finfo(np.float32).max, # joint 3 position
-                                        np.finfo(np.float32).max, # joint 4 position
-                                        np.finfo(np.float32).max, # joint 5 position
-                                        np.finfo(np.float32).max, # joint 6 position
-                                        np.finfo(np.float32).max, # joint 7 position
-                                        np.finfo(np.float32).max, # flag indicating action fails (zero if there were no fails in last step)
                                         np.finfo(np.float32).max, # goal end-effector x position
                                         np.finfo(np.float32).max, # goal end-effector y position
                                         np.finfo(np.float32).max, # goal end-effector z position
@@ -159,14 +151,6 @@ class PandaMoveitVarReachingEnv(PandaMoveitReachingEnv):
                     eeOrientation_rpy[0],
                     eeOrientation_rpy[1],
                     eeOrientation_rpy[2],
-                    jointStates[("panda","panda_joint1")].position[0],
-                    jointStates[("panda","panda_joint2")].position[0],
-                    jointStates[("panda","panda_joint3")].position[0],
-                    jointStates[("panda","panda_joint4")].position[0],
-                    jointStates[("panda","panda_joint5")].position[0],
-                    jointStates[("panda","panda_joint6")].position[0],
-                    jointStates[("panda","panda_joint7")].position[0],
-                    self._environmentController.actionsFailsInLastStep(),
                     self._goalPose.position[0],
                     self._goalPose.position[1],
                     self._goalPose.position[2],

@@ -21,6 +21,7 @@ from stable_baselines.common.callbacks import CheckpointCallback
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 import gazebo_gym.utils.dbg.ggLog as ggLog
 import numpy as np
+import rospy
 
 def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, numEpisodes : int = -1):
     #frames = []
@@ -95,7 +96,7 @@ def load(model, filename : str, env : gazebo_gym.envs.BaseEnv.BaseEnv) -> None:
     """Run the provided environment with a random agent."""
 
     print("Loading "+filename+"...")
-    model = TD3.load(filename)
+    model = HER.load(filename)
     print("Loaded model has hyperparameters:")
     print("policy:                 "+str(model.policy))
     print("gamma:                  "+str(model.gamma))
@@ -123,6 +124,8 @@ def load(model, filename : str, env : gazebo_gym.envs.BaseEnv.BaseEnv) -> None:
 
 def main(fileToLoad : str = None, usePlugin : bool = False):
 
+
+    rospy.init_node('solve_pointPoseReaching', anonymous=True, log_level=rospy.WARN)
 
     trainIterations = 10000000
     run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')

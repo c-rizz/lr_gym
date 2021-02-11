@@ -127,9 +127,9 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
                                     maxActionsPerEpisode = 30,
                                     operatingArea = np.array([[0, -1, 0.1], [1, 1, 1.35]]))
     env = ToGoalEnvWrapper( env,
-                            observationMask  = (0,0,0,0,0,0,  1,1,1,1,1,1,1,1,  0,0,0,0,0,0),
-                            desiredGoalMask  = (0,0,0,0,0,0,  0,0,0,0,0,0,0,0,  1,1,1,1,1,1),
-                            achievedGoalMask = (1,1,1,1,1,1,  0,0,0,0,0,0,0,0,  0,0,0,0,0,0),
+                            observationMask  = (0,0,0,0,0,0,  0,0,0,0,0,0),
+                            desiredGoalMask  = (0,0,0,0,0,0,  1,1,1,1,1,1),
+                            achievedGoalMask = (1,1,1,1,1,1,  0,0,0,0,0,0),
                             episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
     print("Environment created")
 

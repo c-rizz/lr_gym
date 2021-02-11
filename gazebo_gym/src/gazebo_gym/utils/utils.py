@@ -222,3 +222,6 @@ class Pose:
 
     def __str__(self):
         return f"[{self.position[0],self.position[1],self.position[2],self.orientation.x,self.orientation.y,self.orientation.z,self.orientation.w}]"
+
+    def getPoseStamped(self, frame_id : str):
+        return buildPoseStamped(self.position, np.array([self.orientation.x,self.orientation.y,self.orientation.z,self.orientation.w]), frame_id=frame_id)

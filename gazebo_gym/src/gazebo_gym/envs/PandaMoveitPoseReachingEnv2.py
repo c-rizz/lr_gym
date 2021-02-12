@@ -18,6 +18,7 @@ import gazebo_gym
 
 import gazebo_gym.utils.dbg.dbg_pose as dbg_pose
 from gazebo_gym.utils.utils import Pose
+from gazebo_gym.envControllers.MoveitRosController import MoveitRosController
 
 
 
@@ -75,6 +76,22 @@ class PointPoseReachingEnv(BaseEnv):
 
         """
 
+        self._environmentController = MoveitRosController(jointsOrder = [("panda","panda_joint1"),
+                                                                         ("panda","panda_joint2"),
+                                                                         ("panda","panda_joint3"),
+                                                                         ("panda","panda_joint4"),
+                                                                         ("panda","panda_joint5"),
+                                                                         ("panda","panda_joint6"),
+                                                                         ("panda","panda_joint7")],
+                                                          endEffectorLink  = ("panda", "panda_link8"),
+                                                          referenceFrame   = "world",
+                                                          initialJointPose = {("panda","panda_joint1") : 0,
+                                                                              ("panda","panda_joint2") : 0,
+                                                                              ("panda","panda_joint3") : 0,
+                                                                              ("panda","panda_joint4") :-1,
+                                                                              ("panda","panda_joint5") : 0,
+                                                                              ("panda","panda_joint6") : 2.570795,
+                                                                              ("panda","panda_joint7") : 0})
         super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, startSimulation = False)
 
         self._goalPoseSamplFunc = goalPoseSamplFunc
@@ -89,7 +106,27 @@ class PointPoseReachingEnv(BaseEnv):
         self._currentPosition = self._startPose.position
         self._currentQuat = self._startPose.orientation
         self._simTime = 0
-        self._rng = np.random.default_rng(12345)
+
+
+        self._environmentController.setJointsToObserve( [("panda","panda_joint1"),
+                                                        ("panda","panda_joint2"),
+                                                        ("panda","panda_joint3"),
+                                                        ("panda","panda_joint4"),
+                                                        ("panda","panda_joint5"),
+                                                        ("panda","panda_joint6"),
+                                                        ("panda","panda_joint7")])
+
+
+        self._environmentController.setLinksToObserve( [("panda","panda_link1"),
+                                                        ("panda","panda_link2"),
+                                                        ("panda","panda_link3"),
+                                                        ("panda","panda_link4"),
+                                                        ("panda","panda_link5"),
+                                                        ("panda","panda_link6"),
+                                                        ("panda","panda_link7"),
+                                                        ("panda","panda_link8")])
+
+        self._environmentController.startController()
 
 
     def submitAction(self, action : NDArray[(6,), np.float32]) -> None:
@@ -110,13 +147,26 @@ class PointPoseReachingEnv(BaseEnv):
         action_quat = quaternion.from_euler_angles(action_rpy)
         #print("dist action_quat "+str(quaternion.rotation_intrinsic_distance(action_quat,      quaternion.from_euler_angles(0,0,0))))
 
-        self._currentPosition = self._currentPosition + action_xyz
-        self._currentQuat = action_quat*self._currentQuat
+
+        currentPose = self.getState()[0:6]
+        currentPose_xyz = currentPose[0:3]
+        currentPose_rpy = currentPose[3:6]
+        currentPose_quat = quaternion.from_euler_angles(currentPose_rpy)
+
+        absolute_xyz = currentPose_xyz + action_xyz
+        absolute_quat = action_quat * currentPose_quat
+
+
+        absolute_quat_arr = np.array([absolute_quat.x, absolute_quat.y, absolute_quat.z, absolute_quat.w])
+        absolute_next_pose = np.concatenate([absolute_xyz, absolute_quat_arr])
+
+
+        self._environmentController.setCartesianPose(linkPoses = {("panda","panda_link8") : absolute_next_pose})
         # ggLog.info("received action "+str(action))
         # ggLog.info("action_xyz = "+str(action_xyz)+" action_quat = "+str(action_quat))
         # ggLog.info("_currentPosition = "+str(self._currentPosition)+ " _currentQuat = "+str(self._currentQuat))
-        if np.any(np.isnan(np.concatenate([self._currentPosition, quaternion.as_float_array(self._currentQuat)]))):
-            raise RuntimeError("Nan in current state")
+        # if np.any(np.isnan(np.concatenate([self._currentPosition, quaternion.as_float_array(self._currentQuat)]))):
+        #     raise RuntimeError("Nan in current state")
         #rospy.loginfo("Moving Ee of "+str(clippedAction))
 
 
@@ -234,7 +284,7 @@ class PointPoseReachingEnv(BaseEnv):
         super().performReset()
         self._currentPosition = self._startPose.position
         self._currentQuat = self._startPose.orientation
-        self._goalPose = self._goalPoseSamplFunc(self._rng)
+        self._goalPose = self._goalPoseSamplFunc()
         self._lastResetSimTime = 0
         dbg_pose.helper.publishDbgImg("goal_pose", self._goalPose)
 

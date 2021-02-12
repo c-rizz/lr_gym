@@ -165,7 +165,7 @@ class PandaMoveitReachingEnv(BaseEnv):
         currentPose_quat = quaternion.from_euler_angles(currentPose_rpy)
 
         absolute_xyz = currentPose_xyz + action_xyz
-        absolute_quat = currentPose_quat * action_quat
+        absolute_quat = action_quat * currentPose_quat
         absolute_quat_arr = np.array([absolute_quat.x, absolute_quat.y, absolute_quat.z, absolute_quat.w])
         unnorm_action = np.concatenate([absolute_xyz, absolute_quat_arr])
         #print("attempting action "+str(action))

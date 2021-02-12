@@ -26,22 +26,23 @@ import rospy
 def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, numEpisodes : int = -1):
     #frames = []
     #do an average over a bunch of episodes
-    # env = stable_baselines.her.HERGoalEnvWrapper(env)
+    print("Running ")
     episodesRan = 0
-    while numEpisodes<=0 or episodesRan>=numEpisodes:
+    while numEpisodes<=0 or episodesRan<numEpisodes:
         frame = 0
         episodeReward = 0
         done = False
         obs = env.reset()
         t0 = time.time()
         while not done:
-            #print("Episode "+str(episode)+" frame "+str(frame))
+            print("Episode "+str(episodesRan)+" frame "+str(frame))
             action, _states = model.predict(obs)
             obs, stepReward, done, info = env.step(action)
             #frames.append(env.render("rgb_array"))
-            time.sleep(0.016)
+            time.sleep(0.033)
             frame+=1
             episodeReward += stepReward
+        episodesRan+=1
         totDuration = time.time() - t0
         print("Ran for "+str(totDuration)+"s \t Reward: "+str(episodeReward))
 
@@ -80,7 +81,7 @@ def train(env : gazebo_gym.envs.BaseEnv.BaseEnv, trainEnvSteps : int, model, fil
     """Run the provided environment with a random agent."""
 
     env.reset()
-    checkpoint_callback = CheckpointCallback(save_freq=30*100, save_path=folderName+'/checkpoints/', name_prefix=filename)
+    checkpoint_callback = CheckpointCallback(save_freq=30*10, save_path=folderName+'/checkpoints/', name_prefix=filename)
     print("Learning...")
     t_preLearn = time.time()
     model.learn(total_timesteps=trainEnvSteps, log_interval=10, callback=checkpoint_callback)
@@ -135,11 +136,12 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
 
 
 
-    def sampleGoal():
+    def sampleGoal(rng):
         #sample a position in a 2d rectangle in front of the robot
-        position = np.random.uniform(low=(0.5, -0.25, 0.2), high=(0.5, 0.25, 0.6))
+        position = rng.uniform(low=(0.5, -0.25, 0.2), high=(0.5, 0.25, 0.6))
         p = gazebo_gym.utils.utils.Pose(x=position[0],y=position[1],z=position[2],qx=0, qy=0.707, qz=0, qw=0.707)
         ggLog.info("sampled goal "+str(p))
+
         return p
 
 
@@ -173,6 +175,7 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
         input("Press Enter to continue...")
         run(env,model)
     else:
+        env = stable_baselines.her.HERGoalEnvWrapper(env)
         numEpisodes = -1
         if fileToLoad.endswith("*"):
             folderName = os.path.dirname(fileToLoad)

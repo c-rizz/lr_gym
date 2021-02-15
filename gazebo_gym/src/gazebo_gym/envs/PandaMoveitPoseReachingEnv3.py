@@ -3,7 +3,7 @@
 
 import gym
 import numpy as np
-from typing import Callable
+from typing import Callable, List
 from nptyping import NDArray
 import quaternion
 import gazebo_gym_utils.msg
@@ -22,7 +22,7 @@ from gazebo_gym.envControllers.MoveitRosController import MoveitRosController
 
 
 
-class PointPoseReachingEnv(BaseEnv):
+class PandaMoveitPoseReachingEnv(BaseEnv):
     """This class represents and environment in which a Point arm is controlled with cartesian movements to reach a goal position.
     """
 
@@ -58,7 +58,8 @@ class PointPoseReachingEnv(BaseEnv):
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 5*3.14159/180,
                     operatingArea = np.array([[-1, -1, 0], [1, 1, 1.5]]),
-                    startPose : gazebo_gym.utils.utils.Pose = gazebo_gym.utils.utils.Pose(x=0,y=0,z=0,qx=0,qy=0,qz=0,qw=1)):
+                    startJointPose : List[float] = [0,0,0,-1,0,2.57,0],
+                    startSimulation : bool = True):
         """Short summary.
 
         Parameters
@@ -85,14 +86,14 @@ class PointPoseReachingEnv(BaseEnv):
                                                                          ("panda","panda_joint7")],
                                                           endEffectorLink  = ("panda", "panda_link8"),
                                                           referenceFrame   = "world",
-                                                          initialJointPose = {("panda","panda_joint1") : 0,
-                                                                              ("panda","panda_joint2") : 0,
-                                                                              ("panda","panda_joint3") : 0,
-                                                                              ("panda","panda_joint4") :-1,
-                                                                              ("panda","panda_joint5") : 0,
-                                                                              ("panda","panda_joint6") : 2.570795,
-                                                                              ("panda","panda_joint7") : 0})
-        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, startSimulation = False)
+                                                          initialJointPose = {("panda","panda_joint1") : startJointPose[0],
+                                                                              ("panda","panda_joint2") : startJointPose[1],
+                                                                              ("panda","panda_joint3") : startJointPose[2],
+                                                                              ("panda","panda_joint4") : startJointPose[3],
+                                                                              ("panda","panda_joint5") : startJointPose[4],
+                                                                              ("panda","panda_joint6") : startJointPose[5],
+                                                                              ("panda","panda_joint7") : startJointPose[6]})
+        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, startSimulation = startSimulation)
 
         self._goalPoseSamplFunc = goalPoseSamplFunc
         self._goalTolerancePosition = goalTolerancePosition
@@ -101,11 +102,9 @@ class PointPoseReachingEnv(BaseEnv):
         self._maxOrientationChange = (2*180/30)/180*3.14159 # 10 degrees
 
         self._operatingArea = operatingArea #min xyz, max xyz
-        self._startPose = startPose
-
-        self._currentPosition = self._startPose.position
-        self._currentQuat = self._startPose.orientation
         self._simTime = 0
+        self._rng = np.random.default_rng(12345)
+        self._expectedAchievedPoseXyzrpy = None
 
 
         self._environmentController.setJointsToObserve( [("panda","panda_joint1"),
@@ -148,6 +147,7 @@ class PointPoseReachingEnv(BaseEnv):
         #print("dist action_quat "+str(quaternion.rotation_intrinsic_distance(action_quat,      quaternion.from_euler_angles(0,0,0))))
 
 
+
         currentPose = self.getState()[0:6]
         currentPose_xyz = currentPose[0:3]
         currentPose_rpy = currentPose[3:6]
@@ -156,6 +156,12 @@ class PointPoseReachingEnv(BaseEnv):
         absolute_xyz = currentPose_xyz + action_xyz
         absolute_quat = action_quat * currentPose_quat
 
+        if ((self._expectedAchievedPoseXyzrpy is not None) and
+           np.any(np.abs(self._expectedAchievedPoseXyzrpy - currentPose) > np.array([0.01, 0.01, 0.01, 0.02, 0.02, 0.02]))):
+           ggLog.warn("Previous step failed to reach goal by "+str(self._expectedAchievedPoseXyzrpy - currentPose))
+        self._expectedAchievedPoseXyzrpy = np.concatenate([absolute_xyz, quaternion.as_euler_angles(absolute_quat)])
+        #ggLog.info("rel action: "+str(np.concatenate([action_xyz, action_rpy])))
+        #ggLog.info("abs action: "+str(self._expectedAchievedPoseXyzrpy))
 
         absolute_quat_arr = np.array([absolute_quat.x, absolute_quat.y, absolute_quat.z, absolute_quat.w])
         absolute_next_pose = np.concatenate([absolute_xyz, absolute_quat_arr])
@@ -184,19 +190,11 @@ class PointPoseReachingEnv(BaseEnv):
             Why the exception is raised.
 
         """
-        self._simTime += 1
-        dbg_pose.helper.publishDbgImg("current_pose", Pose( self._currentPosition[0],
-                                                            self._currentPosition[1],
-                                                            self._currentPosition[2],
-                                                            self._currentQuat.x,
-                                                            self._currentQuat.y,
-                                                            self._currentQuat.z,
-                                                            self._currentQuat.w))
+        self._environmentController.step()
         if self._checkGoalReached(self.getState()):
             ggLog.info("Goal Reached")
 
-
-    def _getDist2goal(self, state : NDArray[(12,), np.float32]):
+    def _getDist2goal(self, state : NDArray[(6,), np.float32]):
         position = state[0:3]
         orientation_quat = quaternion.from_euler_angles(state[3:6])
 
@@ -207,7 +205,7 @@ class PointPoseReachingEnv(BaseEnv):
         position_dist2goal = np.linalg.norm(position - goalPosition)
         # print("orientation_quat =",orientation_quat)
         # print("goal_quat =",goalQuat)
-        intr_dist = quaternion.rotation_intrinsic_distance(orientation_quat,goal_quat)
+        #intr_dist = quaternion.rotation_intrinsic_distance(orientation_quat,goal_quat)
         orientation_dist2goal = gazebo_gym.utils.utils.quaternionDistance(orientation_quat,goal_quat)
 
         #ggLog.info(f"orientation_dist2goal = {orientation_dist2goal:3.04f}, intr_dist = {intr_dist:3.04f} , goal_quat = {goal_quat}, orient_quat = {orientation_quat}")
@@ -224,7 +222,7 @@ class PointPoseReachingEnv(BaseEnv):
 
 
 
-    def checkEpisodeEnded(self, previousState : NDArray[(15,), np.float32], state : NDArray[(15,), np.float32]) -> bool:
+    def checkEpisodeEnded(self, previousState : NDArray[(6,), np.float32], state : NDArray[(6,), np.float32]) -> bool:
         if super().checkEpisodeEnded(previousState, state):
             return True
 
@@ -282,18 +280,18 @@ class PointPoseReachingEnv(BaseEnv):
 
     def performReset(self) -> None:
         super().performReset()
-        self._currentPosition = self._startPose.position
-        self._currentQuat = self._startPose.orientation
-        self._goalPose = self._goalPoseSamplFunc()
-        self._lastResetSimTime = 0
+        self._environmentController.resetWorld()
+        self._goalPose = self._goalPoseSamplFunc(self._rng)
         dbg_pose.helper.publishDbgImg("goal_pose", self._goalPose)
+        #ggLog.info("sampled goal : "+str(self._goalPose))
+        self._expectedAchievedPoseXyzrpy = None
 
 
 
     def getObservation(self, state) -> np.ndarray:
         return state
 
-    def getState(self) -> NDArray[(15,), np.float32]:
+    def getState(self) -> NDArray[(6,), np.float32]:
         """Get an observation of the environment.
 
         Returns
@@ -303,40 +301,48 @@ class PointPoseReachingEnv(BaseEnv):
 
         """
 
-
-
-        eeOrientation_rpy = quaternion.as_euler_angles(self._currentQuat)
+        eePose = self._environmentController.getLinksState(requestedLinks=[("panda","panda_link8")])[("panda","panda_link8")].pose
+        #ggLog.info("Got ee pose: "+str(eePose))
+        
+        eeOrientation_quat = quaternion.from_float_array([eePose.orientation.w,eePose.orientation.x,eePose.orientation.y,eePose.orientation.z])
+        eeOrientation_rpy = quaternion.as_euler_angles(eeOrientation_quat)
         goal_rpy = quaternion.as_euler_angles(self._goalPose.orientation)
-        #print("got ee pose "+str(eePose))
 
 
 
 
+        state = np.array([  eePose.position.x,
+                            eePose.position.y,
+                            eePose.position.z,
+                            eeOrientation_rpy[0],
+                            eeOrientation_rpy[1],
+                            eeOrientation_rpy[2],
+                            self._goalPose.position[0],
+                            self._goalPose.position[1],
+                            self._goalPose.position[2],
+                            goal_rpy[0],
+                            goal_rpy[1],
+                            goal_rpy[2]],
+                        dtype=np.float32)
 
-        state = [   self._currentPosition[0],
-                    self._currentPosition[1],
-                    self._currentPosition[2],
-                    eeOrientation_rpy[0],
-                    eeOrientation_rpy[1],
-                    eeOrientation_rpy[2],
-                    self._goalPose.position[0],
-                    self._goalPose.position[1],
-                    self._goalPose.position[2],
-                    goal_rpy[0],
-                    goal_rpy[1],
-                    goal_rpy[2]]
-
-        return np.array(state,dtype=np.float32)
+        #ggLog.info("Got state:  "+str(state))
+        return state
 
     def buildSimulation(self, backend : str = "gazebo"):
-        pass
+        if backend != "gazebo":
+            raise NotImplementedError("Backend "+backend+" not supported")
+
+        self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher( rospkg.RosPack().get_path("gazebo_gym")+
+                                                                                        "/launch/launch_panda_effort_moveit_sim.launch",
+                                                                                        cli_args=["gui:=false", "load_gripper:=false"])
+        self._mmRosLauncher.launchAsync()
 
 
     def _destroySimulation(self):
         self._mmRosLauncher.stop()
 
     def getSimTimeFromEpStart(self):
-        return self._simTime
+        return self._environmentController.getEnvSimTimeFromStart()
 
     def setGoalInState(self, state, goal):
         state[-6:] = goal

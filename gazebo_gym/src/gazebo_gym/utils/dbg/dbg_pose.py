@@ -1,9 +1,6 @@
 import typing
-import numpy as np
 
 import rospy
-from cv_bridge import CvBridge
-import sensor_msgs.msg
 import geometry_msgs
 import gazebo_gym.utils.utils
 
@@ -26,7 +23,7 @@ class DbgPose:
         self._publishers.pop(streamName, None)
 
 
-    def publishDbgImg(self, streamName : str, pose : gazebo_gym.utils.utils.Pose, frame_id : str = "world"):
+    def publish(self, streamName : str, pose : gazebo_gym.utils.utils.Pose, frame_id : str = "world"):
         if not self._initialized:
             self.init()
         if streamName not in self._publishers:

@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 
-import rospy
 import time
 from stable_baselines.td3.policies import MlpPolicy
-from stable_baselines import SAC
 from stable_baselines import TD3
 from stable_baselines.ddpg.noise import NormalActionNoise
 import numpy as np
 import argparse
 from datetime import datetime
 from stable_baselines.common import env_checker
-import numpy as np
 
 from gazebo_gym.envs.PandaMoveitReachingEnv import PandaMoveitReachingEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper

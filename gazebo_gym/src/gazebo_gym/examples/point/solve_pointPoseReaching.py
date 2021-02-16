@@ -52,7 +52,7 @@ def buildModel(random_seed : int, env : gym.Env, folderName : str):
     # sampleGoalRatio = 0.1
     model = HER('MlpPolicy', env, SAC, n_sampled_goal=3, goal_selection_strategy="future", verbose=1,
                 batch_size=128, buffer_size=30*10000, gamma=0.99,
-                learning_starts=30*100, learning_rate=0.003, policy_kwargs=dict(layers=[50,50]),
+                learning_starts=30*100, learning_rate=0.0015, policy_kwargs=dict(layers=[50,50]),
                 train_freq=1,
                 gradient_steps=10,
                 seed = random_seed, n_cpu_tf_sess=1, #n_cpu_tf_sess = 1 is needed for reproducibility
@@ -105,7 +105,7 @@ def load(model, filename : str, env : gazebo_gym.envs.BaseEnv.BaseEnv) -> None:
     print("buffer_size:            "+str(model.buffer_size))
     print("batch_size:             "+str(model.batch_size))
     print("tau:                    "+str(model.tau))
-    # #print("ent_coef:               "+str(model.ent_coef))
+    # print("ent_coef:               "+str(model.ent_coef))
     # print("train_freq:             "+str(model.train_freq))
     # print("learning_starts:        "+str(model.learning_starts))
     # print("target_update_interval: "+str(model.target_update_interval))
@@ -113,10 +113,10 @@ def load(model, filename : str, env : gazebo_gym.envs.BaseEnv.BaseEnv) -> None:
     # print("target_entropy:         "+str(model.target_entropy))
     # print("action_noise:           "+str(model.action_noise))
     # print("random_exploration:     "+str(model.random_exploration))
-    # #print("verbose:                "+str(model.verbose))
-    # #print("tensorboard_log:        "+str(model.tensorboard_log))
+    # print("verbose:                "+str(model.verbose))
+    # print("tensorboard_log:        "+str(model.tensorboard_log))
     # print("policy_kwargs:          "+str(model.policy_kwargs))
-    # #print("full_tensorboard_log:   "+str(model.full_tensorboard_log))
+    # print("full_tensorboard_log:   "+str(model.full_tensorboard_log))
     # print("seed:                   "+str(model.seed))
     # print("n_cpu_tf_sess:          "+str(model.n_cpu_tf_sess))
 
@@ -128,7 +128,7 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
 
     rospy.init_node('solve_pointPoseReaching', anonymous=True, log_level=rospy.WARN)
 
-    trainEnvSteps = 22000
+    trainEnvSteps = 100000
     run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
     filename = "pointPositionReaching"+run_id+"s"+str(trainEnvSteps)
     folderName = "./solve_pointPoseReaching/"+run_id

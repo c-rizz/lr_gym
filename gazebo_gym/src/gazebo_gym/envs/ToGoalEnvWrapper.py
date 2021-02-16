@@ -64,9 +64,9 @@ class ToGoalEnvWrapper(gym.GoalEnv):
             if self._achievedGoalMask[i] ==1:
                 achievedGoal.append(observation[i])
 
-        ret = OrderedDict([ ("observation" , pureObservation),
-                            ("desired_goal", desiredGoal),
-                            ("achieved_goal", achievedGoal)])
+        ret = OrderedDict([ ("observation" , np.array(pureObservation, dtype=self.observation_space["observation"].dtype)),
+                            ("desired_goal", np.array(desiredGoal, dtype=self.observation_space["desired_goal"].dtype)),
+                            ("achieved_goal", np.array(achievedGoal, dtype=self.observation_space["achieved_goal"].dtype))])
         # print("converrted observation to:" + str(ret))
         return ret
 

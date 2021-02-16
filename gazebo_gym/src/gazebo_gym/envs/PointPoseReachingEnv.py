@@ -22,7 +22,7 @@ from gazebo_gym.utils.utils import Pose
 
 
 class PointPoseReachingEnv(BaseEnv):
-    """This class represents and environment in which a Point arm is controlled with cartesian movements to reach a goal position.
+    """This class represents and environment in which a point is controlled with cartesian movements to reach a goal poe.
     """
 
     action_space_high = np.array([  1,
@@ -135,7 +135,7 @@ class PointPoseReachingEnv(BaseEnv):
 
         """
         self._simTime += 1
-        dbg_pose.helper.publishDbgImg("current_pose", Pose( self._currentPosition[0],
+        dbg_pose.helper.publish("current_pose", Pose( self._currentPosition[0],
                                                             self._currentPosition[1],
                                                             self._currentPosition[2],
                                                             self._currentQuat.x,
@@ -236,7 +236,7 @@ class PointPoseReachingEnv(BaseEnv):
         self._currentQuat = self._startPose.orientation
         self._goalPose = self._goalPoseSamplFunc(self._rng)
         self._lastResetSimTime = 0
-        dbg_pose.helper.publishDbgImg("goal_pose", self._goalPose)
+        dbg_pose.helper.publish("goal_pose", self._goalPose)
 
 
 

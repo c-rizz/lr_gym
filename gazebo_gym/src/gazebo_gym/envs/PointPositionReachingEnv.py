@@ -17,7 +17,7 @@ import math
 
 
 class PointPositionReachingEnv(BaseEnv):
-    """This class represents and environment in which a Point arm is controlled with cartesian movements to reach a goal position.
+    """This class represents and environment in which a Point is controlled with cartesian movements to reach a goal position.
     """
 
     action_space_high = np.array([  1,

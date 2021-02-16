@@ -68,6 +68,7 @@ class RosEnvController(EnvironmentController):
         self = args[0]
         cam_topic = args[1]
 
+        #ggLog.info(f"Received image with encoding {msg.encoding}")
         self._lastImagesReceived[cam_topic] = msg
 
 
@@ -163,20 +164,20 @@ class RosEnvController(EnvironmentController):
 
         for c in requestedCameras:
             if c not in self._camerasToObserve:
-                raise RuntimeError("Requested image form a camera that was not requested in setCamerasToObserve")
+                raise RuntimeError(f"Requested image from a camera {c}, which was not requested in setCamerasToObserve")
 
         ret = []
 
         for c in requestedCameras:
             if c not in self._lastImagesReceived.keys():# This shouldn't happen
                 rospy.logerr("An image from "+c+" was requested to RosEnvcontroller, but no image has been received yet. Will return None")
-                ret.append(None)
+                img = None
             else:
-                lastImg = self._lastImagesReceived[c]
-
-                msgDelay = lastImg.header.stamp.to_sec() - rospy.get_time()
-                self._cameraMsgAgeAvg.addValue(msgDelay)
-                ret.append(lastImg)
+                img = self._lastImagesReceived[c]
+                if img is not None:
+                    msgDelay = img.header.stamp.to_sec() - rospy.get_time()
+                    self._cameraMsgAgeAvg.addValue(msgDelay)
+            ret.append(img)
 
 
         return ret

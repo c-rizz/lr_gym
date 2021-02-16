@@ -212,7 +212,6 @@ class BaseEnv():
         """To be implemented in subclass.
 
         This method is called by the step method. The values returned by it will be appended in the info variable returned bby step
-
         """
         return {}
 
@@ -223,23 +222,50 @@ class BaseEnv():
     def setGoalInState(self, state, goal):
         """To be implemented in subclass.
 
-        Update the provided state with the provided goal. Useful for goal-oriented environments, especially when using HER. It's used by ToGoalEnvWrapper."""
+        Update the provided state with the provided goal. Useful for goal-oriented environments, especially when using HER.
+        It's used by ToGoalEnvWrapper.
+        """
+        raise NotImplementedError()
+
+    def getGoalFromState(self, state):
+        """To be implemented in subclass.
+
+        Get the goal for the provided state. Useful for goal-oriented environments, especially when using HER.
+        """
+        raise NotImplementedError()
+
+    def getAchievedGoalFromState(self, state):
+        """To be implemented in subclass.
+
+        Get the currently achieved goal from the provided state. Useful for goal-oriented environments, especially when using HER.
+        """
+        raise NotImplementedError()
+
+    def getPureObservationFromState(self, state):
+        """To be implemented in subclass.
+
+        Get the pure observation from the provided state. Pure observation means the observation without goal and achieved goal.
+        Useful for goal-oriented environments, especially when using HER.
+        """
         raise NotImplementedError()
 
     def buildSimulation(self, backend : str = "gazebo"):
         """To be implemented in subclass.
 
-        Build a simulation for the environment."""
+        Build a simulation for the environment.
+        """
         raise NotImplementedError() #TODO: Move this into the environmentControllers
 
     def _destroySimulation(self):
         """To be implemented in subclass.
 
-        Destroy a simulation built by buildSimulation."""
+        Destroy a simulation built by buildSimulation.
+        """
         pass
 
     def getSimTimeFromEpStart(self):
-        raise NotImplemented()
+        """Get the elapsed time since the episode start."""
+        raise NotImplementedError()
 
     def close(self):
         self._destroySimulation()

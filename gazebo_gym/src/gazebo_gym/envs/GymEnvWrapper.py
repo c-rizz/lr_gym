@@ -167,7 +167,7 @@ class GymEnvWrapper(gym.Env):
 
         if self._done:
             if self._verbose:
-                ggLog.warning("Episode already finished")
+                ggLog.warn("Episode already finished")
             observation = self._ggEnv.getObservation(self._getStateCached())
             reward = 0
             done = True
@@ -224,7 +224,7 @@ class GymEnvWrapper(gym.Env):
         # for r in ret:
         #     print(str(r))
         # time.sleep(1)
-        # ggLog.warning("returning "+str(ret))
+        # ggLog.warn("returning "+str(ret))
         if not self._done:
             self._lastValidStepWallTime = time.monotonic()
         self._done = done
@@ -279,7 +279,7 @@ class GymEnvWrapper(gym.Env):
         self._lastPostResetTime = time.monotonic()
 
         if self._framesCounter!=0 and self._cumulativeImagesAge!=0:
-            ggLog.warning("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
+            ggLog.warn("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
 
         self._framesCounter = 0
         self._cumulativeImagesAge = 0
@@ -342,7 +342,7 @@ class GymEnvWrapper(gym.Env):
         npArrImage, imageTime = self._ggEnv.getRendering()
 
         if imageTime < self._lastStepStartEnvTime:
-            ggLog.warning("render(): The most recent camera image is older than the start of the last step! (by "+str(self._lastStepStartEnvTime-imageTime)+"s)")
+            ggLog.warn("render(): The most recent camera image is older than the start of the last step! (by "+str(self._lastStepStartEnvTime-imageTime)+"s)")
 
         cameraImageAge = self._lastStepEndEnvTime - imageTime
         #ggLog.info("Rendering image age = "+str(cameraImageAge)+"s")

@@ -107,10 +107,10 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
 
 
 
-    trainEnvSteps = 27000
+    trainEnvSteps = 200000
     run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
     filename = "pandaMoveitPoseReachingEnv3"+run_id+"s"+str(trainEnvSteps)
-    folderName = "./solve_pandaMoveitPoseReachingEnv3/"+run_id
+    folderName = "./solve_pandaMoveitVarReaching/"+run_id
     os.makedirs(folderName)
 
 

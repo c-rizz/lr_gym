@@ -54,7 +54,7 @@
   <depend>rospy</depend>
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
-  <depend>simple_panda_moveit_config</depend>
+  <depend>lr_panda_moveit_config</depend>
   <depend>actionlib_msgs</depend>
   <depend>rviz_visual_tools</depend>
   <depend>tf2_ros</depend>

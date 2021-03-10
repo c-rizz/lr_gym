@@ -59,6 +59,23 @@ environment. You can use the build_virtualenv.sh helper script in the gazebo_gym
 src/gazebo_gym/gazebo_gym/build_virtualenv.sh sb
 ```
 
+
+To use specific environments you will also need to clone additional repositories in your workspace src folder:
+ * For using the Panda arm you will need the `lr_panda` repository:
+   ```
+   git clone --branch crzz-dev https://gitlab.idiap.ch/learn-real/panda.git lr_panda
+   ```
+ * For using the Panda arm with moveit you will need `lr_panda_moveit_config`:
+   ```
+   git clone --branch crzz-dev https://gitlab.idiap.ch/learn-real/lr_panda_moveit_config.git lr_panda_moveit_config
+   ```
+ * For using the realsense camera you will need `lr_realsense`:
+   ```
+   git clone --branch crzz-dev https://gitlab.idiap.ch/learn-real/realsense.git lr_realsense
+   ```
+
+
+
 You can then proceed to build the workspace with `catkin build`.
 
 ## Examples - Cartpole

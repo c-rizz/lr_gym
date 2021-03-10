@@ -29,7 +29,7 @@
                       load_hand:=$(arg load_gripper)"   />
 
     <!-- Launch moveit -->
-    <include file="$(find simple_panda_moveit_config)/launch/move_group.launch" >
+    <include file="$(find lr_panda_moveit_config)/launch/move_group.launch" >
       <!-- reduce output logs -->
       <!-- <env name="ROSCONSOLE_CONFIG_FILE" value="$(find gazebo_gym)/config/rosconsole_warn.config" /> -->
       <arg name="robot_description_name" value="$(arg robot_name)_description"/>

@@ -5,8 +5,8 @@ from typing import Tuple
 from typing import Dict
 
 from gazebo_gym.envControllers.RosEnvController import RosEnvController
-from gazebo_gym.rosControUtils import ControllerManagementHelper
-from gazebo_gym.rosControUtils import TrajectoryControllerHelper
+from gazebo_gym.rosControlUtils import ControllerManagementHelper
+from gazebo_gym.rosControlUtils import TrajectoryControllerHelper
 
 import rospy
 import std_msgs

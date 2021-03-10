@@ -25,13 +25,21 @@ class DbgImg:
         self._publishers.pop(streamName, None)
 
 
-    def publishDbgImg(self, streamName : str, img : np.ndarray):
+    def publishDbgImg(self, streamName : str, img : np.ndarray, encoding : str = "rgb8"):
         if not self._initialized:
             self.init()
         if streamName not in self._publishers:
             self._addDbgStream(streamName)
-        rosMsg = self._cv_bridge.cv2_to_imgmsg(img, "passthrough")
-        rosMsg.encoding = "rgb8"
+
+        if encoding == "32FC1":
+            t = np.uint8(img*255)
+            pubImg = np.dstack([t,t,t])
+            pubEnc = "rgb8"
+        else:
+            pubImg = img
+            pubEnc = encoding
+        rosMsg = self._cv_bridge.cv2_to_imgmsg(pubImg, "passthrough")
+        rosMsg.encoding = pubEnc
         self._publishers[streamName].publish(rosMsg)
 
 helper = DbgImg()

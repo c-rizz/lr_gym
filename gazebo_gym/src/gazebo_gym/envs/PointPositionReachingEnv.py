@@ -200,7 +200,7 @@ class PointPositionReachingEnv(BaseEnv):
         return reward
 
 
-    def onResetDone(self) -> None:
+    def initializeEpisode(self) -> None:
         return
 
 

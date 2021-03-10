@@ -1,6 +1,7 @@
 <launch>
+    <arg name="robot_name" default="panda"/>
     <!-- CAMERA PARAMS -->
-    <arg name="camera_name" default="panda_d435i"/>
+    <arg name="camera_name" default="$(arg robot_name)_d435i"/>
     <arg name="static" default="false"/>
     <arg name="label_format" default="UINT8"/>
     <arg name="topics_ns" default="d435i"/>
@@ -25,7 +26,6 @@
     <arg name="accel_fps" default="400"/>
 
     <!-- aRM PARAMS -->
-    <arg name="robot_name" default="panda"/>
     <arg name="robot_base_x" default="0"/>
     <arg name="robot_base_y" default="0"/>
     <arg name="robot_base_z" default="0"/>
@@ -89,7 +89,7 @@
 
 
 
-    <include file="$(find panda)/launch/panda_generic.launch" >
+    <include file="$(find lr_panda)/launch/panda_generic.launch" >
       <arg name="simulated" value="true"/>
       <arg name="launch_gazebo" value="false"/>
       <arg name="start_controllers" value="$(arg start_controllers)"/>

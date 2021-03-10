@@ -28,7 +28,7 @@ class SAC_vec(SAC):
                  _init_setup_model=True, policy_kwargs=None, full_tensorboard_log=False,
                  seed=None, n_cpu_tf_sess=None,
                  grad_steps_multiplier=1):
-        """There are a few differences from the original SAC class, maynly because data collection is performed per-episode-batch not per-frame.
+        """There are a few differences from the original SAC class, mainly because data collection is performed per-episode-batch not per-frame.
 
         - train_freq is per-episode-batch: train_freq=1 means perform a training after each episode batch. An episode batch is composed of one
           episode per parallel environment (e.g. a 4-envs vec_env will produce 4 episodes per episode-batch)
@@ -263,8 +263,8 @@ class SAC_vec(SAC):
                 tt_coll = time.monotonic() - t0_coll
                 timesteps_collected = self.num_timesteps - timesteps_before
 
-                print("colleted episode batch, "+str(timesteps_collected)+" steps. fps =",timesteps_collected/tt_coll)
-                print("tt_step =",tt_step,"tt_inf = ",tt_inf,"tt_buf =",tt_buf," tt_log =",tt_log, "tt_cb =",tt_cb, "tt_rst =",tt_rst, "tt_coll =",tt_coll)
+                ggLog.info(f"collected episode batch, {timesteps_collected} steps. fps = {timesteps_collected/tt_coll:.2f}")
+                ggLog.info(f"tt_step = {tt_step:.5f}, tt_inf = {tt_inf:.5f}, tt_buf = {tt_buf:.5f}, tt_log = {tt_log :.5f}, tt_cb = {tt_cb:.5f}, tt_rst = {tt_rst:.5f}, tt_coll = {tt_coll:.5f}")
                 if episode_batch % self.train_freq == 0:
                     #print("training..")
                     callback.on_rollout_end()

@@ -28,6 +28,26 @@
       </bullet>
     </physics>
 
+
+    <physics name="bullet_unlimited" type="bullet" default="true">
+      <max_step_size>0.0041666</max_step_size> <!-- 240fps, bullet should be optimized for this frequency -->
+      <real_time_update_rate>-1</real_time_update_rate> <!-- steps done in each real-time second, -1 does as many as possible-->
+      <bullet>
+        <solver>
+          <type>sequential_impulse</type>
+          <iters>10</iters>
+          <sor>1</sor>
+        </solver>
+        <constraints>
+          <cfm>0</cfm>
+          <erp>0.2</erp>
+          <contact_surface_layer>0.001</contact_surface_layer>
+          <split_impulse>1</split_impulse>
+          <split_impulse_penetration_threshold>-0.04</split_impulse_penetration_threshold>
+        </constraints>
+      </bullet>
+    </physics>
+
     <physics name="ode_default" type="ode" default="true">
       <max_step_size>0.001</max_step_size>
       <real_time_update_rate>5000</real_time_update_rate> <!-- steps done in each real-time second, -1 does as many as possible-->

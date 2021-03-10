@@ -8,6 +8,7 @@ from stable_baselines import DQN
 from gazebo_gym.envs.CartpoleEnv import CartpoleEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 import gazebo_gym.utils.dbg.ggLog as ggLog
+import datetime
 
 def main() -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
@@ -20,7 +21,9 @@ def main() -> None:
     None
 
     """
-    logFolder = "./solve_cartpole_env"
+
+    run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    logFolder = "./solve_cartpole_env/"+run_id
     #logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s.%(msecs)03d][%(levelname)s] %(message)s', datefmt='%Y-%m-%d,%H:%M:%S')
 
     #rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.WARN)

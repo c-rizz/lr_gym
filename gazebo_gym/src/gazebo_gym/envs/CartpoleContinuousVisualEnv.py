@@ -174,7 +174,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         super().performReset()
         self._environmentController.resetWorld()
         self._intendedSimTime = 0
-        self.onResetDone()
+        self.initializeEpisode()
         img = self._environmentController.getRenderings(["camera"])[0]
         if img is None:
             rospy.logerr("No camera image received. Observation will contain and empty image.")

@@ -14,6 +14,7 @@
         <arg name="noplugin" value="$(arg noplugin)"/>
         <arg name="model_file" value="$(find gazebo_gym)/models/cartpole_v0.urdf"/>
         <arg name="model_name" value="cartpole_v0"/>
+        <arg name="limit_sim_speed" value="false"/>
     </include>
 
 

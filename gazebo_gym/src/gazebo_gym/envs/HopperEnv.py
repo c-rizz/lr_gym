@@ -153,7 +153,7 @@ class HopperEnv(ControlledEnv):
             return -1
 
 
-    def onResetDone(self) -> None:
+    def initializeEpisode(self) -> None:
         self._environmentController.setJointsEffort([  ("hopper","torso_to_thigh",0),
                                                        ("hopper","thigh_to_leg",0),
                                                        ("hopper","leg_to_foot",0)])

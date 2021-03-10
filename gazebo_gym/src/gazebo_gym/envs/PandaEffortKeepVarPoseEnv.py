@@ -93,7 +93,7 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
 
 
 
-    def onResetDone(self) -> None:
+    def initializeEpisode(self) -> None:
 
         # center = np.array([0.45, 0.0, 0.92, 0, 1, 0, 0])
         # radius = 0.2

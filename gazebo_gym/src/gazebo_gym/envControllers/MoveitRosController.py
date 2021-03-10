@@ -8,8 +8,8 @@ from typing import Dict
 from typing import Optional
 
 from gazebo_gym.envControllers.RosEnvController import RosEnvController
-from gazebo_gym.rosControUtils import ControllerManagementHelper
-from gazebo_gym.rosControUtils import TrajectoryControllerHelper
+from gazebo_gym.rosControlUtils import ControllerManagementHelper
+from gazebo_gym.rosControlUtils import TrajectoryControllerHelper
 
 import rospy
 import std_msgs
@@ -151,16 +151,29 @@ class MoveitRosController(RosEnvController):
 
         self._waitOnStepCallbacks.append(waitCallback)
 
-    def resetWorld(self):
-        goal = gazebo_gym_utils.msg.MoveToJointPoseGoal()
-        goal.pose = [self._initialJointPose[v] for v in self._jointsOrder]
+    def _moveToJointPose(self,goal:gazebo_gym_utils.msg.MoveToJointPoseGoal):
         self._moveJointClient.send_goal(goal)
         r = self._moveJointClient.wait_for_result()
         if r:
             if self._moveJointClient.get_result().succeded:
+                ggLog.info("Successfully moved to joint pose")
                 return
+            else:
+                raise RuntimeError(f"Failed to move to move to joint pose: result {self._moveJointClient.get_result()}")
         else:
-            raise RuntimeError("Failed to move to joint pose: "+str(self._moveJointClient.get_result()))
+            raise RuntimeError(f"Failed to move to complete joint pose move action: r={r}")
+
+
+    def resetWorld(self):
+        ggLog.info("Environment controller resetting world...")
+        goal = gazebo_gym_utils.msg.MoveToJointPoseGoal()
+        goal.pose = [self._initialJointPose[v] for v in self._jointsOrder]
+        ggLog.info(f"Moving to joint pose {goal.pose}")
+        try:
+            self._moveToJointPose(goal)
+        except Exception:
+            ggLog.error("Reset move failed")
+            self._actionsFailsInLastStepCounter+=1
 
     def actionsFailsInLastStep(self):
         return self._actionsFailsInLastStepCounter

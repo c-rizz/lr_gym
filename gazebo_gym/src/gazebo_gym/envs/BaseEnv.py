@@ -169,13 +169,13 @@ class BaseEnv():
         raise NotImplementedError() #TODO: This is super wierd, need to rethink it
 
 
-    def onResetDone(self) -> None:
+    def initializeEpisode(self) -> None:
         """To be implemented in subclass.
 
         This method is called by the reset method to allow the sub-class to reset environment-specific details
 
         """
-        pass #TODO: should be moved to ControlledEnv which should be abstract (actually it shouldn't exist)
+        pass
 
 
     def performStep(self) -> None:
@@ -199,7 +199,7 @@ class BaseEnv():
 
 
 
-    def getRendering(self) -> Tuple[np.ndarray, float]:
+    def getUiRendering(self) -> Tuple[np.ndarray, float]:
         """To be implemented in subclass.
 
         This method is called by the render method to get the environment rendering

@@ -11,8 +11,12 @@ and the various demos.
  to the needs of RL methods. In particular it allows to step the simulation of precise durations,
  to obtain renderings from simulated cameras even while the simulation is stopped and reduces
  communication overhead making simulation MUCH faster.
-* gazebo_gym_utils provides a node that can receive and execute moveit commands via ROS messaging.
- This is needed as an intermediate node for controlling moveit from python3 code.
+* gazebo_gym_utils provides various utilities for helping development. Important ones are:
+    - A node that can receive and execute moveit commands via ROS messaging. This is needed as an intermediate 
+      node for controlling moveit from python3 code.
+    - A ros controller that allows to perform effort control on top of a gravity-compensation controller
+    - A ros controller that publishes link state information (e.g. cartesian poses of links) 
+
 
 
 ## The gazebo_gym package
@@ -35,12 +39,13 @@ both Gazebo and PyBullet.
 Different environment controllers have been implemented for different simulators and for the real world.
 All of the environments are derived form EnvironmentController
 
-* GazeboController and GazeboControllerNoPlugin provide the means to control a Gazebo simulation
-* PyBulletController allows to control a PyBullet simulation
-* RosEnvController uses ROS to control and observe the environment, this is meant to be usable both for
+* **GazeboController** and GazeboControllerNoPlugin provide the means to control a Gazebo simulation
+* **PyBulletController** allows to control a PyBullet simulation
+* **RosEnvController** uses ROS to control and observe the environment, this is meant to be usable both for
 simulations and for the real world (but it will be less efficient and "precise" than GazeboController)
-* EffortRosControlController is built on top of RosEnvController and uses ros_control effort controllers to
+* **EffortRosControlController** is built on top of RosEnvController and uses ros_control effort controllers to
 command joint efforts
+* **MoveitRosController** is built on top of RosEnvController and uses MoveIt to control a robot in cartesian space
 
 
 ## Setup
@@ -48,15 +53,15 @@ This repository requires ROS Melodic and python3.6 or later.
 To set up the project you first of all need to clone the repository in your catkin
 workspace src folder.
 You will also need to install some python3 modules, preferably in a python virtual
-environment. You can use the requirements.txt file in the gazebo_gym folder:
+environment. You can use the build_virtualenv.sh helper script in the gazebo_gym folder:
 
 ```
-pip3 install -r src/gazebo_gym/gazebo_gym/requirements_sb.txt
+src/gazebo_gym/gazebo_gym/build_virtualenv.sh sb
 ```
 
 You can then proceed to build the workspace with `catkin build`.
 
-## Usage - Cartpole
+## Examples - Cartpole
 
 The environment can be tested using a python script that executes a hard-coded policy
 through the python gym interface:
@@ -76,20 +81,42 @@ The rendered frames can be saved to file by specifying the --saveframes option.
 The simulation step length can be changed using the --steplength option (the default is 0.05s)
 
 
+### Basic Training
 
 It is also possible to train a basic DQN policy by using the following:
 
 ```
-rosrun gazebo_gym solve_dqn_stable_baselines.py
+rosrun gazebo_gym solve_cartpole.py
 ```
 
 To see the simulation you can launch a gazebo client using the following:
 
 ```
-GAZEBO_MASTER_URI=http://127.0.0.1:11414 ROS_MASTER_URI=127.0.0.1:11350 gzclient
+roslaunch gazebo_gym gazebo_client.launch id:=0
 ```
 
-## Usage - Hopper
+It should reach the maximum episode length of 500 steps in about 400 episodes.
+
+
+### Parallel Simulations Training with SAC
+
+You can also train a SAC policy using multiple Gazebo simulations at the same time.
+
+```
+rosrun gazebo_gym solve_cartpole_sb2_sac_vec.py --envsNum=4
+```
+
+This will start 4 gazebo simulations in 4 different ros masters. To view the simulations
+you can launch the following changing the id parameter:
+
+```
+roslaunch gazebo_gym gazebo_client.launch id:=0
+```
+
+It should reach the maximum episode length  of 500 steps in about 60 episode batches (60x4 episodes)
+
+
+## Example - Hopper
 
 You can execute a pre-trained policy with:
 ```
@@ -104,64 +131,47 @@ rosrun gazebo_gym solve_hopper.py
 
 You can specify the number of timesteps to train for with the --iterations option.
 
-You can also run the hopper environment directly in pybullet specifynig the --pybullet option, in this mode you can also use an mjcf model (adapted from the OpenAI gym one) instead of the urdf one, using the --mjcf option. Trained models are also provided for these two modes.
+You can also run the hopper environment in pybullet specifying the --pybullet option, in this mode you can also use an mjcf model (adapted from the OpenAI gym one) instead of the urdf one, using the --mjcf option. Trained models are also provided for these two modes.
+
+As always the simulation can be visualized using 'roslaunch gazebo_gym gazebo_client.launch'
+
+## Examples - Panda Arm
+
+A series of different environments based on the Franka-Emika Panda arm are available.
+ * **PandaEffortStayUp** features an effort-controller Panda arm, the objective is to keep the panda arm upright
+ * **PandaEffortKeepPose** again features an effort-controller Panda arm, the objective is to keep the panda arm 
+   end effector in a specific pose that does not vary between episodes
+ * **PandaEffortKeepVarPose** again features an effort-controller Panda arm, the objective is to keep the panda arm 
+   end effector in a specific pose that changes between each episode (this environment has not been solved)
+ * **PandaMoveitReachingEnv** features a Panda arm controlled in cartesian space with moveit. The objective is to 
+   keep the panda arm end effector in a specific pose that does not vary between episodes
+ * **PandaMoveitVarReachingEnv** features a Panda arm controlled in cartesian space with moveit. The objective is to 
+   keep the panda arm end effector in a specific pose that chnages between each episode
 
 
-## Moveit Panda Reaching Environment
+Scripts that solve each of these evironments in different ways are available in the examples folder. PandaEffortKeepVarPose
+currently does not have a working solve script.
 
-The PandaMoveitReachingEnv.py file implements and environment in which a Panda arm moves using Moveit and has to reach a
-specific pose with its end-effector.
-Right now it has only been tested within a Gazebo simulation but in future it is supposed fto work also in the real.
-It may also be extended to use a camera.
+You can try two pretrained models with the following:
+ * PandaMoveitVarReachingEnv:
+   ```
+    rosrun gazebo_gym solve_pandaMoveitVarReaching.py --load src/gazebo_gym/gazebo_gym/trained_models/pandaMoveitPoseReachingEnv320210309-184658s200000_62400_steps.zip
+   ```
+ * PandaEffortKeepPose:
+   ```
+    rosrun gazebo_gym solve_panda_effort_keep_pose_vec.py --load solve_panda_effort_keep_tensorboard/20201114-212527/checkpoints/sac_pandaEffortKeep_20201114-212527s15000_3000000_steps.zip
+   ``` 
 
-To have the environment working you will need additional ROS packages in your workspace.
-First of all the panda package, which provides the model and controller definitions for the Gazebo simulation.
-You can clone it as:
+## Plotting
+
+Executing and environment via the GymEnvWrapper allows to log information about the environment execution.
+You can create plots of the learnig curves from these log suing the `plotGymEnvLogs.py` script. For example:
 
 ```
-git clone -b crzz-dev https://gitlab.idiap.ch/learn-real/panda.git
-```
+rosrun gazebo_gym plotGymEnvLogs.py --csvfile solve_cartpole_env/20210310-120235/GymEnvWrapper_log.csv
+``` 
 
-You will also need the panda moveit configuration. You can get it by cloning:
-
-```
-git clone https://github.com/erdalpekel/simple_panda_moveit_config.git
-```
-
-At this point, after compiling with catkin, you can run the environment.
-
-First, launch:
-```
-roslaunch panda panda_generic_control.launch simulated:=true
-```
-
-Then, in a separate terminal:
-```
-roslaunch simple_panda_moveit_config move_group.launch
-```
-At this point if you want you can start rviz and control the robot with moveit with rviz -d src/panda/config/moveit.rviz
-If the robot is in collision with itself, you can move it to a safe pose with (kill it with ctrl-c after the robot has moved):
-```
-rosrun panda move_to_start_pose_raw.sh
-```
-
-Then, in another separate terminal:
-```
-rosrun gazebo_gym_utils move_helper
-```
-
-Finally, you can start training the RL policy with:
-```
-rosrun gazebo_gym solve_pandaReaching.py
-```
-
-The hyperparameters have not been tuned carefully, so the training may not achieve optimal results.
-Also, you can speed up the simulation in Gazebo, clicking in the left panel 'Physics' and
-entering -1 in "real time update"
-
-
-
-
+Check the `rosrun gazebo_gym plotGymEnvLogs.py --help` for more info
 
 ## Gazebo Plugin
 To correctly implement the OpenAI gym environment interface, it is necessary to execute
@@ -188,16 +198,14 @@ the theoretical abstraction used in reinforcement learning.
 
 
 ## Performance
-The repository was tested on two laptops:
+The repository was tested on one laptop:
 
 1. An Alienware laptop equipped with an Intel i7-6820HK CPU and an Nvidia GeForce GTX 980M GPU.
-2. An HP Omen laptop equipped with an Intel i7-8750H CPU and an NVIDIA GeForce GTX 1050 Ti Mobile GPU.
 
 Here is reported the performance of the test_cartpole_env script.
 
 | Laptop |       No Rendering        | With Rendering            |
 |--------|---------------------------|---------------------------|
-|   1    |  370fps (15.3x real time) | 41.5fps (2.02x real time) |
-|   2    |  531fps (22.1x real time) | 44.3fps (2.17x real time) |
+|   1    |  459fps (20.1x real time) | 188.1fps (8.86x real time) |
 
 The simulation step was kept at 0.05s for all the tests.

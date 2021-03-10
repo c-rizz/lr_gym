@@ -9,6 +9,18 @@ import gazebo_gym
 import gazebo_gym.utils.dbg.dbg_img as dbg_img
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 import cv2
+import numpy as np
+
+def buildNoAction(env):
+    action = env.action_space.sample()
+    if type(action) == np.ndarray:
+        newa = np.zeros(shape=action.shape, dtype=action.dtype)
+    elif type(action)==tuple:
+        newa = (None)*len(action)
+        for i in range(len(action)):
+            if type(action[i]) == np.ndarray:
+                newa[i] = np.zeros(shape=action[i].shape, dtype=action[i].dtype)
+    return newa
 
 def runRandom(env : gym.Env, numEpisodes : int, pubRender : bool, fps : float) -> None:
     """Run the provided environment with a random agent."""
@@ -26,23 +38,23 @@ def runRandom(env : gym.Env, numEpisodes : int, pubRender : bool, fps : float) -
         frame = 0
         episodeReward = 0
         done = False
-        obs = env.reset()
-        time.sleep(10)
+        # obs = env.reset()
         t0 = time.time()
         while not done:
             print("Episode "+str(episodesRan)+" frame "+str(frame))
-            action = env.action_space.sample()
-            obs, stepReward, done, info = env.step(action)
+            # action = buildNoAction(env)
+            # obs, stepReward, done, info = env.step(action)
             #frames.append(env.render("rgb_array"))
             if pubRender:
-                npImg = env.render("rgb_array")
+                # npImg = env.render("rgb_array")
+                npImg = env._ggEnv.getUiRendering()[0]
                 #npImg = cv2.cvtColor(npImg, cv2.COLOR_GRAY2BGR)
                 dbg_img.helper.publishDbgImg("render", npImg, encoding = "32FC1")
                 # cv2.imshow("img",npImg)
                 # cv2.waitKey(1)
             time.sleep(1/fps)
             frame+=1
-            episodeReward += stepReward
+            # episodeReward += stepReward
         episodesRan+=1
         totDuration = time.time() - t0
         print("Ran for "+str(totDuration)+"s \t Reward: "+str(episodeReward))
@@ -54,7 +66,7 @@ def main(envClassPath : str, pubRender : bool, fps : float):
     envClass = getattr(envModule, envClassName)
 
     env = GymEnvWrapper(envClass(startSimulation=True))
-    runRandom(env,100, pubRender, fps)
+    runRandom(env,-1, pubRender, fps)
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()

@@ -43,14 +43,14 @@ def worker(child_connection, env_fn_wrapper):
                 child_connection.send(env.getState())
             elif cmd == "getCameraToRenderName":
                 child_connection.send(env.getCameraToRenderName())
-            elif cmd == "onResetDone":
-                child_connection.send(env.onResetDone())
+            elif cmd == "initializeEpisode":
+                child_connection.send(env.initializeEpisode())
             elif cmd == "performStep":
                 child_connection.send(env.performStep())
             elif cmd == "performReset":
                 child_connection.send(env.performReset())
-            elif cmd == "getRendering":
-                child_connection.send(env.getRendering())
+            elif cmd == "getUiRendering":
+                child_connection.send(env.getUiRendering())
             elif cmd == "getInfo":
                 child_connection.send(env.getInfo())
             elif cmd == "getMaxStepsPerEpisode":
@@ -139,8 +139,8 @@ class SubProcGazeboEnvWrapper(gazebo_gym.envs.BaseEnv.BaseEnv):
         self._parentConnection.send(('getCameraToRenderName', None))
         return self._parentConnection.recv()
 
-    def onResetDone(self) -> None:
-        self._parentConnection.send(('onResetDone', None))
+    def initializeEpisode(self) -> None:
+        self._parentConnection.send(('initializeEpisode', None))
         return self._parentConnection.recv()
 
     def performStep(self) -> None:
@@ -151,8 +151,8 @@ class SubProcGazeboEnvWrapper(gazebo_gym.envs.BaseEnv.BaseEnv):
         self._parentConnection.send(('performReset', None))
         return self._parentConnection.recv()
 
-    def getRendering(self) -> Tuple[np.ndarray, float]:
-        self._parentConnection.send(('getRendering', None))
+    def getUiRendering(self) -> Tuple[np.ndarray, float]:
+        self._parentConnection.send(('getUiRendering', None))
         return self._parentConnection.recv()
 
     def getInfo(self) -> Dict[Any,Any]:

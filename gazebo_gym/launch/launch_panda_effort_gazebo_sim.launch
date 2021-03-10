@@ -24,7 +24,7 @@
     </include>
 
     <!-- Spawn and setup the panda robot -->
-    <include file="$(find panda)/launch/panda_generic.launch" >
+    <include file="$(find lr_panda)/launch/panda_generic.launch" >
       <arg name="simulated" value="true"/>
       <arg name="launch_gazebo" value="false"/>
       <arg name="start_controllers" value="$(arg start_controllers)"/>

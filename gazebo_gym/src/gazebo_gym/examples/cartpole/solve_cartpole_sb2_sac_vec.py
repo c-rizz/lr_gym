@@ -7,7 +7,7 @@ from stable_baselines.sac.policies import MlpPolicy
 from stable_baselines import SAC
 from gazebo_gym.envs.CartpoleContinuousEnv import CartpoleContinuousEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
-from gazebo_gym.utils import ggLog
+from gazebo_gym.utils.dbg import ggLog
 import datetime
 import gym
 import stable_baselines
@@ -25,8 +25,8 @@ def buildModel(random_seed : int, env : gym.Env, folderName : str):
                      learning_rate=0.0025,
                      learning_starts=100,
                      policy_kwargs=dict(layers=[64, 64]),
-                     gradient_steps="ep_length",
-                     train_freq_ep=1,
+                     gradient_steps="last_ep_batch_steps",
+                     train_freq=1,
                      seed = random_seed,
                      n_cpu_tf_sess=1, #n_cpu_tf_sess is needed for reproducibility
                      tensorboard_log=folderName)
@@ -49,7 +49,7 @@ def main() -> None:
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
 
-    trainEpisodes = 320
+    training_episode_batches = 320
     run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
     folderName = "./solve_cartpole_sb2_sac_vec/"+run_id
     #logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s.%(msecs)03d][%(levelname)s] %(message)s', datefmt='%Y-%m-%d,%H:%M:%S')
@@ -70,7 +70,7 @@ def main() -> None:
     model = buildModel(RANDOM_SEED, env, folderName)
     ggLog.info("Learning...")
     t_preLearn = time.time()
-    model.learn(training_episodes=trainEpisodes)
+    model.learn(training_episode_batches=training_episode_batches)
     duration_learn = time.time() - t_preLearn
     ggLog.info("Learned. Took "+str(duration_learn)+" seconds.")
 

@@ -339,7 +339,7 @@ class GymEnvWrapper(gym.Env):
         if mode!="rgb_array":
             raise NotImplementedError("only rgb_array mode is supported")
 
-        npArrImage, imageTime = self._ggEnv.getRendering()
+        npArrImage, imageTime = self._ggEnv.getUiRendering()
 
         if imageTime < self._lastStepStartEnvTime:
             ggLog.warn("render(): The most recent camera image is older than the start of the last step! (by "+str(self._lastStepStartEnvTime-imageTime)+"s)")

@@ -64,11 +64,11 @@ class RosEnvController(EnvironmentController):
         #rospy.loginfo("Slept")
         return self._stepLength_sec if sleepDuration > 0 else self._stepLength_sec-sleepDuration
 
-    def _imagesCallback(msg,args):
+    def _imagesCallback(self,msg,args):
         self = args[0]
         cam_topic = args[1]
 
-        #ggLog.info(f"Received image with encoding {msg.encoding}")
+        # ggLog.info(f"Received image with size {msg.width}x{msg.height} encoding {msg.encoding}")
         self._lastImagesReceived[cam_topic] = msg
 
 
@@ -131,13 +131,18 @@ class RosEnvController(EnvironmentController):
         self._imageSubscribers = []
         for cam_topic in self._camerasToObserve:
             self._lastImagesReceived[cam_topic] = None
-            self._imageSubscribers.append(rospy.Subscriber("cam_topic", sensor_msgs.msg.Image, self._imagesCallback, callback_args=(self,cam_topic)))
+            self._imageSubscribers.append(rospy.Subscriber(cam_topic, sensor_msgs.msg.Image, self._imagesCallback, callback_args=(self,cam_topic)))
+            ggLog.info(f"Subscribed to {cam_topic}")
 
         if len(self._jointsToObserve)>0:
-            self._jointStateSubscriber = rospy.Subscriber("joint_states", sensor_msgs.msg.JointState, self._jointStateCallback, queue_size=1)
+            topic = "joint_states"
+            self._jointStateSubscriber = rospy.Subscriber(topic, sensor_msgs.msg.JointState, self._jointStateCallback, queue_size=1)
+            ggLog.info(f"Subscribed to {topic}")
 
         if len(self._linksToObserve)>0:
-            self._linkStatesSubscriber = rospy.Subscriber("link_states", LinkStates, self._linkStatesCallback, queue_size=1)
+            topic = "link_states"
+            self._linkStatesSubscriber = rospy.Subscriber(topic, LinkStates, self._linkStatesCallback, queue_size=1)
+            ggLog.info(f"Subscribed to {topic}")
 
 
 

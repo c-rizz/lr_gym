@@ -7,7 +7,7 @@ from stable_baselines.sac.policies import CnnPolicy
 # from stable_baselines.common.policies import CnnPolicy
 from gazebo_gym.envs.CartpoleContinuousVisualEnv import CartpoleContinuousVisualEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
-from gazebo_gym.utils import ggLog
+from gazebo_gym.utils.dbg import ggLog
 import datetime
 import gym
 import stable_baselines

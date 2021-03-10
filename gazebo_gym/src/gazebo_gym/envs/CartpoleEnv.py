@@ -16,6 +16,7 @@ import rospkg
 
 from gazebo_gym.envs.ControlledEnv import ControlledEnv
 from gazebo_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
+import gazebo_gym
 
 class CartpoleEnv(ControlledEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup."""
@@ -103,12 +104,18 @@ class CartpoleEnv(ControlledEnv):
         return 1
 
 
-    def onResetDone(self) -> None:
+    def initializeEpisode(self) -> None:
         self._environmentController.setJointsEffort([("cartpole_v0","foot_joint",0),("cartpole_v0","cartpole_joint",0)])
 
 
-    def getCameraToRenderName(self) -> str:
-        return "camera"
+    def getUiRendering(self) -> Tuple[np.ndarray, float]:
+        img = self._environmentController.getRenderings(["camera"])[0]
+        npImg = gazebo_gym.utils.utils.image_to_numpy(img)
+        if img is None:
+            time = -1
+        else:
+            time = img.header.stamp.to_sec()
+        return npImg, time
 
 
     def getObservation(self, state) -> np.ndarray:

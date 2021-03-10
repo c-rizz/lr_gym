@@ -69,13 +69,14 @@ class ControlledEnv(BaseEnv):
                          simulationBackend = simulationBackend)
 
         self._intendedSimTime = 0
+        self._intendedStepLength_sec = 0
 
 
 
 
     def performStep(self) -> None:
-        self._environmentController.step()
-        self._intendedSimTime += self._environmentController.getStepLength()
+        estimatedStepDuration_sec = self._environmentController.step()
+        self._intendedSimTime += estimatedStepDuration_sec
 
 
 
@@ -83,26 +84,7 @@ class ControlledEnv(BaseEnv):
         super().performReset()
         self._environmentController.resetWorld()
         self._intendedSimTime = 0
-        self.onResetDone()
-
-    def getRendering(self) -> np.ndarray:
-
-        cameraName = self.getCameraToRenderName()
-
-        #t0 = time.time()
-        cameraImage = self._environmentController.getRenderings([cameraName])[0]
-        if cameraImage is None:
-            rospy.logerr("No camera image received. render() will return and empty image.")
-            return np.empty([0,0,3])
-
-        #t1 = time.time()
-        npArrImage = gazebo_gym.utils.utils.image_to_numpy(cameraImage)
-
-        #rospy.loginfo("render time = {:.4f}s".format(t1-t0)+"  conversion time = {:.4f}s".format(t2-t1))
-
-        imageTime = cameraImage.header.stamp.secs + cameraImage.header.stamp.nsecs/1000_000_000.0
-
-        return (npArrImage, imageTime)
+        self.initializeEpisode()
 
 
     def getInfo(self):

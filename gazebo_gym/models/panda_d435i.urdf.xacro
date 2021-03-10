@@ -28,7 +28,7 @@
 
 
   <xacro:include filename="$(find lr_realsense)/urdf/d435i_sim.xacro" />
-  <xacro:include filename="$(find panda)/urdf/panda_arm_generic.xacro"/>
+  <xacro:include filename="$(find lr_panda)/urdf/panda_arm_generic.xacro"/>
 
   <link name="world"/>
   <xacro:panda_arm_generic  x="$(arg robot_base_x)"
@@ -66,6 +66,12 @@
           enable_accel="$(arg enable_accel)"
           enable_gyro="$(arg enable_gyro)"
           enable_gravity="true">
-    <origin xyz="0 0 0.02" rpy="${180/180*pi} ${-90/180*pi} 0"/>
+    <xacro:unless value="$(arg load_hand)">
+      <origin xyz="0.025 -0.025 0.02" rpy="${180/180*pi} ${-90/180*pi} ${-45/180*pi}"/>
+    </xacro:unless>
+    <xacro:if value="$(arg load_hand)">
+      <origin xyz="0.025 -0.025 0.02" rpy="${180/180*pi} ${-90/180*pi} ${-45/180*pi}"/>
+    </xacro:if>
+
   </xacro:d435i_sim>
 </robot>

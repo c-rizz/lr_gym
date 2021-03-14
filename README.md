@@ -12,10 +12,10 @@ and the various demos.
  to obtain renderings from simulated cameras even while the simulation is stopped and reduces
  communication overhead making simulation MUCH faster.
 * gazebo_gym_utils provides various utilities for helping development. Important ones are:
-    - A node that can receive and execute moveit commands via ROS messaging. This is needed as an intermediate 
+    - A node that can receive and execute moveit commands via ROS messaging. This is needed as an intermediate
       node for controlling moveit from python3 code.
     - A ros controller that allows to perform effort control on top of a gravity-compensation controller
-    - A ros controller that publishes link state information (e.g. cartesian poses of links) 
+    - A ros controller that publishes link state information (e.g. cartesian poses of links)
 
 
 
@@ -48,19 +48,16 @@ command joint efforts
 * **MoveitRosController** is built on top of RosEnvController and uses MoveIt to control a robot in cartesian space
 
 
-## Setup
-This repository requires ROS Melodic and python3.6 or later.
-To set up the project you first of all need to clone the repository in your catkin
-workspace src folder.
-You will also need to install some python3 modules, preferably in a python virtual
-environment. You can use the build_virtualenv.sh helper script in the gazebo_gym folder:
+## Setup - stable_baselines 2
+These instructions assume you are on ROS noetic and Ubuntu 20.04.
 
-```
-src/gazebo_gym/gazebo_gym/build_virtualenv.sh sb
-```
+To set up the project you first of all need to clone the following repositories in your
+catkin workspace src folder:
 
-
-To use specific environments you will also need to clone additional repositories in your workspace src folder:
+ * This current repository (if you didn't do it already):
+   ```
+   git clone --branch crzz-dev https://gitlab.idiap.ch/learn-real/gazebo_gym.git
+   ```
  * For using the Panda arm you will need the `lr_panda` repository:
    ```
    git clone --branch crzz-dev https://gitlab.idiap.ch/learn-real/panda.git lr_panda
@@ -74,9 +71,55 @@ To use specific environments you will also need to clone additional repositories
    git clone --branch crzz-dev https://gitlab.idiap.ch/learn-real/realsense.git lr_realsense
    ```
 
+You will also need to install some python3 modules, preferably in a python virtual
+environment. You can use the build_virtualenv.sh helper script in the gazebo_gym folder.
+However you need to have python3.7 (stable_baselines 2 requires tensorflow 1.15, which requires
+python<=3.7).
+
+You can install python 3.7 with the following:
+
+```
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install python3.7 python3.7-venv python3.7-dev
+```
+
+At this point you can create the virtual python environment with the following helper
+script (if you don't have a gpu you can specify sb_cpu instead of sb):
+
+```
+src/gazebo_gym/gazebo_gym/build_virtualenv.sh sb
+```
+
+At this point you can enter the virtual environment with:
+
+```
+. ./virtualenv/gazebo_gym_sb_cpu/bin/activate
+```
 
 
-You can then proceed to build the workspace with `catkin build`.
+You can then attempt at installing all the ros dependencies with rosdep (you may
+ need to install python3-rosdep, *DO NOT* install python3-rosdep2):
+
+```
+rosdep update
+rosdep install --from-paths src --ignore-src -r -y
+```
+
+
+For building the workspace I use catkin build. To have catkin build
+you can install catkin-tools which at the moment can be done with:
+
+```
+sudo apt install python3-catkin-tools python3-osrf-pycommon
+```
+
+You can now build with:
+
+```
+catkin build
+```
+
 
 ## Examples - Cartpole
 
@@ -156,13 +199,13 @@ As always the simulation can be visualized using 'roslaunch gazebo_gym gazebo_cl
 
 A series of different environments based on the Franka-Emika Panda arm are available.
  * **PandaEffortStayUp** features an effort-controller Panda arm, the objective is to keep the panda arm upright
- * **PandaEffortKeepPose** again features an effort-controller Panda arm, the objective is to keep the panda arm 
+ * **PandaEffortKeepPose** again features an effort-controller Panda arm, the objective is to keep the panda arm
    end effector in a specific pose that does not vary between episodes
- * **PandaEffortKeepVarPose** again features an effort-controller Panda arm, the objective is to keep the panda arm 
+ * **PandaEffortKeepVarPose** again features an effort-controller Panda arm, the objective is to keep the panda arm
    end effector in a specific pose that changes between each episode (this environment has not been solved)
- * **PandaMoveitReachingEnv** features a Panda arm controlled in cartesian space with moveit. The objective is to 
+ * **PandaMoveitReachingEnv** features a Panda arm controlled in cartesian space with moveit. The objective is to
    keep the panda arm end effector in a specific pose that does not vary between episodes
- * **PandaMoveitVarReachingEnv** features a Panda arm controlled in cartesian space with moveit. The objective is to 
+ * **PandaMoveitVarReachingEnv** features a Panda arm controlled in cartesian space with moveit. The objective is to
    keep the panda arm end effector in a specific pose that chnages between each episode
 
 
@@ -177,7 +220,7 @@ You can try two pretrained models with the following:
  * PandaEffortKeepPose:
    ```
     rosrun gazebo_gym solve_panda_effort_keep_pose_vec.py --load solve_panda_effort_keep_tensorboard/20201114-212527/checkpoints/sac_pandaEffortKeep_20201114-212527s15000_3000000_steps.zip
-   ``` 
+   ```
 
 ## Plotting
 
@@ -186,7 +229,7 @@ You can create plots of the learnig curves from these log suing the `plotGymEnvL
 
 ```
 rosrun gazebo_gym plotGymEnvLogs.py --csvfile solve_cartpole_env/20210310-120235/GymEnvWrapper_log.csv
-``` 
+```
 
 Check the `rosrun gazebo_gym plotGymEnvLogs.py --help` for more info
 

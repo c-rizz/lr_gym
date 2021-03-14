@@ -1,7 +1,7 @@
 stable-baselines==2.10.1
 rospkg==1.2.3
 catkin_pkg==0.4.16
-tensorflow-gpu==1.15.0
+tensorflow==1.15.0
 defusedxml==0.6.0
 gym==0.17.1
 mpi4py==3.0.3

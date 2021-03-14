@@ -7,7 +7,7 @@ if [ $? -ne 0 ]; then
 fi
 
 if [ $# -ne 1 ]; then
-    echo "You must specify the venv type (tf|sb|sb3)"
+    echo "You must specify the venv type (tf|sb|sb3|sb_cpu)"
     exit 1
 fi
 
@@ -16,15 +16,21 @@ venv_name="gazebo_gym_$venv_type"
 
 mkdir virtualenv
 cd virtualenv
-python3 -m venv $venv_name
+echo "Creating venv..."
+python3.7 -m venv $venv_name #Tensorflow 1.15 requires python<=3.7
+echo "Done."
+echo "Activating venv..."
 . "$venv_name/bin/activate"
 if [ $? -ne 0 ]; then
     echo "Failed to activate virtualenv"
     exit 1
 fi
+echo "Done."
 
-pip3 install pip --upgrade
-pip3 install setuptools --upgrade
-pip3 install wheel --upgrade
+echo "Installing modules.."
+python3.7 -m pip install pip --upgrade
+python3.7 -m pip install setuptools --upgrade
+python3.7 -m pip install wheel --upgrade
 
-pip3 install -r "../src/gazebo_gym/gazebo_gym/requirements_$venv_type.txt"
+python3.7 -m pip install -r "../src/gazebo_gym/gazebo_gym/requirements_$venv_type.txt"
+echo "Done."

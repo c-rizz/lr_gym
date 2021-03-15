@@ -94,7 +94,7 @@ src/gazebo_gym/gazebo_gym/build_virtualenv.sh sb
 At this point you can enter the virtual environment with:
 
 ```
-. ./virtualenv/gazebo_gym_sb_cpu/bin/activate
+. ./virtualenv/gazebo_gym_sb/bin/activate
 ```
 
 

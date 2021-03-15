@@ -53,6 +53,9 @@ class RosEnvController(EnvironmentController):
 
     def step(self) -> float:
         """Wait for the step time to pass."""
+
+        if rospy.is_shutdown():
+            raise RuntimeError("ROS has been shut down. Will not step.")
         #TODO: it may make sense to keep track of the time spend in the rest of the processing
         sleepDuration = self._stepLength_sec - (rospy.get_time() - self._lastStepEnd)
         if sleepDuration > 0:
@@ -277,6 +280,9 @@ class RosEnvController(EnvironmentController):
         ggLog.info("Average camera image age ="+str(self._cameraMsgAgeAvg.getAverage()))
         self._simTimeStart = rospy.get_time()
         self._lastStepEnd = self._simTimeStart
+
+        if rospy.is_shutdown():
+            raise RuntimeError("ROS has been shut down. Will not reset.")
 
 
     def getEnvSimTimeFromStart(self) -> float:

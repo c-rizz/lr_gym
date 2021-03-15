@@ -171,6 +171,7 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
             #input("Press Enter to continue...")
             run(env,model, numEpisodes = numEpisodes)
 
+    env.close()
 
 
 if __name__ == "__main__":

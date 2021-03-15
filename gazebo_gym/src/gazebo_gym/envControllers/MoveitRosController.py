@@ -182,6 +182,9 @@ class MoveitRosController(RosEnvController):
         """Wait the step to be completed"""
 
 
+        if rospy.is_shutdown():
+            raise RuntimeError("ROS has been shut down. Will not step.")
+        
         t0 = rospy.get_time()
         self._actionsFailsInLastStepCounter = 0
         for callback in self._waitOnStepCallbacks:

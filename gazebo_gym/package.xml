@@ -59,7 +59,13 @@
   <depend>tf2_ros</depend>
   <depend>gazebo_gym_env_plugin</depend>
   <depend>gazebo_gym_utils</depend>
+  <depend>controller_manager_msgs</depend>
+  <depend>controller_manager</depend>
+  <depend>gazebo_dev</depend>
+  <depend>gazebo_plugins</depend>
+  <depend>ros_controllers</depend>
   <exec_depend>gazebo_ros</exec_depend>
+  <exec_depend>gazebo_ros_control</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

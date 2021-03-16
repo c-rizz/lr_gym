@@ -56,7 +56,7 @@ catkin workspace src folder:
 
  * This current repository (if you didn't do it already):
    ```
-   git clone --branch crzz-dev https://gitlab.idiap.ch/learn-real/gazebo_gym.git
+   git clone --branch master https://gitlab.idiap.ch/learn-real/gazebo_gym.git
    ```
  * For using the Panda arm you will need the `lr_panda` repository:
    ```

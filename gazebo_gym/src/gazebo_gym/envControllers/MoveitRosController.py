@@ -30,14 +30,16 @@ class MoveitRosController(RosEnvController):
     Allows to control the robot via cartesian end-effector control. Inverse kinematics and
     planning are performed via Moveit!.
 
-
+    TODO: Now that we have python3 avoid using move_helper
     """
 
     def __init__(self,
                  jointsOrder : List[Tuple[str,str]],
                  endEffectorLink : Tuple[str,str],
                  referenceFrame : str,
-                 initialJointPose : Optional[Dict[Tuple[str,str],float]]):
+                 initialJointPose : Optional[Dict[Tuple[str,str],float]],
+                 gripperActionTopic : str = None,
+                 gripperInitialWidth : -1):
         """Initialize the environment controller.
 
         """
@@ -52,6 +54,11 @@ class MoveitRosController(RosEnvController):
         self._waitOnStepCallbacks = []
         self._actionsFailsInLastStepCounter = 0
 
+        if gripperInitialWidth == -1 and _gripperActionTopic is not None:
+            raise RuntimeError("gripperActionTopic is set but gripperInitialWidth is not. You should set gripperInitialWidth")
+        self._gripperActionTopic = gripperActionTopic
+        self._gripperInitialWidth = gripperInitialWidth
+
     def _connectRosService(self, serviceName : str):
         rospy.loginfo("Waiting for service "+serviceName+"...")
         rospy.wait_for_service(serviceName)
@@ -60,7 +67,7 @@ class MoveitRosController(RosEnvController):
         return sp
 
 
-    def _connectRosAction(self, actionName : str, msgType):
+    def _connectRosAction(self, actionName : str, msgType):_checkGoalReached
         ac = actionlib.SimpleActionClient(actionName, msgType)
         rospy.loginfo("Waiting for action "+ac.action_client.ns+"...")
         ac.wait_for_server()
@@ -82,6 +89,9 @@ class MoveitRosController(RosEnvController):
 
         self._moveEeClient = self._connectRosAction('/move_helper/move_to_ee_pose', gazebo_gym_utils.msg.MoveToEePoseAction)
         self._moveJointClient = self._connectRosAction('/move_helper/move_to_joint_pose', gazebo_gym_utils.msg.MoveToJointPoseAction)
+
+        if self._gripperActionTopic is not None:
+            self._gripperActionClient = self._connectRosAction(self._gripperActionTopic, control_msgs.msg.GripperCommandAction)
 
 
 
@@ -163,6 +173,36 @@ class MoveitRosController(RosEnvController):
         else:
             raise RuntimeError(f"Failed to move to complete joint pose move action: r={r}")
 
+    def setGripperAction(width : float, max_effort: float):
+        """Control ,the gripper via the moveit control_msgs/GripperCommand action interface
+
+        Parameters
+        ----------
+        width : float
+            Width the gripper will move at. Actually the Franka gripper will close as much as it can anyway.
+        max_effort : float
+            Max force that is applied by the fingers.
+        """
+        if self._gripperActionTopic is None:
+            raise RuntimeError("Called setGripperAction, but gripperActionTopic is not set. Should have been set in the constructor.")
+
+        goal = control_msgs.msg.GripperCommandGoal()
+        goal.position = width/2
+        goal.max_effort = max_effort
+        self._gripperActionClient.send_goal()
+
+        def waitCallback():
+            r = self._gripperActionClient.wait_for_result()
+            if r:
+                if self._gripperActionClient.get_result().reached_goal:
+                    return
+                else:
+                    raise RuntimeError("Gripper failed to reach goal: "+str(self._gripperActionClient.get_result()))
+            else:
+                raise RuntimeError("Failed to perform gripper action: action timed out")
+
+
+        self._waitOnStepCallbacks.append(waitCallback)
 
     def resetWorld(self):
         ggLog.info("Environment controller resetting world...")
@@ -174,6 +214,20 @@ class MoveitRosController(RosEnvController):
         except Exception:
             ggLog.error("Reset move failed")
             self._actionsFailsInLastStepCounter+=1
+
+        if self._gripperActionTopic is not None:
+            goal = control_msgs.msg.GripperCommandGoal()
+            goal.position = self._gripperInitialWidth
+            goal.max_effort = -1
+            self._gripperActionClient.send_goal()
+            r = self._gripperActionClient.wait_for_result()
+            if r:
+                if self._gripperActionClient.get_result().reached_goal:
+                    return
+                else:
+                    raise RuntimeError("Gripper failed to reach reset goal: "+str(self._gripperActionClient.get_result()))
+            else:
+                raise RuntimeError("Failed to perform gripper reset: action timed out")
 
     def actionsFailsInLastStep(self):
         return self._actionsFailsInLastStepCounter

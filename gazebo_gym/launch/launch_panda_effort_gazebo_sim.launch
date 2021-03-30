@@ -11,25 +11,28 @@
     <arg name="start_controllers" default="true"/>
     <arg name="load_gripper" default="true"/>
     <arg name="robot_name" default="panda"/>
+    <arg name="control_mode" default="effort"/>
+    <arg name="simulated" default="true"/>
+    <arg name="physics_engine" default="bullet"/>
 
 
     <remap from="robot_description" to="$(arg robot_name)_description"/>
     
     <!-- Launch gazebo -->
-    <include file="$(find gazebo_gym)/launch/fixed_camera_gazebo_sim.launch" >
+    <include file="$(find gazebo_gym)/launch/fixed_camera_gazebo_sim.launch" if="$(arg simulated)" >
       <arg name="gui" value="$(arg gui)"/>
       <arg name="noplugin" value="$(arg noplugin)"/>
       <arg name="paused" value="false"/>
-      <arg name="physics_engine" value="bullet"/>
+      <arg name="physics_engine" value="$(arg physics_engine)"/>
     </include>
 
     <!-- Spawn and setup the panda robot -->
-    <include file="$(find lr_panda)/launch/panda_generic.launch" >
+    <include file="$(find lr_panda)/launch/panda_generic.launch" if="$(arg simulated)" >
       <arg name="simulated" value="true"/>
       <arg name="launch_gazebo" value="false"/>
       <arg name="start_controllers" value="$(arg start_controllers)"/>
       <arg name="load_gripper" value="$(arg load_gripper)"/>
-      <arg name="control_mode" value="effort"/>
+      <arg name="control_mode" value="$(arg control_mode)"/>
       <arg name="robot_name" value="$(arg robot_name)"/>
     </include>
 

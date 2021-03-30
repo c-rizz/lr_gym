@@ -135,9 +135,9 @@ class JointState:
     def __init__(self, position : List[float], rate : List[float], effort : List[float]):
         self.position = position
         self.rate = rate
+        self.effort = effort
 
     def __str__(self):
-        #print("I'm magic")
         return "JointState("+str(self.position)+","+str(self.rate)+","+str(self.effort)+")"
 
 class AverageKeeper:

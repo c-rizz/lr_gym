@@ -19,6 +19,7 @@ import actionlib
 import numpy as np
 from nptyping import NDArray
 import gazebo_gym.utils
+import control_msgs.msg
 
 from gazebo_gym.utils.utils import buildPoseStamped
 import gazebo_gym.utils.dbg.ggLog as ggLog
@@ -39,7 +40,7 @@ class MoveitRosController(RosEnvController):
                  referenceFrame : str,
                  initialJointPose : Optional[Dict[Tuple[str,str],float]],
                  gripperActionTopic : str = None,
-                 gripperInitialWidth : -1):
+                 gripperInitialWidth : float = -1):
         """Initialize the environment controller.
 
         """
@@ -54,7 +55,7 @@ class MoveitRosController(RosEnvController):
         self._waitOnStepCallbacks = []
         self._actionsFailsInLastStepCounter = 0
 
-        if gripperInitialWidth == -1 and _gripperActionTopic is not None:
+        if gripperInitialWidth == -1 and gripperActionTopic is not None:
             raise RuntimeError("gripperActionTopic is set but gripperInitialWidth is not. You should set gripperInitialWidth")
         self._gripperActionTopic = gripperActionTopic
         self._gripperInitialWidth = gripperInitialWidth
@@ -67,7 +68,7 @@ class MoveitRosController(RosEnvController):
         return sp
 
 
-    def _connectRosAction(self, actionName : str, msgType):_checkGoalReached
+    def _connectRosAction(self, actionName : str, msgType):
         ac = actionlib.SimpleActionClient(actionName, msgType)
         rospy.loginfo("Waiting for action "+ac.action_client.ns+"...")
         ac.wait_for_server()
@@ -173,7 +174,7 @@ class MoveitRosController(RosEnvController):
         else:
             raise RuntimeError(f"Failed to move to complete joint pose move action: r={r}")
 
-    def setGripperAction(width : float, max_effort: float):
+    def setGripperAction(self, width : float, max_effort : float):
         """Control ,the gripper via the moveit control_msgs/GripperCommand action interface
 
         Parameters
@@ -187,9 +188,9 @@ class MoveitRosController(RosEnvController):
             raise RuntimeError("Called setGripperAction, but gripperActionTopic is not set. Should have been set in the constructor.")
 
         goal = control_msgs.msg.GripperCommandGoal()
-        goal.position = width/2
-        goal.max_effort = max_effort
-        self._gripperActionClient.send_goal()
+        goal.command.position = width/2
+        goal.command.max_effort = max_effort
+        self._gripperActionClient.send_goal(goal)
 
         def waitCallback():
             r = self._gripperActionClient.wait_for_result()
@@ -217,17 +218,17 @@ class MoveitRosController(RosEnvController):
 
         if self._gripperActionTopic is not None:
             goal = control_msgs.msg.GripperCommandGoal()
-            goal.position = self._gripperInitialWidth
-            goal.max_effort = -1
-            self._gripperActionClient.send_goal()
+            goal.command.position = self._gripperInitialWidth
+            goal.command.max_effort = -1
+            self._gripperActionClient.send_goal(goal)
             r = self._gripperActionClient.wait_for_result()
             if r:
                 if self._gripperActionClient.get_result().reached_goal:
                     return
                 else:
-                    raise RuntimeError("Gripper failed to reach reset goal: "+str(self._gripperActionClient.get_result()))
+                    ggLog.error("Gripper failed to reach reset goal: "+str(self._gripperActionClient.get_result()))
             else:
-                raise RuntimeError("Failed to perform gripper reset: action timed out")
+                ggLog.error("Failed to perform gripper reset: action timed out")
 
     def actionsFailsInLastStep(self):
         return self._actionsFailsInLastStepCounter

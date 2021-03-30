@@ -22,7 +22,8 @@ import gazebo_gym.utils.dbg.ggLog as ggLog
 import math
 
 
-class PandaMoveitReachingEnv(BaseEnv):
+
+class PandaMoveitPickEnv(BaseEnv):
     """This class represents and environment in which a Panda arm is controlled with Moveit to reach a goal pose.
 
     As moveit_commander is not working with python3 this environment relies on an intermediate ROS node for sending moveit commands.
@@ -67,7 +68,8 @@ class PandaMoveitReachingEnv(BaseEnv):
                     maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     operatingArea = np.array([[-1, -1, 0], [1, 1, 1.5]]),
-                    startSimulation : bool = True):
+                    startSimulation : bool = True,
+                    backend="gazebo"):
         """Short summary.
 
         Parameters
@@ -103,11 +105,12 @@ class PandaMoveitReachingEnv(BaseEnv):
                                                                               ("panda","panda_joint3") : 0,
                                                                               ("panda","panda_joint4") :-1,
                                                                               ("panda","panda_joint5") : 0,
-                                                                              ("panda","panda_joint6") : 2.570795,
-                                                                              ("panda","panda_joint7") : 0},
-                                                          gripperActionTopic = "/franka_gripper/gripper_action")
+                                                                              ("panda","panda_joint6") : 1,
+                                                                              ("panda","panda_joint7") : 3.14159/4},
+                                                          gripperActionTopic = "/franka_gripper/gripper_action",
+                                                          gripperInitialWidth = 0.05)
 
-        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, startSimulation = startSimulation)
+        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, startSimulation = startSimulation, simulationBackend=backend)
 
         self._renderingEnabled = render
         if self._renderingEnabled:
@@ -183,6 +186,7 @@ class PandaMoveitReachingEnv(BaseEnv):
         #rospy.loginfo("Moving Ee of "+str(clippedAction))
 
         gripperWidth = action[6] * self._maxGripperWidth
+        print("gripperWidth = ",gripperWidth)
         self._environmentController.setGripperAction(width = gripperWidth, max_effort = 20.0)
 
 
@@ -324,6 +328,8 @@ class PandaMoveitReachingEnv(BaseEnv):
 
         #print("got ee pose "+str(eePose))
 
+        #print(jointStates)
+
         gripWidth = jointStates[("panda","panda_finger_joint1")].position[0] + jointStates[("panda","panda_finger_joint2")].position[0]
         gripForce = jointStates[("panda","panda_finger_joint1")].effort[0] + jointStates[("panda","panda_finger_joint2")].effort[0]
 
@@ -348,13 +354,24 @@ class PandaMoveitReachingEnv(BaseEnv):
         return np.array(state,dtype=np.float32)
 
     def buildSimulation(self, backend : str = "gazebo"):
-        if backend != "gazebo":
+        if backend == "gazebo":
+            self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher( rospkg.RosPack().get_path("gazebo_gym")+
+                                                                                            "/launch/panda_moveit_pick.launch",
+                                                                                            cli_args=[  "gui:=true",
+                                                                                                        "noplugin:=false",
+                                                                                                        "simulated:=true"])
+            self._mmRosLauncher.launchAsync()
+        elif backend == "real":
+            self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher( rospkg.RosPack().get_path("gazebo_gym")+
+                                                                                            "/launch/panda_moveit_pick.launch",
+                                                                                            cli_args=[  "gui:=false",
+                                                                                                        "noplugin:=true",
+                                                                                                        "simulated:=false"],
+                                                                                            basePort = 11311,
+                                                                                            ros_master_ip = "192.168.2.10")
+            self._mmRosLauncher.launchAsync()
+        else:
             raise NotImplementedError("Backend "+backend+" not supported")
-
-        self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher( rospkg.RosPack().get_path("gazebo_gym")+
-                                                                                        "/launch/launch_panda_effort_moveit_sim.launch",
-                                                                                        cli_args=["gui:=false", "load_gripper:=false"])
-        self._mmRosLauncher.launchAsync()
 
 
     def _destroySimulation(self):

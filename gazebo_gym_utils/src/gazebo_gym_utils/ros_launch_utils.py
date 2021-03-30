@@ -53,7 +53,6 @@ class MultiMasterRosLauncher:
     def setPorts(self):
         maxInc = 64
         found = False
-        self._baseRosPort = 11350
         baseGazeboPort = self._baseRosPort+maxInc
         inc = 0
         while not found:
@@ -65,20 +64,21 @@ class MultiMasterRosLauncher:
                 inc+=1
         self._rosMasterPort = self._baseRosPort + inc
         self._gazeboPort = baseGazeboPort + inc
-        self._rosMasterUri = "http://127.0.0.1:"+str(self._rosMasterPort)
+        self._rosMasterUri = "http://"+self._ros_master_ip+":"+str(self._rosMasterPort)
         self._gazeboMasterUri = "http://127.0.0.1:"+str(self._gazeboPort)
         os.environ["ROS_MASTER_URI"] = self._rosMasterUri
         os.environ["GAZEBO_MASTER_URI"] = self._gazeboMasterUri
 
-    def __init__(self, launchFile : str, cli_args : List[str] = []):
+    def __init__(self, launchFile : str, cli_args : List[str] = [], basePort : int = 11350, ros_master_ip : str = "127.0.0.1"):
         self._launchFile = launchFile
         self._cli_args  = cli_args
         self._mutex = None
-        self._baseRosPort = 11350
+        self._baseRosPort = basePort
+        self._ros_master_ip = ros_master_ip
         self.setPorts()
 
     def launchAsync(self):
-        os.environ["ROS_MASTER_URI"] = "http://127.0.0.1:"+str(self._rosMasterPort)
+        os.environ["ROS_MASTER_URI"] = "http://"+self._ros_master_ip+":"+str(self._rosMasterPort)
         os.environ["GAZEBO_MASTER_URI"] = "http://127.0.0.1:"+str(self._gazeboPort)
 
         time.sleep(self._rosMasterPort-self._baseRosPort) #Very ugly way to avoid potential race conditions

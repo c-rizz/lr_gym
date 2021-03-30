@@ -1,0 +1,41 @@
+<launch>
+
+    <!-- Launches gazebo with the a Panda arm controlled via joint efofrts
+         all the nodes necessary to control and monitor the cartpole
+         via ROS.
+    -->
+    <env name="ROSCONSOLE_FORMAT" value="[${severity}] [${walltime}] [${node}]: ${message}" />
+
+    <arg name="gui" default="true"/>
+    <arg name="noplugin" default="false"/>
+    <arg name="simulated" default="true"/>
+
+    <arg if="$(arg simulated)" name="control_mode" value="effort"/> <!-- in sim use effort -->
+    <arg unless="$(arg simulated)" name="control_mode" value="position"/> <!-- in sim use effort -->
+
+
+    <!-- Launch gazebo simulation -->
+    <include file="$(find gazebo_gym)/launch/launch_panda_effort_moveit_sim.launch" >
+      <arg name="gui" value="$(arg gui)"/>
+      <arg name="noplugin" value="$(arg noplugin)"/>
+      <arg name="start_controllers" value="true"/>
+      <arg name="load_gripper" value="true"/>
+      <arg name="control_mode" default="$(arg control_mode)"/>
+      <arg name="simulated" default="$(arg simulated)"/>
+      <arg name="physics_engine" default="ode"/>
+    </include>
+
+    <group if="$(arg simulated)">
+        <!-- launch moveit helper -->
+        <node name="simple_gripper_server" pkg="gazebo_gym_utils" type="simpleGripperActionServer.py" respawn="true" output="screen">
+            <remap from="simple_gripper_server" to="/franka_gripper/gripper_action"/>
+        </node>
+
+      <!-- spawn in gazebo using the model description in the parameter server (when gazebo starts) -->
+      <node name="spawn_cube" pkg="gazebo_ros" type="spawn_model" respawn="false"
+            output="screen" args="-file $(find gazebo_gym)/models/cube.urdf -urdf -x 0.45 -y 0 -z 0.026 -model cube"
+            launch-prefix="bash -c 'sleep 10; $0 $@' "/> <!-- Hack to avoid the cube being hit by the robot at the start -->
+
+    </group>
+
+</launch>

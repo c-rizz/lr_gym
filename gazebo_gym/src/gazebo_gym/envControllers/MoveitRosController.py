@@ -245,8 +245,8 @@ class MoveitRosController(RosEnvController):
         for callback in self._waitOnStepCallbacks:
             try:
                 callback()
-            except Exception:
-                ggLog.info("Moveit action failed during step() (this is not necessarily a bad thing)")
+            except Exception as e:
+                ggLog.info("Moveit action failed during step() (this is not necessarily a bad thing) exception = "+str(e))
                 self._actionsFailsInLastStepCounter+=1
 
 

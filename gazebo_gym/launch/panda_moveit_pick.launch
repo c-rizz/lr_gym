@@ -33,7 +33,7 @@
 
       <!-- spawn in gazebo using the model description in the parameter server (when gazebo starts) -->
       <node name="spawn_cube" pkg="gazebo_ros" type="spawn_model" respawn="false"
-            output="screen" args="-file $(find gazebo_gym)/models/cube.urdf -urdf -x 0.45 -y 0 -z 0.026 -model cube"
+            output="screen" args="-file $(find gazebo_gym)/models/red_cube.urdf -urdf -x 0.45 -y 0 -z 0.026 -model cube"
             launch-prefix="bash -c 'sleep 10; $0 $@' "/> <!-- Hack to avoid the cube being hit by the robot at the start -->
 
     </group>

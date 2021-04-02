@@ -64,7 +64,7 @@ class PandaMoveitPickEnv(BaseEnv):
     Observation = State
 
     def __init__(   self,
-                    goalPose : Tuple[float,float,float,float,float,float,float] = (0,0,0, 0,0,0,0),
+                    goalPose : Tuple[float,float,float,float,float,float,float] = (0.45,0,0.025, 0,0,0,1),
                     maxActionsPerEpisode : int = 500,
                     render : bool = False,
                     operatingArea = np.array([[-1, -1, 0], [1, 1, 1.5]]),
@@ -98,7 +98,7 @@ class PandaMoveitPickEnv(BaseEnv):
                                                                          ("panda","panda_joint5"),
                                                                          ("panda","panda_joint6"),
                                                                          ("panda","panda_joint7")],
-                                                          endEffectorLink  = ("panda", "panda_link8"),
+                                                          endEffectorLink  = ("panda", "panda_tcp"),
                                                           referenceFrame   = "world",
                                                           initialJointPose = {("panda","panda_joint1") : 0,
                                                                               ("panda","panda_joint2") : 0,
@@ -134,7 +134,8 @@ class PandaMoveitPickEnv(BaseEnv):
                                                         ("panda","panda_link5"),
                                                         ("panda","panda_link6"),
                                                         ("panda","panda_link7"),
-                                                        ("panda","panda_link8")])
+                                                        ("panda","panda_link8"),
+                                                        ("panda","panda_tcp")])
 
         self._goalPose = goalPose
         self._goalTolerancePosition = 0.05
@@ -151,6 +152,7 @@ class PandaMoveitPickEnv(BaseEnv):
 
         self._reachedPickPoseThisEpisode = False
         self._didHoldSomethingThisEpisode = False
+        self._wasHoldingSomethingPrevStep = False
 
     def submitAction(self, action : Action) -> None:
         """Plan and execute moveit movement without blocking.
@@ -182,11 +184,11 @@ class PandaMoveitPickEnv(BaseEnv):
         unnorm_action = np.concatenate([absolute_xyz, absolute_quat_arr])
         #print("attempting action "+str(action))
 
-        self._environmentController.setCartesianPose(linkPoses = {("panda","panda_link8") : unnorm_action})
+        self._environmentController.setCartesianPose(linkPoses = {("panda","panda_tcp") : unnorm_action})
         #rospy.loginfo("Moving Ee of "+str(clippedAction))
 
         gripperWidth = action[6] * self._maxGripperWidth
-        print("gripperWidth = ",gripperWidth)
+        #print("gripperWidth = ",gripperWidth)
         self._environmentController.setGripperAction(width = gripperWidth, max_effort = 20.0)
 
 
@@ -213,28 +215,33 @@ class PandaMoveitPickEnv(BaseEnv):
     def _getDist2goal(self, state : State):
         position = state[0:3]
         orientation_quat = quaternion.from_euler_angles(state[3:6])
+        #ggLog.info(f"pose = {state[0:6]}")
+        #ggLog.info(f"goal = {self._goalPose[0:6]}")
+
 
         position_dist2goal = np.linalg.norm(position - self._goalPose[0:3])
         goalQuat = quaternion.from_float_array([self._goalPose[6],self._goalPose[3],self._goalPose[4],self._goalPose[5]])
         # print("orientation_quat =",orientation_quat)
         # print("goal_quat =",goalQuat)
         orientation_dist2goal = quaternion.rotation_intrinsic_distance(orientation_quat,goalQuat)
+        orientation_dist2goal = min([orientation_dist2goal, 3.14159-orientation_dist2goal]) #same thing if it's 180 degrees rotated
 
+        ggLog.info(f"position_dist2goal = {position_dist2goal} , orientation_dist2goal = {orientation_dist2goal}")
         return position_dist2goal, orientation_dist2goal
 
     def _isHoldingSomething(self, state : State):
         width = state[14]
         force = state[15]
 
-        isit =  width > 0.001 and force > 1 #Naive way to check if he's holding something
-        self._didHoldSomethingThisEpisode = True
+        #ggLog.info(f" ----------- _isHoldingSomething: {width}, {force}")
+
+        isit =  width > 0.005 and force < -0.1 #Naive way to check if he's holding something
+        self._didHoldSomethingThisEpisode = isit
 
         return isit
 
     def _checkPickPoseReached(self, state : State):
-        #print("getting distance for state ",state)
         position_dist2goal, orientation_dist2goal = self._getDist2goal(state)
-        #print(position_dist2goal,",",orientation_dist2goal)
         return position_dist2goal < self._goalTolerancePosition and orientation_dist2goal < self._goalToleranceOrientation_rad
 
 
@@ -264,6 +271,14 @@ class PandaMoveitPickEnv(BaseEnv):
         posDist, minAngleDist = self._getDist2goal(state)
 
         mixedDistance = np.linalg.norm([posDist,minAngleDist])
+        isHoldingSomething = self._isHoldingSomething(state)
+
+        if isHoldingSomething and not self._wasHoldingSomethingPrevStep:
+            ggLog.info("Grasped object")
+        elif not isHoldingSomething and self._wasHoldingSomethingPrevStep:
+            ggLog.info("Dropped object")
+
+        self._wasHoldingSomethingPrevStep = isHoldingSomething
 
         # reward = 100.0*(10**(-mixedDistance*20)) #Nope
         # reward = 1/(1/100 + 20*mixedDistance) #Not really
@@ -276,12 +291,13 @@ class PandaMoveitPickEnv(BaseEnv):
         if not self._reachedPickPoseThisEpisode:
             return pickPoseReward
         else:
-            if not self._isHoldingSomething(state):
+            if not isHoldingSomething:
                 if self._didHoldSomethingThisEpisode:
                     return -10 #He dropped it? :(
                 return pickPoseReward
             else:
-                liftReward = (state[3] - self.goalPose[3]) * 1000 # Lift it up
+                liftReward = pickPoseReward + (state[2] - self._goalPose[2]) * 1000 # Lift it up
+                return liftReward
 
 
 
@@ -289,6 +305,7 @@ class PandaMoveitPickEnv(BaseEnv):
     def initializeEpisode(self) -> None:
         self._reachedPickPoseThisEpisode = False
         self._didHoldSomethingThisEpisode = False
+        self._wasHoldingSomethingPrevStep = False
         return
 
 
@@ -311,7 +328,7 @@ class PandaMoveitPickEnv(BaseEnv):
 
         """
 
-        eePose = self._environmentController.getLinksState(requestedLinks=[("panda","panda_link8")])[("panda","panda_link8")].pose
+        eePose = self._environmentController.getLinksState(requestedLinks=[("panda","panda_tcp")])[("panda","panda_tcp")].pose
         jointStates = self._environmentController.getJointsState([("panda","panda_joint1"),
                                                                  ("panda","panda_joint2"),
                                                                  ("panda","panda_joint3"),
@@ -371,7 +388,7 @@ class PandaMoveitPickEnv(BaseEnv):
                                                                                             ros_master_ip = "192.168.2.10")
             self._mmRosLauncher.launchAsync()
         else:
-            raise NotImplementedError("Backend "+backend+" not supported")
+            raise NotImplementedError("Backend '"+backend+"' not supported")
 
 
     def _destroySimulation(self):

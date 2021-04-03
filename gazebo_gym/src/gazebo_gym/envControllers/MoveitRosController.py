@@ -233,6 +233,19 @@ class MoveitRosController(RosEnvController):
     def actionsFailsInLastStep(self):
         return self._actionsFailsInLastStepCounter
 
+    
+    def completeMovements(self) -> int:
+        actionFailed = 0
+        for callback in self._waitOnStepCallbacks:
+            try:
+                callback()
+            except Exception as e:
+                ggLog.info("Moveit action failed to complete (this is not necessarily a bad thing) exception = "+str(e))
+                actionFailed+=1
+        self._waitOnStepCallbacks.clear()
+        return actionFailed
+
+
     def step(self) -> float:
         """Wait the step to be completed"""
 
@@ -241,15 +254,7 @@ class MoveitRosController(RosEnvController):
             raise RuntimeError("ROS has been shut down. Will not step.")
         
         t0 = rospy.get_time()
-        self._actionsFailsInLastStepCounter = 0
-        for callback in self._waitOnStepCallbacks:
-            try:
-                callback()
-            except Exception as e:
-                ggLog.info("Moveit action failed during step() (this is not necessarily a bad thing) exception = "+str(e))
-                self._actionsFailsInLastStepCounter+=1
+        self._actionsFailsInLastStepCounter = self.completeMovements()
 
-
-        self._waitOnStepCallbacks.clear()
 
         return rospy.get_time() - t0

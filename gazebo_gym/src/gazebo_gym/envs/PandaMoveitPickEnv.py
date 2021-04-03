@@ -185,7 +185,6 @@ class PandaMoveitPickEnv(BaseEnv):
         #print("attempting action "+str(action))
 
         self._environmentController.setCartesianPose(linkPoses = {("panda","panda_tcp") : unnorm_action})
-        #rospy.loginfo("Moving Ee of "+str(clippedAction))
 
         gripperWidth = action[6] * self._maxGripperWidth
         #print("gripperWidth = ",gripperWidth)
@@ -306,13 +305,13 @@ class PandaMoveitPickEnv(BaseEnv):
         self._reachedPickPoseThisEpisode = False
         self._didHoldSomethingThisEpisode = False
         self._wasHoldingSomethingPrevStep = False
+
         return
 
 
     def performReset(self) -> None:
         super().performReset()
         self._environmentController.resetWorld()
-        self._lastResetSimTime = rospy.get_time()
 
 
     def getObservation(self, state) -> np.ndarray:
@@ -351,9 +350,9 @@ class PandaMoveitPickEnv(BaseEnv):
         gripForce = jointStates[("panda","panda_finger_joint1")].effort[0] + jointStates[("panda","panda_finger_joint2")].effort[0]
 
 
-        state = [   eePose.position.x,
-                    eePose.position.y,
-                    eePose.position.z,
+        state = [   eePose.position[0],
+                    eePose.position[1],
+                    eePose.position[2],
                     eeOrientation_rpy[0],
                     eeOrientation_rpy[1],
                     eeOrientation_rpy[2],
@@ -395,4 +394,4 @@ class PandaMoveitPickEnv(BaseEnv):
         self._mmRosLauncher.stop()
 
     def getSimTimeFromEpStart(self):
-        return rospy.get_time() - self._lastResetSimTime
+        return self._environmentController.getEnvSimTimeFromStart()

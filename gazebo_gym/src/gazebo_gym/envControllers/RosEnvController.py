@@ -228,7 +228,7 @@ class RosEnvController(EnvironmentController):
 
         return ret
 
-    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],gazebo_msgs.msg.LinkState]:
+    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],LinkState]:
         if not self._listenersStarted:
             raise RuntimeError("called getLinksState without having called startController. The proper way to initialize the controller is to first build the controller, then call setLinksToObserve, and then call startController")
 
@@ -265,9 +265,14 @@ class RosEnvController(EnvironmentController):
             msgDelay = linkStatesMsg.header.stamp.to_sec() - rospy.get_time()
             self._linkStateMsgAgeAvg.addValue(msgDelay)
 
-            linkState = gazebo_msgs.msg.LinkState()
-            linkState.pose = linkStatesMsg.link_poses[linkIndex].pose
-            linkState.twist = linkStatesMsg.link_twists[linkIndex]
+            pose = linkStatesMsg.link_poses[linkIndex].pose
+            twist = linkStatesMsg.link_twists[linkIndex]
+
+            linkState = LinkState(  pos_velocity_xyz = (pose.position.x, pose.position.y, pose.position.z),
+                                    orientation_xyzw = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
+                                    pos_velocity_xyz = (twist.linear.x, twist.linear.y, twist.linear.z),
+                                    ang_velocity_xyz = (twist.angular.x, twist.angular.y, twist.angular.z))
+            
 
             ret[l] = linkState
 

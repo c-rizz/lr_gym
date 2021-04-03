@@ -310,9 +310,9 @@ class PandaMoveitVarReachingEnv(BaseEnv):
 
 
 
-        state = np.array([  eePose.position.x,
-                            eePose.position.y,
-                            eePose.position.z,
+        state = np.array([  eePose.position[0],
+                            eePose.position[1],
+                            eePose.position[2],
                             eeOrientation_rpy[0],
                             eeOrientation_rpy[1],
                             eeOrientation_rpy[2],

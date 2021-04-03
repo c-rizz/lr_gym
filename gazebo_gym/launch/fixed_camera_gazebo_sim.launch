@@ -16,7 +16,7 @@
     <arg name="physics_engine" default="bullet"/>
     <arg name="limit_sim_speed" default="true"/>
     
-    <include file="$(find gazebo_gym/launch/gazebo_server.launch">
+    <include file="$(find gazebo_gym)/launch/gazebo_server.launch">
       <arg name="gui" default="true"/>
       <arg name="paused" default="true"/> <!-- must correspond with the robot name in the urdf/xacro file -->
       <arg name="physics_engine" default="bullet"/>

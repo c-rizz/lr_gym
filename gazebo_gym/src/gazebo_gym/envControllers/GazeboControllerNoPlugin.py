@@ -13,10 +13,13 @@ import rospy
 from std_srvs.srv import Empty
 
 from gazebo_gym.envControllers.EnvironmentController import EnvironmentController
+from gazebo_gym.envControllers.JointEffortEnvController import JointEffortEnvController
+from gazebo_gym.envControllers.SimulatedEnvController import SimulatedEnvController 
 from gazebo_gym.utils.utils import JointState
+from gazebo_gym.utils.utils import LinkState
 import os
 
-class GazeboControllerNoPlugin(EnvironmentController):
+class GazeboControllerNoPlugin(EnvironmentController, JointEffortEnvController, SimulatedEnvController):
     """This class allows to control the execution of a Gazebo simulation.
 
     It only uses the default gazebo plugins which are usually included in the installation.
@@ -93,7 +96,8 @@ class GazeboControllerNoPlugin(EnvironmentController):
                         "getLinkState" : "/gazebo/get_link_state",
                         "pause" : "/gazebo/pause_physics",
                         "unpause" : "/gazebo/unpause_physics",
-                        "reset" : "/gazebo/reset_simulation"}
+                        "reset" : "/gazebo/reset_simulation",
+                        "setLinkState" : "/gazebo/set_link_state"}
 
         timeout_secs = 30.0
         for serviceName in serviceNames.values():
@@ -115,6 +119,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
         self._pauseGazeboService        = rospy.ServiceProxy(serviceNames["pause"], Empty, persistent=self._usePersistentConnections)
         self._unpauseGazeboService      = rospy.ServiceProxy(serviceNames["unpause"], Empty, persistent=self._usePersistentConnections)
         self._resetGazeboService        = rospy.ServiceProxy(serviceNames["reset"], Empty, persistent=self._usePersistentConnections)
+        self._setLinkStateService       = rospy.ServiceProxy(serviceNames["setLinkState"], gazebo_msgs.srv.SetLinkState, persistent=self._usePersistentConnections)
 
         #self._setGazeboPhysics = rospy.ServiceProxy(self._setGazeboPhysics, SetPhysicsProperties, persistent=self._usePersistentConnections)
 
@@ -302,7 +307,7 @@ class GazeboControllerNoPlugin(EnvironmentController):
             request.duration.nsecs = nsecs
             res = self._applyJointEffortService.call(request)
             if not res.success:
-                rospy.logerror("Failed applying effort for joint jointName: "+res.status_message)
+                rospy.logerror("Failed applying effort for joint "+jointName+": "+res.status_message)
 
 
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
@@ -319,12 +324,19 @@ class GazeboControllerNoPlugin(EnvironmentController):
 
 
 
-    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],gazebo_msgs.msg.LinkState]:
+    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],LinkState]:
         ret = {}
         for link in requestedLinks:
             linkName = link[1]
             resp = self._getLinkStateService.call(link_name=linkName)
-            ret[link] = resp.link_state
+
+            linkState = LinkState(  position_xyz = (resp.link_state.pose.position.x, resp.link_state.pose.position.y, resp.link_state.pose.position.z),
+                                    orientation_xyzw = (resp.link_state.pose.orientation.x, resp.link_state.pose.orientation.y, resp.link_state.pose.orientation.z, resp.link_state.pose.orientation.w),
+                                    pos_velocity_xyz = (resp.link_state.twist.linear.x, resp.link_state.twist.linear.y, resp.link_state.twist.linear.z),
+                                    ang_velocity_xyz = (resp.link_state.twist.angular.x, resp.link_state.twist.angular.y, resp.link_state.twist.angular.z))
+            
+
+            ret[link] = linkState
         return ret
 
     def getEnvSimTimeFromStart(self) -> float:
@@ -333,3 +345,57 @@ class GazeboControllerNoPlugin(EnvironmentController):
 
     def setRosMasterUri(self, rosMasterUri : str):
         self._rosMasterUri = rosMasterUri
+
+    def spawnModel(self):
+        """Spawn a model in the environment, arguments depend on the type of SimulatedEnvController
+        """
+        raise NotImplementedError()
+
+
+    def deleteModel(self, model : str):
+        """Delete a model from the environment"""
+        raise NotImplementedError()
+
+
+    def setJointsStateDirect(self, jointStates : Dict[Tuple[str,str],JointState]):
+        """Set the state for a set of joints
+
+        Parameters
+        ----------
+        jointStates : Dict[Tuple[str,str],JointState]
+            Keys are in the format (model_name, joint_name), the value is the joint state to enforce
+        """
+        raise NotImplementedError()
+    
+
+    def setLinksStateDirect(self, linksStates : Dict[Tuple[str,str],LinkState]):
+        """Set the state for a set of links
+
+        Parameters
+        ----------
+        linksStates : Dict[Tuple[str,str],LinkState]
+            Keys are in the format (model_name, link_name), the value is the link state to enforce
+        """
+        
+        ret = {}
+        for item in linksStates.items:
+            linkName  = item[0][1]
+            modelName = item[0][0]
+            linkState = item[1]
+            req = gazebo_msgs.srv.SetLinkStateRequest()
+            req.link_state = gazebo_msgs.msg.LinkState()
+            req.link_state.link_name = modelName+"::"+linkName
+            req.pose = linkState.pose.getPoseStamped(frame_id = "world").pose
+            req.twist.linear.x = linkState.pos_velocity_xyz[0]
+            req.twist.linear.y = linkState.pos_velocity_xyz[1]
+            req.twist.linear.z = linkState.pos_velocity_xyz[2]
+            req.twist.angular.x = linkState.ang_velocity_xyz[0]
+            req.twist.angular.y = linkState.ang_velocity_xyz[1]
+            req.twist.angular.z = linkState.ang_velocity_xyz[2]
+
+
+            resp = self._getLinkStateService.call(req)
+            
+            if not resp.success:
+                rospy.logerror("Failed setting link state for link "+modelName+"::"+linkName+": "+res.status_message)
+        return ret

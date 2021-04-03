@@ -24,7 +24,7 @@
       <arg name="paused" value="false"/>
       <arg name="physics_engine" value="$(arg physics_engine)"/>
       <arg name="limit_sim_speed" default="true"/>
-      <arg name="world_name" value="$(find gazebo_gym)/launch/ground_plane_mu05.world"/>
+      <arg name="world_name" value="$(find gazebo_gym)/worlds/ground_plane_world_mu05.world"/>
     </include>
 
     <!-- Spawn and setup the panda robot -->

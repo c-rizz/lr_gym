@@ -52,7 +52,7 @@
           </geometry>
           <material>
             <script>
-              <name>Gazebo/WoodFloor</name>
+              <name>Gazebo/Grey</name>
             </script>
           </material>
         </visual>

@@ -8,10 +8,12 @@ from gazebo_gym.envControllers.RosEnvController import RosEnvController
 from gazebo_gym.rosControlUtils import ControllerManagementHelper
 from gazebo_gym.rosControlUtils import TrajectoryControllerHelper
 
+from gazebo_gym.envControllers.JointEffortEnvController import JointEffortEnvController
+
 import rospy
 import std_msgs
 
-class EffortRosControlController(RosEnvController):
+class EffortRosControlController(RosEnvController, JointEffortEnvController):
     """This class allows to control the execution of a ROS-based environment.
 
     Controls robot joints using ros_control's effort controllers and trajectory controllers.

@@ -8,7 +8,7 @@ import sensor_msgs.msg
 import time
 import cv2
 import collections
-from typing import List
+from typing import List, Tuple
 import os
 import quaternion
 
@@ -140,6 +140,7 @@ class JointState:
     def __str__(self):
         return "JointState("+str(self.position)+","+str(self.rate)+","+str(self.effort)+")"
 
+
 class AverageKeeper:
     def __init__(self, bufferSize = 100):
         self._bufferSize = bufferSize
@@ -225,3 +226,15 @@ class Pose:
 
     def getPoseStamped(self, frame_id : str):
         return buildPoseStamped(self.position, np.array([self.orientation.x,self.orientation.y,self.orientation.z,self.orientation.w]), frame_id=frame_id)
+
+
+class LinkState:
+    pose : Pose = None
+    pos_velocity_xyz : Tuple[float, float, float] = None
+    ang_velocity_xyz : Tuple[float, float, float] = None
+
+    def __init__(self, position_xyz : Tuple[float, float, float], orientation_xyzw : Tuple[float, float, float, float],
+                    pos_velocity_xyz : Tuple[float, float, float], ang_velocity_xyz : Tuple[float, float, float]):
+        self.pose = Pose(position_xyz[0],position_xyz[1],position_xyz[2], orientation_xyzw[0],orientation_xyzw[1],orientation_xyzw[2],orientation_xyzw[3])
+        self.pos_velocity_xyz = pos_velocity_xyz
+        self.ang_velocity_xyz = ang_velocity_xyz

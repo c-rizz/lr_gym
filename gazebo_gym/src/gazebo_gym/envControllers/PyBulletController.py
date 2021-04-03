@@ -7,11 +7,12 @@ import sensor_msgs
 import pybullet as p
 import gazebo_msgs.msg
 
-from gazebo_gym.utils.utils import JointState
+from gazebo_gym.utils.utils import JointState, LinkState
 from gazebo_gym.envControllers.EnvironmentController import EnvironmentController
+from gazebo_gym.envControllers.JointEffortEnvController import JointEffortEnvController
 
 
-class PyBulletController(EnvironmentController):
+class PyBulletController(EnvironmentController, JointEffortEnvController):
     """This class allows to control the execution of a PyBullet simulation.
 
     For what is possible it is meant to be interchangeable with GazeboController.
@@ -146,7 +147,7 @@ class PyBulletController(EnvironmentController):
 
         return allStates
 
-    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],gazebo_msgs.msg.LinkState]:
+    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],LinkState]:
         linkNames = [x[1] for x in requestedLinks] ## TODO: actually search for the body name
         #For each bodyId I submit a request for joint state
         requests = {} #for each body id we will have a list of joints
@@ -162,21 +163,11 @@ class PyBulletController(EnvironmentController):
             for i in range(len(requests[bodyId])):#put the responses of this bodyId in allStates
                 #print("bodyStates["+str(i)+"] = "+str(bodyStates[i]))
                 linkId = requests[bodyId][i]
-                linkState = gazebo_msgs.msg.LinkState()
-                linkState.pose.position.x = bodyStates[i][0][0]
-                linkState.pose.position.y = bodyStates[i][0][1]
-                linkState.pose.position.z = bodyStates[i][0][2]
-                linkState.pose.orientation.x = bodyStates[i][1][0]
-                linkState.pose.orientation.y = bodyStates[i][1][1]
-                linkState.pose.orientation.z = bodyStates[i][1][2]
-                linkState.pose.orientation.w = bodyStates[i][1][3]
-
-                linkState.twist.linear.x = bodyStates[i][6][0]
-                linkState.twist.linear.y = bodyStates[i][6][1]
-                linkState.twist.linear.z = bodyStates[i][6][2]
-                linkState.twist.angular.x = bodyStates[i][7][0]
-                linkState.twist.angular.y = bodyStates[i][7][1]
-                linkState.twist.angular.z = bodyStates[i][7][2]
+                linkState = LinkState(  position_xyz = (bodyStates[i][0][0], bodyStates[i][0][1], bodyStates[i][0][2]),
+                                        orientation_xyzw = (bodyStates[i][1][0], bodyStates[i][1][1], bodyStates[i][1][2], bodyStates[i][1][3]),
+                                        pos_velocity_xyz = (bodyStates[i][6][0], bodyStates[i][6][1], bodyStates[i][6][2]),
+                                        ang_velocity_xyz = (bodyStates[i][7][0], bodyStates[i][7][1], bodyStates[i][7][2]))
+            
 
                 bodyName = p.getBodyInfo(bodyId)[1].decode("utf-8")
                 allStates[(bodyName,self._getLinkName(bodyId,linkId))] = linkState

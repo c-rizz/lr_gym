@@ -187,16 +187,16 @@ class HopperEnv(ControlledEnv):
                                                                 ("hopper","leg"),
                                                                 ("hopper","foot")])
 
-
-        avg_pos_x = (   linksState[("hopper","torso")].pose.position.x +
-                        linksState[("hopper","thigh")].pose.position.x +
-                        linksState[("hopper","leg")].pose.position.x   +
-                        linksState[("hopper","foot")].pose.position.x)/4
+        #print("type linksState[()]= "+ str(type(linksState[("hopper","torso")])))
+        avg_pos_x = (   linksState[("hopper","torso")].pose.position[0] +
+                        linksState[("hopper","thigh")].pose.position[0] +
+                        linksState[("hopper","leg")].pose.position[0]   +
+                        linksState[("hopper","foot")].pose.position[0])/4
 
         torso_pose = linksState[("hopper","torso")].pose
 
         if self._actionsCounter == 0:
-            self._initial_torso_z = torso_pose.position.z
+            self._initial_torso_z = torso_pose.position[2]
             self._previousAvgPosX = avg_pos_x
 
         # print("frame "+str(self._framesCounter)+"\t initial_torso_z = "+str(self._initial_torso_z)+"\t torso_z = "+str(linksState[("hopper","torso")].pose.position.z))
@@ -205,12 +205,12 @@ class HopperEnv(ControlledEnv):
         #(r,p,y) = tf.transformations.euler_from_quaternion([torso_pose.orientation.x, torso_pose.orientation.y, torso_pose.orientation.z, torso_pose.orientation.w])
         #print("torsoState = ",torsoState)
         #print("you ",jointStates["mid_to_mid2"].position)
-        state = np.array(  [linksState[("hopper","torso")].pose.position.z - self._initial_torso_z,
+        state = np.array(  [linksState[("hopper","torso")].pose.position[2] - self._initial_torso_z,
                             1, # for pybullet consistency
                             0, # for pybullet consistency
-                            linksState[("hopper","torso")].twist.linear.x * 0.3, #0.3 is just to be consistent with pybullet
-                            linksState[("hopper","torso")].twist.linear.y * 0.3, #this will always be zero
-                            linksState[("hopper","torso")].twist.linear.z * 0.3,
+                            linksState[("hopper","torso")].ang_velocity_xyz[0] * 0.3, #0.3 is just to be consistent with pybullet
+                            linksState[("hopper","torso")].ang_velocity_xyz[1] * 0.3, #this will always be zero
+                            linksState[("hopper","torso")].ang_velocity_xyz[2] * 0.3,
                             0, # roll of torso,for pybullet consistency
                             jointStates[("hopper","torso_pitch_joint")].position[0],
                             jointStates[("hopper","torso_to_thigh")].position[0],

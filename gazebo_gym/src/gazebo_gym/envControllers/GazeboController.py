@@ -12,9 +12,11 @@ import gazebo_msgs
 
 
 from gazebo_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
+from gazebo_gym.envControllers.JointEffortEnvController import JointEffortEnvController
 from gazebo_gym.utils.utils import JointState
+from gazebo_gym.utils.utils import LinkState
 
-class GazeboController(GazeboControllerNoPlugin):
+class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
     """This class allows to control the execution of a Gazebo simulation.
 
     It makes use of the gazebo_gym_env gazebo plugin to perform simulation stepping and rendering.
@@ -211,7 +213,7 @@ class GazeboController(GazeboControllerNoPlugin):
         return ret
 
 
-    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],gazebo_msgs.msg.LinkState]:
+    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],LinkState]:
 
         if self._simulationState.stepNumber!=self._stepsTaken: #If no step has ever been done
             return super().getLinksState(requestedLinks)
@@ -220,9 +222,10 @@ class GazeboController(GazeboControllerNoPlugin):
         for rl in requestedLinks:
             linkInfo = self._simulationState.linksState[rl]
 
-            linkState = gazebo_msgs.msg.LinkState()
-            linkState.pose = linkInfo.pose
-            linkState.twist = linkInfo.twist
+            linkState = LinkState(  position_xyz = (linkInfo.pose.position.x, linkInfo.pose.position.y, linkInfo.pose.position.z),
+                                    orientation_xyzw = (linkInfo.pose.orientation.x, linkInfo.pose.orientation.y, linkInfo.pose.orientation.z, linkInfo.pose.orientation.w),
+                                    pos_velocity_xyz = (linkInfo.twist.linear.x, linkInfo.twist.linear.y, linkInfo.twist.linear.z),
+                                    ang_velocity_xyz = (linkInfo.twist.angular.x, linkInfo.twist.angular.y, linkInfo.twist.angular.z))
             ret[rl] = linkState
         return ret
 
@@ -234,3 +237,4 @@ class GazeboController(GazeboControllerNoPlugin):
             jer.joint_id.joint_name = jt[1]
             jer.effort = jt[2]
             self._jointEffortsToRequest.append(jer)
+

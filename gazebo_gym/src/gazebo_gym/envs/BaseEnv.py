@@ -51,6 +51,7 @@ class BaseEnv():
 
         self._actionsCounter = 0
         self._maxActionsPerEpisode = maxActionsPerEpisode
+        self._backend = simulationBackend
 
         if startSimulation:
             self.buildSimulation(backend=simulationBackend)

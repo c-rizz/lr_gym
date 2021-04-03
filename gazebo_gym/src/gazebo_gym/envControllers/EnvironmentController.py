@@ -11,9 +11,10 @@ from nptyping import NDArray
 import numpy as np
 
 from gazebo_gym.utils.utils import JointState
+from gazebo_gym.utils.utils import LinkState
+from abc import ABC, abstractmethod
 
-
-class EnvironmentController():
+class EnvironmentController(ABC):
     """This class allows to control the execution of a simulation.
 
     It is an abstract class, it is meant to be extended with sub-classes for specific simulators
@@ -67,10 +68,12 @@ class EnvironmentController():
         self._camerasToObserve = camerasToRender
 
 
+    @abstractmethod
     def startController(self):
         """Start up the controller. This must be called after setCamerasToObserve, setLinksToObserve and setJointsToObserve."""
-        pass
+        raise NotImplementedError()
 
+    @abstractmethod
     def step(self) -> float:
         """Run a simulation step.
 
@@ -81,6 +84,7 @@ class EnvironmentController():
 
         raise NotImplementedError()
 
+    @abstractmethod
     def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
         """Get the images for the specified cameras.
 
@@ -97,69 +101,7 @@ class EnvironmentController():
         """
         raise NotImplementedError()
 
-    def setJointsEffort(self, jointTorques : List[Tuple[str,str,float]]) -> None:
-        """Set the efforts to be applied on a set of joints.
-
-        Effort means either a torque or a force, depending on the type of joint.
-
-        Parameters
-        ----------
-        jointTorques : List[Tuple[str,str,float]]
-            List containing the effort command for each joint. Each element of the list
-            is a tuple of the form (model_name, joint_name, effort)
-
-        Returns
-        -------
-        None
-            Nothing is returned
-
-        """
-        raise NotImplementedError()
-
-
-    def setJointsPosition(self, jointPositions : Dict[Tuple[str,str],float]) -> None:
-        """Set the position to be requested on a set of joints.
-
-        The position can be an angle (in radiants) or a length (in meters), depending
-        on the type of joint.
-
-        Parameters
-        ----------
-        jointPositions : Dict[Tuple[str,str],float]]
-            List containing the position command for each joint. Each element of the list
-            is a tuple of the form (model_name, joint_name, position)
-
-        Returns
-        -------
-        None
-            Nothing is returned
-
-        """
-        raise NotImplementedError()
-
-
-
-    def setCartesianPose(self, linkPoses : Dict[Tuple[str,str],NDArray[(7,), np.float32]]) -> None:
-        """Request a set of links to be placed at a specific cartesian pose.
-
-        This is mainly meant as a way to perform cartesian end effector control. Meaning
-        inverse kinematics will be computed to accomodate the request.
-
-        Parameters
-        ----------
-        linkPoses : Dict[Tuple[str,str],NDArray[(7,), np.float32]]]
-            Dict containing the pose command for each link. Each element of the dict
-            is identified by a key of the form (model_name, joint_name). The pose is specified as
-            a numpy array in the format: (pos_x, pos_y, pos_z, quat_x, quat_y, quat_z, quat_w)
-
-        Returns
-        -------
-        None
-            Nothing is returned
-
-        """
-        raise NotImplementedError()
-
+    @abstractmethod
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
         """Get the state of the requetsed joints.
 
@@ -176,7 +118,8 @@ class EnvironmentController():
         """
         raise NotImplementedError()
 
-    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],gazebo_msgs.msg.LinkState]:
+    @abstractmethod
+    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],LinkState]:
         """Get the state of the requested links.
 
         Parameters
@@ -186,12 +129,13 @@ class EnvironmentController():
 
         Returns
         -------
-        Dict[str,gazebo_msgs.msg.LinkState]
+        Dict[str,LinkState]
             Dictionary, indexed by link name containing the state of each link
 
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def resetWorld(self):
         """Reset the environmnet to its start configuration.
 
@@ -201,8 +145,10 @@ class EnvironmentController():
             Nothing is returned
 
         """
+        raise NotImplementedError()
 
 
+    @abstractmethod
     def getEnvSimTimeFromStart(self) -> float:
         """Get the current time within the simulation."""
         raise NotImplementedError()

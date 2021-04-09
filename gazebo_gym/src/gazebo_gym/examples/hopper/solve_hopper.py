@@ -7,8 +7,9 @@ from stable_baselines.ddpg.noise import NormalActionNoise
 from stable_baselines.common import env_checker
 import numpy as np
 import argparse
-from datetime import datetime
+import datetime
 from pybullet_envs.gym_locomotion_envs import HopperBulletEnv
+from stable_baselines.common.callbacks import CheckpointCallback
 
 
 from gazebo_gym.envs.HopperEnv import HopperEnv
@@ -16,15 +17,25 @@ from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 from gazebo_gym.envControllers.PyBulletController import PyBulletController
 from gazebo_gym.envControllers.GazeboController import GazeboController
 
-def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : str = None, useHopperBullet : bool = False, noControl : bool = False, trainIterations : int = 120000) -> None:
+def main(usePyBullet : bool = False,
+        useMjcfFile : bool = False,
+        fileToLoad : str = None, 
+        useHopperBullet : bool = False,
+        noControl : bool = False,
+        trainIterations : int = 120000,
+        saveVideo : bool = False) -> None:
     """Solve the hopper environment with TD3.
 
     Can use a different models/simuòlators
 
     """
 
+    run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    folderName = "./solve_hopper/"+run_id
+
+
     print("Setting up environment...")
-    stepLength_sec = 1/60
+    stepLength_sec = 1/50
     if useHopperBullet:
         env = HopperBulletEnv(render=True)
     else:
@@ -32,11 +43,23 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
             simulatorController = PyBulletController()
         else:
             simulatorController = GazeboController(stepLength_sec = stepLength_sec)
-        env = GymEnvWrapper(HopperEnv(  simulatorController = simulatorController,
-                                        stepLength_sec = stepLength_sec,
-                                        maxActionsPerEpisode = 20/stepLength_sec,
-                                        useMjcfFile = useMjcfFile,
-                                        simulationBackend = ("bullet" if usePyBullet else "gazebo")))
+        if saveVideo:
+            env = GymEnvWrapper(HopperEnv(  simulatorController = simulatorController,
+                                            stepLength_sec = stepLength_sec,
+                                            maxActionsPerEpisode = 20/stepLength_sec,
+                                            useMjcfFile = useMjcfFile,
+                                            simulationBackend = ("bullet" if usePyBullet else "gazebo"),
+                                            render = True),
+                                episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv",
+                                outVideoFile=folderName+"/video.mp4")
+        else:
+            env = GymEnvWrapper(HopperEnv(  simulatorController = simulatorController,
+                                            stepLength_sec = stepLength_sec,
+                                            maxActionsPerEpisode = 20/stepLength_sec,
+                                            useMjcfFile = useMjcfFile,
+                                            simulationBackend = ("bullet" if usePyBullet else "gazebo")),
+                                episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
+
     print("Environment created")
 
     #setup seeds for reproducibility
@@ -53,7 +76,7 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
     #hyperparameters taken by the RL baslines zoo repo
     model = TD3( MlpPolicy, env, action_noise=action_noise, verbose=1, batch_size=100,
                  buffer_size=1000000, gamma=0.99, gradient_steps=1000,
-                 learning_rate=0.001, learning_starts=10000, policy_kwargs=dict(layers=[400, 300]), train_freq=1000,
+                 learning_rate=0.0005, learning_starts=5000, policy_kwargs=dict(layers=[100, 200]), train_freq=1000,
                  seed = RANDOM_SEED, n_cpu_tf_sess=1) #n_cpu_tf_sess is needed for reproducibility
 
     if noControl:
@@ -61,8 +84,8 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
     elif fileToLoad is None:
         print("Learning...")
         t_preLearn = time.time()
-
-        model.learn(total_timesteps=trainIterations, log_interval=10)
+        checkpoint_callback = CheckpointCallback(save_freq=1000, save_path=folderName+'/checkpoints/', name_prefix="td3_hopper")
+        model.learn(total_timesteps=trainIterations, log_interval=10, callback=checkpoint_callback)
         duration_learn = time.time() - t_preLearn
         print("Learned. Took "+str(duration_learn)+" seconds.")
         if usePyBullet:
@@ -77,7 +100,7 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
             envType = "bulletEnv"
         else:
             envType = "gazeboGym"
-        filename = "td3_hopper_"+datetime.now().strftime('%Y%m%d-%H%M%S')+"s"+str(trainIterations)+sim+"-"+modelFormat+"-"+envType
+        filename = "td3_hopper_"+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+"s"+str(trainIterations)+sim+"-"+modelFormat+"-"+envType
         model.save(filename)
         print("Saved as "+filename)
     elif fileToLoad:
@@ -107,6 +130,7 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
         obs = env.reset()
         t0 = time.time()
         while not done:
+            ts0 = time.monotonic()
             #print("Episode "+str(episode)+" frame "+str(frame))
             if noControl:
                 action = (0,0,0)
@@ -115,7 +139,10 @@ def main(usePyBullet : bool = False, useMjcfFile : bool = False, fileToLoad : st
             # print("action = "+str(action))
             obs, stepReward, done, info = env.step(action)
             #frames.append(env.render("rgb_array"))
-            time.sleep(stepLength_sec)
+            tsf = time.monotonic()
+            remainingTime = stepLength_sec - (tsf-ts0)
+            if remainingTime>0:
+                time.sleep(remainingTime)
             frame+=1
             episodeReward += stepReward
         rewards.append(episodeReward)
@@ -136,7 +163,13 @@ if __name__ == "__main__":
     ap.add_argument("--load", default=None, type=str, help="load this model instead of perfomring the training")
     ap.add_argument("--hopperbullet", default=False, action='store_true', help="Use the hopper environment provided by pybullet")
     ap.add_argument("--nocontrol", default=False, action='store_true', help="Don't train, and keep torques at zero")
-    ap.add_argument("--iterations", default=120000, type=int, help="Number of triaiing steps to perform (Default is 120000)")
+    ap.add_argument("--iterations", default=150000, type=int, help="Number of training steps to perform")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
-    main(usePyBullet = args["pybullet"], useMjcfFile = args["mjcf"], fileToLoad = args["load"], useHopperBullet = args["hopperbullet"], noControl = args["nocontrol"], trainIterations = args["iterations"])
+    main(   usePyBullet = args["pybullet"],
+            useMjcfFile = args["mjcf"],
+            fileToLoad = args["load"],
+            useHopperBullet = args["hopperbullet"],
+            noControl = args["nocontrol"],
+            trainIterations = args["iterations"],
+            saveVideo=True)

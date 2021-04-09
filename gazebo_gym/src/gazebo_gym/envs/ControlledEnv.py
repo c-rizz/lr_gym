@@ -69,7 +69,7 @@ class ControlledEnv(BaseEnv):
                          simulationBackend = simulationBackend)
 
         self._intendedSimTime = 0
-        self._intendedStepLength_sec = 0
+        self._intendedStepLength_sec = stepLength_sec
 
 
 
@@ -93,3 +93,6 @@ class ControlledEnv(BaseEnv):
 
     def getSimTimeFromEpStart(self):
         return self._environmentController.getEnvSimTimeFromStart()
+
+    def getIntendedStepLength_sec(self):
+        return self._intendedStepLength_sec

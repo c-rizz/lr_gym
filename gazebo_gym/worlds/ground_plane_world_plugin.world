@@ -52,7 +52,9 @@
           </geometry>
           <material>
             <script>
-              <name>Gazebo/Grey</name>
+              <uri>model://gazebo_gym/materials/scripts</uri>
+              <uri>model://gazebo_gym/materials/textures</uri>
+              <name>gazebo_gym/checkerboard</name>
             </script>
           </material>
         </visual>

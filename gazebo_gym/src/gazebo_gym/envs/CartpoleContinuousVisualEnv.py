@@ -90,7 +90,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         self._environmentController.setJointsEffort(jointTorques = [("cartpole_v0","foot_joint", direction * 10)])
 
     def getObservation(self, state) -> np.ndarray:
-        obs = state[4]
+        obs = state[1]
         # print(obs.shape)
         # print(self.observation_space)
         return obs
@@ -141,8 +141,8 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
     def checkEpisodeEnded(self, previousState : Tuple[float,float,float,float, np.ndarray], state : Tuple[float,float,float,float, np.ndarray]) -> bool:
         if super(CartpoleEnv, self).checkEpisodeEnded(previousState, state):
             return True
-        cartPosition = state[0]
-        poleAngle = state[2]
+        cartPosition = state[0][0]
+        poleAngle = state[0][2]
 
         maxCartDist = 2
         maxPoleAngle = 3.14159/180*45.0 #30 degrees

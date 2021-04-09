@@ -7,15 +7,23 @@
 
     <arg name="gui" default="true"/>
     <arg name="noplugin" default="false"/>
-
-
-    <include file="$(find gazebo_gym)/launch/fixed_camera_gazebo_sim.launch" >
-        <arg name="gui" value="$(arg gui)"/>
-        <arg name="noplugin" value="$(arg noplugin)"/>
-        <arg name="model_file" value="$(find gazebo_gym)/models/hopper_v0.urdf.xacro"/>
-        <arg name="model_name" value="hopper"/>
-        <arg name="xacro" value="true"/>
+    <arg name="physics_engine" default="ode"/>
+    
+    <include file="$(find gazebo_gym)/launch/gazebo_server.launch">
+      <arg name="gui" default="$(arg gui)"/>
+      <arg name="paused" default="true"/> <!-- must correspond with the robot name in the urdf/xacro file -->
+      <arg name="physics_engine" default="$(arg physics_engine)"/>
+      <arg name="limit_sim_speed" default="true"/>
+      <arg name="world_name" value="$(find gazebo_gym)/worlds/ground_plane_world_plugin.world"/>
     </include>
+
+      <!-- publish the model URDF on the parameter server -->
+    <param name="hopper_robot_description"  command="xacro --inorder $(find gazebo_gym)/models/hopper_v0.urdf.xacro" />
+
+      <!-- spawn in gazebo using the model description in the parameter server (when gazebo starts) -->
+      <node name="spawn_model" pkg="gazebo_ros" type="spawn_model" respawn="false"
+            output="screen" args="-param hopper_robot_description -urdf -x 0 -y 0 -z 0 -model hopper" />
+
 
 
 </launch>

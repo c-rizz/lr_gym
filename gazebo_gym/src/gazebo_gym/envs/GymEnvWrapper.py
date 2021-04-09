@@ -25,6 +25,9 @@ from gazebo_gym.envs.BaseEnv import BaseEnv
 import os
 import traceback
 import gazebo_gym.utils.dbg.ggLog as ggLog
+import cv2
+
+from gazebo_gym.envs.ControlledEnv import ControlledEnv
 
 
 class GymEnvWrapper(gym.Env):
@@ -43,7 +46,8 @@ class GymEnvWrapper(gym.Env):
                  env : BaseEnv,
                  verbose : bool = False,
                  quiet : bool = False,
-                 episodeInfoLogFile : str = None):
+                 episodeInfoLogFile : str = None,
+                 outVideoFile : str = None):
         """Short summary.
 
         Parameters
@@ -60,6 +64,11 @@ class GymEnvWrapper(gym.Env):
         self._quiet = quiet
         self._episodeInfoLogFile = episodeInfoLogFile
         self._logEpisodeInfo = self._episodeInfoLogFile is not None
+        self._outVideoFile = outVideoFile
+        if not self._outVideoFile.endswith(".mp4"):
+            self._outVideoFile += ".mp4"
+        self._saveVideo = self._outVideoFile is not None
+        self._videoWriter = None
 
         self._framesCounter = 0
         self._lastStepStartEnvTime = -1
@@ -229,6 +238,18 @@ class GymEnvWrapper(gym.Env):
             self._lastValidStepWallTime = time.monotonic()
         self._done = done
 
+        if self._saveVideo:
+            img = self._ggEnv.getUiRendering()[0]
+            if self._videoWriter is None:
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                if isinstance(self._ggEnv, ControlledEnv):
+                    fps = 1/self._ggEnv.getIntendedStepLength_sec()
+                else:
+                    fps = 1
+                self._videoWriter=cv2.VideoWriter(self._outVideoFile, fourcc, fps,(img.shape[1], img.shape[0]))
+            self._videoWriter.write(img) #TODO: put this in another process
+
+
         stepDuration = time.monotonic() - t0
         self._envStepDurationAverage.addValue(newValue = stepDuration)
         self._timeSpentStepping_ep += stepDuration
@@ -368,6 +389,7 @@ class GymEnvWrapper(gym.Env):
         if self._logEpisodeInfo:
             self._logFile.close()
         self._ggEnv.close()
+        self._videoWriter.release()
 
 
 

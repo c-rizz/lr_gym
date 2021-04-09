@@ -15,6 +15,7 @@ from gazebo_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerN
 from gazebo_gym.envControllers.JointEffortEnvController import JointEffortEnvController
 from gazebo_gym.utils.utils import JointState
 from gazebo_gym.utils.utils import LinkState
+import gazebo_gym.utils.dbg.ggLog as ggLog
 
 class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
     """This class allows to control the execution of a Gazebo simulation.
@@ -104,8 +105,9 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
         request = gazebo_gym_env_plugin.srv.StepSimulationRequest()
         request.step_duration_secs = self._stepLength_sec
         request.request_time = time.time()
+        #ggLog.info("self._camerasToObserve = "+str(self._camerasToObserve))
         if len(self._camerasToObserve)>0:
-            #rospy.loginfo("Performing rendering within step")
+            #ggLog.info("Performing rendering within step")
             request.render = True
             request.cameras = self._camerasToObserve
         if len(self._jointsToObserve)>0:
@@ -147,6 +149,7 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
             if not response.render_result.success:
                 rospy.logerr("Error getting renderings: "+response.render_result.error_message)
             for i in range(len(response.render_result.camera_names)):
+                #ggLog.info("got image for camera "+response.render_result.camera_names[i])
                 self._simulationState.cameraRenders[response.render_result.camera_names[i]] = (response.render_result.images[i],response.render_result.camera_infos[i])
 
         if len(self._jointsToObserve)>0:
@@ -168,6 +171,7 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
         return self._stepLength_sec
 
     def _performRender(self, requestedCameras : List[str]):
+        ggLog.info("Rendering cameras "+str(requestedCameras))
         req = gazebo_gym_env_plugin.srv.RenderCamerasRequest()
         req.cameras=requestedCameras
         req.request_time = time.time()
@@ -189,9 +193,15 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
 
 
     def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
+        for name in requestedCameras:
+            if name not in self._camerasToObserve:
+                raise RuntimeError("Requested rendering from a camera that was not set with setCamerasToObserve")
+
         if self._simulationState.stepNumber!=self._stepsTaken: #If no step has ever been done
+            #ggLog.info("Manually rendering images for "+str(requestedCameras))
             cameraRenders = self._performRender(requestedCameras)
         else:
+            #ggLog.info("Using available renders for "+str(requestedCameras)+" step = "+str(self._simulationState.stepNumber))
             cameraRenders = self._simulationState.cameraRenders
 
         ret = []

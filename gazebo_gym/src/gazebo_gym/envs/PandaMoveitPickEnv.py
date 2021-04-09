@@ -15,15 +15,18 @@ from geometry_msgs.msg import PoseStamped
 import actionlib
 import rospkg
 
-from gazebo_gym.envs.BaseEnv import BaseEnv
-from gazebo_gym.envControllers.MoveitRosController import MoveitRosController
+from gazebo_gym.envs.ControlledEnv import ControlledEnv
+from gazebo_gym.envControllers.MoveitGazeboController import MoveitGazeboController
+from gazebo_gym.envControllers.SimulatedEnvController import SimulatedEnvController
+
 import gazebo_gym_utils.ros_launch_utils
 import gazebo_gym.utils.dbg.ggLog as ggLog
 import math
+from gazebo_gym.utils.utils import JointState, LinkState
 
 
 
-class PandaMoveitPickEnv(BaseEnv):
+class PandaMoveitPickEnv(ControlledEnv):
     """This class represents and environment in which a Panda arm is controlled with Moveit to reach a goal pose.
 
     As moveit_commander is not working with python3 this environment relies on an intermediate ROS node for sending moveit commands.
@@ -69,7 +72,8 @@ class PandaMoveitPickEnv(BaseEnv):
                     render : bool = False,
                     operatingArea = np.array([[-1, -1, 0], [1, 1, 1.5]]),
                     startSimulation : bool = True,
-                    backend="gazebo"):
+                    backend="gazebo",
+                    environmentController = None):
         """Short summary.
 
         Parameters
@@ -90,27 +94,32 @@ class PandaMoveitPickEnv(BaseEnv):
 
         """
 
+        if environmentController is None:                
+            self._environmentController = MoveitGazeboController(jointsOrder = [("panda","panda_joint1"),
+                                                                            ("panda","panda_joint2"),
+                                                                            ("panda","panda_joint3"),
+                                                                            ("panda","panda_joint4"),
+                                                                            ("panda","panda_joint5"),
+                                                                            ("panda","panda_joint6"),
+                                                                            ("panda","panda_joint7")],
+                                                            endEffectorLink  = ("panda", "panda_tcp"),
+                                                            referenceFrame   = "world",
+                                                            initialJointPose = {("panda","panda_joint1") : 0,
+                                                                                ("panda","panda_joint2") : 0,
+                                                                                ("panda","panda_joint3") : 0,
+                                                                                ("panda","panda_joint4") :-1,
+                                                                                ("panda","panda_joint5") : 0,
+                                                                                ("panda","panda_joint6") : 1,
+                                                                                ("panda","panda_joint7") : 3.14159/4},
+                                                            gripperActionTopic = "/franka_gripper/gripper_action",
+                                                            gripperInitialWidth = 0.05)
+        else:
+            self._environmentController = environmentController
 
-        self._environmentController = MoveitRosController(jointsOrder = [("panda","panda_joint1"),
-                                                                         ("panda","panda_joint2"),
-                                                                         ("panda","panda_joint3"),
-                                                                         ("panda","panda_joint4"),
-                                                                         ("panda","panda_joint5"),
-                                                                         ("panda","panda_joint6"),
-                                                                         ("panda","panda_joint7")],
-                                                          endEffectorLink  = ("panda", "panda_tcp"),
-                                                          referenceFrame   = "world",
-                                                          initialJointPose = {("panda","panda_joint1") : 0,
-                                                                              ("panda","panda_joint2") : 0,
-                                                                              ("panda","panda_joint3") : 0,
-                                                                              ("panda","panda_joint4") :-1,
-                                                                              ("panda","panda_joint5") : 0,
-                                                                              ("panda","panda_joint6") : 1,
-                                                                              ("panda","panda_joint7") : 3.14159/4},
-                                                          gripperActionTopic = "/franka_gripper/gripper_action",
-                                                          gripperInitialWidth = 0.05)
-
-        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, startSimulation = startSimulation, simulationBackend=backend)
+        super().__init__(   maxActionsPerEpisode = maxActionsPerEpisode,
+                            startSimulation = startSimulation,
+                            simulationBackend=backend,
+                            environmentController=self._environmentController)
 
         self._renderingEnabled = render
         if self._renderingEnabled:
@@ -302,9 +311,20 @@ class PandaMoveitPickEnv(BaseEnv):
 
 
     def initializeEpisode(self) -> None:
+        ggLog.info("Initializing episode...........................................")
         self._reachedPickPoseThisEpisode = False
         self._didHoldSomethingThisEpisode = False
         self._wasHoldingSomethingPrevStep = False
+
+
+        if isinstance(self._environmentController, SimulatedEnvController):
+            self._environmentController.setLinksStateDirect({   ("cube","cube") : LinkState(position_xyz = (0.45, 0, 0.025),
+                                                                                            orientation_xyzw = (0,0,0,1),
+                                                                                            pos_velocity_xyz = (0,0,0),
+                                                                                            ang_velocity_xyz = (0,0,0))
+                                                            })
+        else:
+            raise RuntimeError("Unable to reset environment in non-simulated environments")
 
         return
 

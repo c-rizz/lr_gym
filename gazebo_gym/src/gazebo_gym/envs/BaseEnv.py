@@ -156,20 +156,6 @@ class BaseEnv():
         raise NotImplementedError()
 
 
-    def getCameraToRenderName(self) -> str:
-        """To be implemented in subclass.
-
-        This method is called by the render method to determine the name of the camera to be rendered
-
-        Returns
-        -------
-        str
-            The name of the camera to be rendered, as define in the environment sdf or urdf file
-
-        """
-        raise NotImplementedError() #TODO: This is super wierd, need to rethink it
-
-
     def initializeEpisode(self) -> None:
         """To be implemented in subclass.
 

@@ -19,7 +19,7 @@
     <include file="$(find gazebo_gym)/launch/gazebo_server.launch">
       <arg name="gui" default="true"/>
       <arg name="paused" default="true"/> <!-- must correspond with the robot name in the urdf/xacro file -->
-      <arg name="physics_engine" default="bullet"/>
+      <arg name="physics_engine" default="$(arg physics_engine)"/>
       <arg name="limit_sim_speed" default="true"/>
       <arg name="world_name" value="$(find gazebo_gym)/worlds/fixed_camera_world.world" if="$(eval arg('noplugin'))"/>
       <arg name="world_name" value="$(find gazebo_gym)/worlds/fixed_camera_world_plugin.world" if="$(eval not arg('noplugin'))"/>

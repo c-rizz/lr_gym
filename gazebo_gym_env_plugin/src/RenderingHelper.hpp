@@ -40,6 +40,8 @@ private:
     AverageKeeper avgFillTime;
     AverageKeeper avgRenderThreadDelay;
     AverageKeeper avgRenderTime;
+
+    void searchCameras();
 public:
 
   RenderingHelper(gazebo::physics::WorldPtr world);

@@ -71,9 +71,8 @@ sensor_msgs::CameraInfo RenderingHelper::GymCamera::computeCameraInfo()
   return camera_info_msg;
 }
 
-RenderingHelper::RenderingHelper(gazebo::physics::WorldPtr world)
+void RenderingHelper::searchCameras()
 {
-  this->world = world;
   gazebo::sensors::SensorManager* smanager = gazebo::sensors::SensorManager::Instance();
   std::vector<gazebo::sensors::SensorPtr> sensors = smanager->GetSensors();
   for(gazebo::sensors::SensorPtr sp : sensors)
@@ -84,7 +83,13 @@ RenderingHelper::RenderingHelper(gazebo::physics::WorldPtr world)
       gymCameras.push_back(std::make_shared<GymCamera>(std::dynamic_pointer_cast<gazebo::sensors::CameraSensor>(sp),rosTfFrame_id));
     }
   }
+}
 
+
+RenderingHelper::RenderingHelper(gazebo::physics::WorldPtr world)
+{
+  this->world = world;
+  searchCameras();
   //set renderThreadCallback to be called periodically by the render thread (which is the main thread of gazebo)
   // This ends up being called through the trace:
   //    - Server.cc:Server:: Run()
@@ -225,31 +230,51 @@ void RenderingHelper::renderThreadCallback()
  */
 void RenderingHelper::renderCameras(std::vector<std::string> cameras, gazebo_gym_env_plugin::RenderedCameras& renderedCameras)
 {
-  ROS_DEBUG("Available Cameras:");
+
+  std::string availableCamNames = "[";
   for(std::shared_ptr<GymCamera> cam : gymCameras)
-    ROS_DEBUG_STREAM("  "<<cam->sensor->Name());
+    availableCamNames += cam->sensor->Name()+", ";
+  availableCamNames += "]";
+
+  //If can't find a camera do a search
+  for(std::string reqName : cameras)
+  {
+    bool found = false;
+    for(std::shared_ptr<GymCamera> cam : gymCameras)
+    {
+      if(reqName.compare(cam->sensor->Name())==0)
+      {
+        found = true;
+        break;
+      }
+    }
+    if(!found)
+    {
+      searchCameras();
+      break;//Only do it once
+    }
+  }
 
 
   ROS_DEBUG("Selecting requested cameras...");
   //Get the cameras we need to use
   std::vector<std::shared_ptr<GymCamera>> requestedCameras;
-  if(cameras.empty())
+  for(std::string reqName : cameras)
   {
-    requestedCameras = gymCameras;
-  }
-  else
-  {
-    for(std::string reqName : cameras)
+    bool found = false;
+    for(std::shared_ptr<GymCamera> cam : gymCameras)
     {
-      for(std::shared_ptr<GymCamera> cam : gymCameras)
+      if(reqName.compare(cam->sensor->Name())==0)
       {
-        if(reqName.compare(cam->sensor->Name())==0)
-        {
-          requestedCameras.push_back(cam);
-          ROS_DEBUG_STREAM("Selecting camera '"<<cam->sensor->Name()<<"'");
-          break;
-        }
+        requestedCameras.push_back(cam);
+        ROS_DEBUG_STREAM("Selecting camera '"<<cam->sensor->Name()<<"'");
+        found = true;
+        break;
       }
+    }
+    if(!found)
+    {
+      ROS_WARN_STREAM("Couldn't find requested camera '"<<reqName<<"' available cameras are: "<<availableCamNames<<std::endl);
     }
   }
   ROS_DEBUG_STREAM("Selected "<<requestedCameras.size()<<" cameras");

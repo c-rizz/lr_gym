@@ -12,14 +12,16 @@ import rosgraph_msgs
 import rospy
 from std_srvs.srv import Empty
 
-from gazebo_gym.envControllers.EnvironmentController import EnvironmentController
+from gazebo_gym.envControllers.RosEnvController import RosEnvController
 from gazebo_gym.envControllers.JointEffortEnvController import JointEffortEnvController
 from gazebo_gym.envControllers.SimulatedEnvController import SimulatedEnvController 
 from gazebo_gym.utils.utils import JointState
 from gazebo_gym.utils.utils import LinkState
 import os
+import gazebo_gym.utils.dbg.ggLog as ggLog
 
-class GazeboControllerNoPlugin(EnvironmentController, JointEffortEnvController, SimulatedEnvController):
+
+class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, SimulatedEnvController):
     """This class allows to control the execution of a Gazebo simulation.
 
     It only uses the default gazebo plugins which are usually included in the installation.
@@ -30,8 +32,6 @@ class GazeboControllerNoPlugin(EnvironmentController, JointEffortEnvController, 
     def __init__(   self,
                     usePersistentConnections : bool = False,
                     stepLength_sec : float = 0.001,
-                    jointsToObserve : List[Tuple[str,str]] = [],
-                    camerasToRender : List[str] = [],
                     rosMasterUri : str = None):
         """Initialize the Gazebo controller.
 
@@ -68,28 +68,7 @@ class GazeboControllerNoPlugin(EnvironmentController, JointEffortEnvController, 
 
         self._rosMasterUri = rosMasterUri
 
-
-    def startController(self):
-        """Start up the controller. This must be called after setCamerasToObserve, setLinksToObserve and setJointsToObserve."""
-
-        # init_node uses use_sim_time to determine which time to use, but I can't
-        # find a reliable way for it to be set before init_node is being called
-        # So we wait for it to be set to either true or false
-        useSimTime = None
-        while useSimTime is None:
-            try:
-                useSimTime = rospy.get_param("/use_sim_time")
-            except KeyError:
-                print("Could not get /use_sim_time. Will retry")
-                time.sleep(1)
-            except ConnectionRefusedError:
-                print("No connection to ROS parameter server. Will retry")
-                time.sleep(1)
-
-        if self._rosMasterUri is not None:
-            os.environ["ROS_MASTER_URI"] = self._rosMasterUri
-        rospy.init_node('gazebo_env_controller', anonymous=True)
-
+    def _makeRosConnections(self):
         serviceNames = {"applyJointEffort" : "/gazebo/apply_joint_effort",
                         "clearJointEffort" : "/gazebo/clear_joint_forces",
                         "getJointProperties" : "/gazebo/get_joint_properties",
@@ -125,6 +104,31 @@ class GazeboControllerNoPlugin(EnvironmentController, JointEffortEnvController, 
 
         # Crete a publisher to manually send clock messages (used in reset, very ugly, sorry)
         self._clockPublisher = rospy.Publisher("/clock", rosgraph_msgs.msg.Clock, queue_size=1)
+
+
+    def startController(self):
+        """Start up the controller. This must be called after setCamerasToObserve, setLinksToObserve and setJointsToObserve."""
+
+        # init_node uses use_sim_time to determine which time to use, but I can't
+        # find a reliable way for it to be set before init_node is being called
+        # So we wait for it to be set to either true or false
+        useSimTime = None
+        while useSimTime is None:
+            try:
+                useSimTime = rospy.get_param("/use_sim_time")
+            except KeyError:
+                print("Could not get /use_sim_time. Will retry")
+                time.sleep(1)
+            except ConnectionRefusedError:
+                print("No connection to ROS parameter server. Will retry")
+                time.sleep(1)
+
+        if self._rosMasterUri is not None:
+            os.environ["ROS_MASTER_URI"] = self._rosMasterUri
+        rospy.init_node('gazebo_env_controller', anonymous=True)
+
+        self._makeRosConnections()
+
 
         rospy.loginfo("ROS time is "+str(rospy.get_time())+" pid = "+str(os.getpid()))
         self.pauseSimulation()
@@ -311,12 +315,23 @@ class GazeboControllerNoPlugin(EnvironmentController, JointEffortEnvController, 
 
 
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
+        #ggLog.info("GazeboControllerNoPlugin.getJointsState() called")
         ret = {}
         for i in range(len(requestedJoints)):
             jointName = requestedJoints[i][1]
             modelName = requestedJoints[i][0]
-            jointProp = self._getJointPropertiesService.call(jointName) ## TODO: this ignores the model name!
-            #print("Got joint prop for "+jointName+" =",jointProp)
+
+            gotit = False
+            tries = 0
+            while not gotit and tries <10:
+                jointProp = self._getJointPropertiesService.call(jointName) ## TODO: this ignores the model name!
+                #ggLog.info("Got joint prop for "+jointName+" = "+str(jointProp))
+                gotit = jointProp.success
+                tries+=1
+            if not gotit:
+                err = "GazeboControllerNoPlugin: Failed to get state for joint '"+str(jointName)+"' of model '"+str(modelName)+"'"
+                rospy.logerr(err)
+                raise RuntimeError(err)
             jointState = JointState(list(jointProp.position), list(jointProp.rate), None) #NOTE: effort is not returned by the gazeoo service
             ret[(modelName,jointName)] = jointState
 
@@ -378,24 +393,27 @@ class GazeboControllerNoPlugin(EnvironmentController, JointEffortEnvController, 
         """
         
         ret = {}
-        for item in linksStates.items:
+        for item in linksStates.items():
             linkName  = item[0][1]
             modelName = item[0][0]
             linkState = item[1]
             req = gazebo_msgs.srv.SetLinkStateRequest()
             req.link_state = gazebo_msgs.msg.LinkState()
             req.link_state.link_name = modelName+"::"+linkName
-            req.pose = linkState.pose.getPoseStamped(frame_id = "world").pose
-            req.twist.linear.x = linkState.pos_velocity_xyz[0]
-            req.twist.linear.y = linkState.pos_velocity_xyz[1]
-            req.twist.linear.z = linkState.pos_velocity_xyz[2]
-            req.twist.angular.x = linkState.ang_velocity_xyz[0]
-            req.twist.angular.y = linkState.ang_velocity_xyz[1]
-            req.twist.angular.z = linkState.ang_velocity_xyz[2]
+            req.link_state.pose = linkState.pose.getPoseStamped(frame_id = "world").pose
+            req.link_state.twist.linear.x = linkState.pos_velocity_xyz[0]
+            req.link_state.twist.linear.y = linkState.pos_velocity_xyz[1]
+            req.link_state.twist.linear.z = linkState.pos_velocity_xyz[2]
+            req.link_state.twist.angular.x = linkState.ang_velocity_xyz[0]
+            req.link_state.twist.angular.y = linkState.ang_velocity_xyz[1]
+            req.link_state.twist.angular.z = linkState.ang_velocity_xyz[2]
 
-
-            resp = self._getLinkStateService.call(req)
+            print(req)
+            print(type(req))
+            resp = self._setLinkStateService(req)
             
             if not resp.success:
-                rospy.logerror("Failed setting link state for link "+modelName+"::"+linkName+": "+res.status_message)
+                ggLog.error("Failed setting link state for link "+modelName+"::"+linkName+": "+res.status_message)
+            else:
+                ggLog.info("Successfuly set Linkstate for link "+modelName+"::"+linkName)
         return ret

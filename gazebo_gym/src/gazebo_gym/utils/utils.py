@@ -140,6 +140,8 @@ class JointState:
     def __str__(self):
         return "JointState("+str(self.position)+","+str(self.rate)+","+str(self.effort)+")"
 
+    def __repr__(self):
+        return self.__str__()
 
 class AverageKeeper:
     def __init__(self, bufferSize = 100):
@@ -178,7 +180,7 @@ def pyTorch_makeDeterministic():
     torch.manual_seed(0)
     np.random.seed(0)
     torch.backends.cudnn.benchmark = False
-    torch.set_deterministic(True)
+    torch.use_deterministic_algorithms(True)
     # Following may make things better, see https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
@@ -227,6 +229,8 @@ class Pose:
     def getPoseStamped(self, frame_id : str):
         return buildPoseStamped(self.position, np.array([self.orientation.x,self.orientation.y,self.orientation.z,self.orientation.w]), frame_id=frame_id)
 
+    def __repr__(self):
+        return self.__str__()
 
 class LinkState:
     pose : Pose = None
@@ -238,3 +242,9 @@ class LinkState:
         self.pose = Pose(position_xyz[0],position_xyz[1],position_xyz[2], orientation_xyzw[0],orientation_xyzw[1],orientation_xyzw[2],orientation_xyzw[3])
         self.pos_velocity_xyz = pos_velocity_xyz
         self.ang_velocity_xyz = ang_velocity_xyz
+
+    def __str__(self):
+        return "LinkState("+str(self.pose)+","+str(self.pos_velocity_xyz)+","+str(self.ang_velocity_xyz)+")"
+
+    def __repr__(self):
+        return self.__str__()

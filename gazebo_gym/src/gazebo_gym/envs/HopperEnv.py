@@ -20,6 +20,7 @@ from gazebo_gym.envControllers.EnvironmentController import EnvironmentControlle
 from gazebo_gym.envControllers.GazeboController import GazeboController
 from gazebo_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
 #import tf2_py
+import gazebo_gym.utils
 
 class HopperEnv(ControlledEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
@@ -129,6 +130,10 @@ class HopperEnv(ControlledEnv):
 
         if super().checkEpisodeEnded(previousState, state):
             return True
+
+        if state[15]<-0.5: #Too far back
+            return True
+
         torso_z_displacement = state[self.POS_Z_OBS]
         torso_pitch = state[self.TORSO_PITCH_OBS]
         #rospy.loginfo("height = "+str(mid_torso_height))
@@ -158,10 +163,6 @@ class HopperEnv(ControlledEnv):
                                                        ("hopper","thigh_to_leg",0),
                                                        ("hopper","leg_to_foot",0)])
 
-
-
-    def getCameraToRenderName(self) -> str:
-        return "camera"
 
 
     def getObservation(self, state) -> np.ndarray:
@@ -204,7 +205,7 @@ class HopperEnv(ControlledEnv):
         #avg_vel_x = (avg_pos_x - self._previousAvgPosX)/self._stepLength_sec
         #(r,p,y) = tf.transformations.euler_from_quaternion([torso_pose.orientation.x, torso_pose.orientation.y, torso_pose.orientation.z, torso_pose.orientation.w])
         #print("torsoState = ",torsoState)
-        #print("you ",jointStates["mid_to_mid2"].position)
+        #print("jointStates ",jointStates)
         state = np.array(  [linksState[("hopper","torso")].pose.position[2] - self._initial_torso_z,
                             1, # for pybullet consistency
                             0, # for pybullet consistency
@@ -231,6 +232,12 @@ class HopperEnv(ControlledEnv):
         self._previousAvgPosX = avg_pos_x
 
         return state
+
+    def getUiRendering(self) -> Tuple[np.ndarray, float]:
+        imgMsg = self._environmentController.getRenderings(["camera"])[0]
+        npArrImg = gazebo_gym.utils.utils.image_to_numpy(imgMsg)
+        t = imgMsg.header.stamp.to_sec()
+        return (npArrImg,t)
 
 
     def buildSimulation(self, backend : str = "gazebo"):

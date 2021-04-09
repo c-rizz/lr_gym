@@ -272,16 +272,68 @@
     </inertial>
   </link>
   <gazebo reference="foot">
-    <mu1 value="${friction_coefficient}"/>
-    <mu2 value="${friction_coefficient}"/>
     <material>Gazebo/Grey</material>
+
+    <collision name="collision">
+      <geometry>
+        <plane>
+          <normal>0 0 1</normal>
+          <size>100 100</size>
+        </plane>
+      </geometry>
+      <surface>                                                                                                                                                                             
+        <contact>                                                                                                                                                                           
+          <ode>                                                                                                                                                                             
+            <kp>2e+05</kp>                                                                                                                                                                  
+            <kd>80</kd>
+            <!-- Equivalent to CFM = 10e-2, ERP = 0.2, with step size = 10^-3,
+                See http://www.ode.org/ode-latest-userguide.html#sec_3_8_2 -->
+            <soft_cfm>0.01</soft_cfm>                           
+            <soft_erp>0.2</soft_erp>                                                                                                                                      
+          </ode>                                                                                                                                                                             
+          <bullet>                                                                                                                                                                             
+            <kp>2e+05</kp>                                                                                                                                                                  
+            <kd>80</kd>
+            <!-- Equivalent to CFM = 10e-2, ERP = 0.2, with step size = 10^-3,
+                See http://www.ode.org/ode-latest-userguide.html#sec_3_8_2 -->
+            <soft_cfm>0.01</soft_cfm>                           
+            <soft_erp>0.2</soft_erp>                                                                                                                                      
+          </bullet>                                                                                                                                                                            
+        </contact>                                                                                                                                                                          
+        <friction>
+          <!--
+          <bounce>
+            <restitution_coefficient> 0.5 </restitution_coefficient>
+            <threshold> 0.5 </threshold>
+          </bounce>
+          -->
+          <torsional>
+            <coefficient>0.5</coefficient>
+          </torsional>
+          <ode>  <!-- gazebo reads the ode tag even for bullet, see https://github.com/osrf/gazebo/blob/gazebo9/gazebo/physics/bullet/BulletSurfaceParams.cc -->
+            <!-- Some Coulomb friction coefficient examples:
+                https://web.mit.edu/8.13/8.13c/references-fall/aip/aip-handbook-section2d.pdf
+                https://engineeringlibrary.org/reference/coefficient-of-friction
+                https://www.engineeringtoolbox.com/friction-coefficients-d_778.html
+                https://www.tribonet.org/wiki/friction-coefficients-in-atmosphere-and-vacuum/
+            -->                                                                                                                                                                        
+            <mu>1</mu>                                                                                                                                                                    
+            <mu2>1</mu2>                                                                                                                                                                  
+          </ode>
+          <bullet>
+            <friction>1</friction>
+            <friction2>1</friction2>
+          </bullet>                                                                                                                                                                            
+        </friction>                                                                                                                                                                         
+      </surface>
+    </collision>
   </gazebo>
   <joint name="leg_to_foot" type="revolute">
     <origin xyz="0 0 ${-leg_length}" rpy="0 0 0" />
     <parent link="leg"/>
     <child link="foot"/>
     <axis xyz="0 1 0" rpy="0 0 0" />
-    <limit effort="${max_effort}" lower="-0.7853975" upper="0.7853975" velocity="10000"/>
+    <limit effort="${max_effort}" lower="-0.7853975" upper="0.7853975" velocity="100"/>
   </joint>
   <transmission name="leg_to_foot_tran">
     <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->
@@ -294,7 +346,40 @@
   </transmission>
 
 
+  <link name="camera_link"/>
+  <joint name="camera_joint" type="fixed">
+    <origin xyz="0 -2.5 0.75" rpy="0 0 1.5707" />
+    <parent link="mid"/>
+    <child link="camera_link"/>
+  </joint>
+  <gazebo reference="camera_link">
+    <self_collide>0</self_collide>
+    <enable_wind>0</enable_wind>
+    <kinematic>0</kinematic>
+    <enable_gravity>false</enable_gravity>
 
-
+    <sensor name="camera" type="camera">
+        <camera name="camera">
+            <horizontal_fov>${69.4*3.14159/180}</horizontal_fov>
+            <image>
+                <width>1280</width>
+                <height>720</height>
+                <format>RGB_INT8</format>
+            </image>
+            <clip>
+                <near>0.01</near>
+                <far>100</far>
+            </clip>
+        </camera>
+        <plugin name="camera/camera_controller" filename="libgazebo_ros_camera.so">
+            <cameraName>camera</cameraName>
+            <frameName>camera_optical_frame</frameName>
+            <updateRate>60</updateRate>
+        </plugin>
+        <always_on>true</always_on>
+        <update_rate>60</update_rate>
+        <visualize>0</visualize>
+    </sensor>
+</gazebo>
 
 </robot>

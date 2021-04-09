@@ -85,7 +85,7 @@ class EnvironmentController(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
+    def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]: #TODO: change this to use cv2 images (i.e. ndarrays)
         """Get the images for the specified cameras.
 
         Parameters

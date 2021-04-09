@@ -7,7 +7,7 @@ import sensor_msgs
 import gazebo_msgs.msg
 from threading import Lock
 
-from gazebo_gym.utils.utils import JointState
+from gazebo_gym.utils.utils import JointState, LinkState
 from gazebo_gym.envControllers.EnvironmentController import EnvironmentController
 from gazebo_gym_utils.msg import LinkStates
 
@@ -204,6 +204,8 @@ class RosEnvController(EnvironmentController):
 
         self._jointStatesMutex.acquire()
 
+        ggLog.info("RosEnvController.getJointsState() called")
+
 
         for j in requestedJoints:
             modelName = j[0]
@@ -268,7 +270,7 @@ class RosEnvController(EnvironmentController):
             pose = linkStatesMsg.link_poses[linkIndex].pose
             twist = linkStatesMsg.link_twists[linkIndex]
 
-            linkState = LinkState(  pos_velocity_xyz = (pose.position.x, pose.position.y, pose.position.z),
+            linkState = LinkState(  position_xyz     = (pose.position.x, pose.position.y, pose.position.z),
                                     orientation_xyzw = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
                                     pos_velocity_xyz = (twist.linear.x, twist.linear.y, twist.linear.z),
                                     ang_velocity_xyz = (twist.angular.x, twist.angular.y, twist.angular.z))

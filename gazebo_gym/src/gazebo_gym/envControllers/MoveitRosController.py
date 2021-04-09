@@ -8,6 +8,7 @@ from typing import Dict
 from typing import Optional
 
 from gazebo_gym.envControllers.RosEnvController import RosEnvController
+from gazebo_gym.envControllers.CartesianPositionEnvController import CartesianPositionEnvController
 from gazebo_gym.rosControlUtils import ControllerManagementHelper
 from gazebo_gym.rosControlUtils import TrajectoryControllerHelper
 
@@ -25,7 +26,7 @@ from gazebo_gym.utils.utils import buildPoseStamped
 import gazebo_gym.utils.dbg.ggLog as ggLog
 
 
-class MoveitRosController(RosEnvController):
+class MoveitRosController(RosEnvController, CartesianPositionEnvController):
     """This class allows to control the execution of a ROS-based environment.
 
     Allows to control the robot via cartesian end-effector control. Inverse kinematics and

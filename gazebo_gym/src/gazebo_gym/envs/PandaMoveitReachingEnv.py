@@ -15,14 +15,14 @@ from geometry_msgs.msg import PoseStamped
 import actionlib
 import rospkg
 
-from gazebo_gym.envs.BaseEnv import BaseEnv
+from gazebo_gym.envs.ControlledEnv import ControlledEnv
 from gazebo_gym.envControllers.MoveitRosController import MoveitRosController
 import gazebo_gym_utils.ros_launch_utils
 import gazebo_gym.utils.dbg.ggLog as ggLog
 import math
 
 
-class PandaMoveitReachingEnv(BaseEnv):
+class PandaMoveitReachingEnv(ControlledEnv):
     """This class represents and environment in which a Panda arm is controlled with Moveit to reach a goal pose.
 
     As moveit_commander is not working with python3 this environment relies on an intermediate ROS node for sending moveit commands.
@@ -102,7 +102,9 @@ class PandaMoveitReachingEnv(BaseEnv):
                                                                               ("panda","panda_joint6") : 2.570795,
                                                                               ("panda","panda_joint7") : 0})
 
-        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, startSimulation = startSimulation)
+        super().__init__(   maxActionsPerEpisode = maxActionsPerEpisode,
+                            startSimulation = startSimulation
+                            environmentController=self._environmentController)
 
         self._renderingEnabled = render
         if self._renderingEnabled:

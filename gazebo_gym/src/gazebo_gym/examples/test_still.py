@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import rospy
 import time
 import argparse
 import gym
@@ -38,12 +37,12 @@ def runRandom(env : gym.Env, numEpisodes : int, pubRender : bool, fps : float) -
         frame = 0
         episodeReward = 0
         done = False
-        # obs = env.reset()
+        obs = env.reset()
         t0 = time.time()
         while not done:
             print("Episode "+str(episodesRan)+" frame "+str(frame))
-            # action = buildNoAction(env)
-            # obs, stepReward, done, info = env.step(action)
+            action = buildNoAction(env)
+            obs, stepReward, done, info = env.step(action)
             #frames.append(env.render("rgb_array"))
             if pubRender:
                 # npImg = env.render("rgb_array")
@@ -60,7 +59,6 @@ def runRandom(env : gym.Env, numEpisodes : int, pubRender : bool, fps : float) -
         print("Ran for "+str(totDuration)+"s \t Reward: "+str(episodeReward))
 
 def main(envClassPath : str, pubRender : bool, fps : float):
-    #rospy.init_node('test_random', anonymous=True)
     envClassName = envClassPath.split(".")[-1]
     envModule = importlib.import_module(envClassPath)
     envClass = getattr(envModule, envClassName)

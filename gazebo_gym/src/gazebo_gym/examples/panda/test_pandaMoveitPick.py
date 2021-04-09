@@ -19,7 +19,7 @@ def main() -> None:
     #env = gym.make('CartPoleStayUp-v0')
 
     runId = datetime.now().strftime('%Y%m%d-%H%M%S')
-    folderName = "./solve_pandaMoveitReaching/"+runId
+    folderName = "./test_pandaPick/"+runId
 
     print("Setting up environment...")
     env = GymEnvWrapper(PandaMoveitPickEnv( #goalPose=[0.3,-0.3,0.5,-1,0,0,0],

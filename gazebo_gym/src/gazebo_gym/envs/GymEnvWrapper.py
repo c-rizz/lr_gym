@@ -65,7 +65,7 @@ class GymEnvWrapper(gym.Env):
         self._episodeInfoLogFile = episodeInfoLogFile
         self._logEpisodeInfo = self._episodeInfoLogFile is not None
         self._outVideoFile = outVideoFile
-        if not self._outVideoFile.endswith(".mp4"):
+        if self._outVideoFile is not None and not self._outVideoFile.endswith(".mp4"):
             self._outVideoFile += ".mp4"
         self._saveVideo = self._outVideoFile is not None
         self._videoWriter = None

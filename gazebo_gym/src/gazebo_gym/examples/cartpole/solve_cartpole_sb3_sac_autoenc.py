@@ -3,7 +3,7 @@
 import rospy
 import time
 import tqdm
-from gazebo_gym.algorithms.AutoencodingSAC import AutoencodingSAC
+from autoencoding_rl.AutoencodingSAC import AutoencodingSAC
 from stable_baselines3.sac import MlpPolicy
 from gazebo_gym.envs.CartpoleContinuousVisualEnv import CartpoleContinuousVisualEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper

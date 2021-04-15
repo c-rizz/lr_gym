@@ -9,9 +9,10 @@ from stable_baselines.common import env_checker
 from gazebo_gym.envs.PandaMoveitPickEnv import PandaMoveitPickEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 import gazebo_gym.utils.dbg.ggLog as ggLog
+from gazebo_gym.envControllers.MoveitRosController import MoveitRosController
 
 
-def main() -> None:
+def main(real : bool, robot_ip : str) -> None:
     """Solve the gazebo Panda reaching environment."""
 
 
@@ -22,9 +23,36 @@ def main() -> None:
     folderName = "./test_pandaPick/"+runId
 
     print("Setting up environment...")
-    env = GymEnvWrapper(PandaMoveitPickEnv( #goalPose=[0.3,-0.3,0.5,-1,0,0,0],
-                                            maxActionsPerEpisode = 30,
-                                            backend="gazebo"),
+    if not real:
+        ggEnv = PandaMoveitPickEnv( #goalPose=[0.3,-0.3,0.5,-1,0,0,0],
+                                    maxActionsPerEpisode = 30,
+                                    backend="gazebo")
+    else:
+        environmentController = MoveitRosController(jointsOrder =  [("panda","panda_joint1"),
+                                                                    ("panda","panda_joint2"),
+                                                                    ("panda","panda_joint3"),
+                                                                    ("panda","panda_joint4"),
+                                                                    ("panda","panda_joint5"),
+                                                                    ("panda","panda_joint6"),
+                                                                    ("panda","panda_joint7")],
+                                                    endEffectorLink  = ("panda", "panda_tcp"),
+                                                    referenceFrame   = "world",
+                                                    initialJointPose = {("panda","panda_joint1") : 0,
+                                                                        ("panda","panda_joint2") : 0,
+                                                                        ("panda","panda_joint3") : 0,
+                                                                        ("panda","panda_joint4") :-1,
+                                                                        ("panda","panda_joint5") : 0,
+                                                                        ("panda","panda_joint6") : 1,
+                                                                        ("panda","panda_joint7") : 3.14159/4},
+                                                    gripperActionTopic = "/franka_gripper/gripper_action",
+                                                    gripperInitialWidth = 0.08)
+        ggEnv = PandaMoveitPickEnv( #goalPose=[0.3,-0.3,0.5,-1,0,0,0],
+                                    maxActionsPerEpisode = 30,
+                                    backend="real",
+                                    real_robot_ip=robot_ip,
+                                    environmentController = environmentController)
+
+    env = GymEnvWrapper(ggEnv,
                         episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
     print("Environment created")
 
@@ -40,37 +68,39 @@ def main() -> None:
     input("Press Enter to continue...")
 
     print("Testing...")
+    
+
 
     actionseq = [   #Open and close
-                    [ 0.0,  0.0,  0.0,    0.0,  0.0,  0.0,    0.08,100.0],
-                    [ 0.0,  0.0,  0.0,    0.0,  0.0,  0.0,    0.00,100.0],
-                    [ 0.0,  0.0,  0.0,    0.0,  0.0,  0.0,    0.08,100.0],
+                    [ 0.0,  0.0,  0.0,    0.0,  0.0,  0.0,    1.0,0.5],
+                    [ 0.0,  0.0,  0.0,    0.0,  0.0,  0.0,    0.0,0.5],
+                    [ 0.0,  0.0,  0.0,    0.0,  0.0,  0.0,    1.0,0.5],
                     ##Move around a bit
-                    #[-1.0,  0.0,  0.0,    0.0,  0.0,  0.0,    0.08,100.0],
-                    #[ 1.0,  0.0,  0.0,    0.0,  0.0,  0.0,    0.08,100.0],
-                    #[ 0.0,  0.0,  0.0,    1.0,  0.0,  0.0,    0.08,100.0],
-                    #[ 0.0,  0.0,  0.0,   -1.0,  0.0,  0.0,    0.08,100.0],
+                    #[-1.0,  0.0,  0.0,    0.0,  0.0,  0.0,    1.0,0.5],
+                    #[ 1.0,  0.0,  0.0,    0.0,  0.0,  0.0,    1.0,0.5],
+                    #[ 0.0,  0.0,  0.0,    1.0,  0.0,  0.0,    1.0,0.5],
+                    #[ 0.0,  0.0,  0.0,   -1.0,  0.0,  0.0,    1.0,0.5],
                     #Go down
-                    [ 0.0,  0.0, -1.0,    0.0,  0.0,  0.0,    0.08,100.0],
-                    [ 0.0,  0.0, -1.0,    0.0,  0.0,  0.0,    0.08,100.0],
-                    [ 0.0,  0.0, -1.0,    0.0,  0.0,  0.0,    0.08,100.0],
-                    [ 0.0,  0.0, -1.0,    0.0,  0.0,  0.0,    0.08,100.0],
-                    [ 0.0,  0.0, -1.0,    0.0,  0.0,  0.0,    0.08,100.0],
-                    [ 0.0,  0.0, -1.0,    0.0,  0.0,  0.0,    0.08,100.0],
-                    [ 0.0,  0.0, -0.8,    0.0,  0.0,  0.0,    0.08,100.0],
+                    [ 0.0,  0.0, -1.0,    0.0,  0.0,  0.0,    1.0,0.5],
+                    [ 0.0,  0.0, -1.0,    0.0,  0.0,  0.0,    1.0,0.5],
+                    [ 0.0,  0.0, -1.0,    0.0,  0.0,  0.0,    1.0,0.5],
+                    [ 0.0,  0.0, -1.0,    0.0,  0.0,  0.0,    1.0,0.5],
+                    [ 0.0,  0.0, -1.0,    0.0,  0.0,  0.0,    1.0,0.5],
+                    [ 0.0,  0.0, -1.0,    0.0,  0.0,  0.0,    1.0,0.5],
+                    [ 0.0,  0.0, -0.8,    0.0,  0.0,  0.0,    1.0,0.5],
                     #Close
-                    [ 0.0,  0.0,  0.0,    0.0,  0.0,  0.0,    0.00,100.0],
+                    [ 0.0,  0.0,  0.0,    0.0,  0.0,  0.0,    0.0,0.5],
                     #Go up
-                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.00,100.0],
-                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.00,100.0],
-                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.00,100.0],
-                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.00,100.0],
-                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.00,100.0],
-                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.00,100.0],
-                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.00,100.0],
-                    [ 0.0,  1.0,  0.0,    0.0,  0.0,  0.0,    0.00,100.0],
+                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.0,0.5],
+                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.0,0.5],
+                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.0,0.5],
+                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.0,0.5],
+                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.0,0.5],
+                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.0,0.5],
+                    [ 0.0,  0.0,  1.0,    0.0,  0.0,  0.0,    0.0,0.5],
+                    [ 0.0,  1.0,  0.0,    0.0,  0.0,  0.0,    0.0,0.5],
                     #Open
-                    [ 0.0,  0.0,  0.0,    0.0,  0.0,  0.0,    0.08,100.0],
+                    [ 0.0,  0.0,  0.0,    0.0,  0.0,  0.0,    10.,0.5],
                     ]
 
 
@@ -98,6 +128,7 @@ def main() -> None:
             frame+=1
             episodeReward += stepReward
             print("stepReward = ",stepReward)
+            time.sleep(1)
         rewards.append(episodeReward)
         totFrames +=frame
         totDuration += time.time() - t0
@@ -106,10 +137,12 @@ def main() -> None:
     avgReward = sum(rewards)/len(rewards)
     duration_val = time.time() - t_preVal
     print("Computed average reward. Took "+str(duration_val)+" seconds ("+str(totFrames/totDuration)+" fps).")
-    print("Average rewar = "+str(avgReward))
+    print("Average reward = "+str(avgReward))
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
+    ap.add_argument("--real", default=False, action='store_true', help="Use the real robot")
+    ap.add_argument("--robot_ip", default="0.0.0.0", type=str, help="Ip address of the robot")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
-    main()
+    main(real=args["real"], robot_ip=args["robot_ip"])

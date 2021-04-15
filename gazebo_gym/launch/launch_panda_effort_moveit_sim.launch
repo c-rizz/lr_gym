@@ -14,7 +14,9 @@
     <arg name="control_mode" default="effort"/>
     <arg name="simulated" default="true"/>
     <arg name="physics_engine" default="bullet"/>
+    <arg name="robot_ip" default="0.0.0.0"/> <!-- only needed in the real -->
 
+    <param name="/use_sim_time" value="$(arg simulated)"/> <!-- Needs to be set even if false -->
 
     <remap from="robot_description" to="$(arg robot_name)_description"/>
     <remap from="robot_description_semantic" to="$(arg robot_name)_description_semantic"/>
@@ -29,7 +31,7 @@
       <arg name="control_mode" value="$(arg control_mode)"/>
       <arg name="simulated" value="$(arg simulated)"/>
       <arg name="physics_engine" value="$(arg physics_engine)"/>
-
+      <arg name="robot_ip" value="$(arg robot_ip)"/>
     </include>
 
 

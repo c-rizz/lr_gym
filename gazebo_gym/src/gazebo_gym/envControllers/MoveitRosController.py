@@ -21,6 +21,7 @@ import numpy as np
 from nptyping import NDArray
 import gazebo_gym.utils
 import control_msgs.msg
+import time
 
 from gazebo_gym.utils.utils import buildPoseStamped
 import gazebo_gym.utils.dbg.ggLog as ggLog
@@ -188,6 +189,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         if self._gripperActionTopic is None:
             raise RuntimeError("Called setGripperAction, but gripperActionTopic is not set. Should have been set in the constructor.")
 
+        ggLog.info(f"Setting gripper action: width = {width}, max_effort = {max_effort}")
         goal = control_msgs.msg.GripperCommandGoal()
         goal.command.position = width/2
         goal.command.max_effort = max_effort
@@ -219,7 +221,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
         if self._gripperActionTopic is not None:
             goal = control_msgs.msg.GripperCommandGoal()
-            goal.command.position = self._gripperInitialWidth
+            goal.command.position = self._gripperInitialWidth/2
             goal.command.max_effort = -1
             self._gripperActionClient.send_goal(goal)
             r = self._gripperActionClient.wait_for_result()
@@ -243,6 +245,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
             except Exception as e:
                 ggLog.info("Moveit action failed to complete (this is not necessarily a bad thing) exception = "+str(e))
                 actionFailed+=1
+                time.sleep(5)
         self._waitOnStepCallbacks.clear()
         return actionFailed
 

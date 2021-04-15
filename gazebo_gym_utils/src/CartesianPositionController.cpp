@@ -33,6 +33,7 @@ namespace gazebo_gym_utils
 
   bool CartesianPositionController::init(hardware_interface::PositionJointInterface* hw, ros::NodeHandle &n)
   {
+    ROS_INFO("Initializing CartesianPositionController");
     // List of controlled joints
     std::string joint_chain_param_name = "joint_chain";
     std::string robot_description_param_name = "robot_description";
@@ -42,31 +43,31 @@ namespace gazebo_gym_utils
     std::vector<std::string> joint_names;
     if(!n.getParam(joint_chain_param_name, joint_names))
     {
-      ROS_ERROR_STREAM("Failed to getParam '" << joint_chain_param_name << "' (namespace: " << n.getNamespace() << ").");
+      ROS_ERROR_STREAM("GravityCompensatedEffortController: Failed to getParam '" << joint_chain_param_name << "' (namespace: " << n.getNamespace() << ").");
       return false;
     }
 
     if(joint_names.size() == 0)
     {
-      ROS_ERROR_STREAM("List of joint names is empty.");
+      ROS_ERROR_STREAM("GravityCompensatedEffortController: List of joint names is empty.");
       return false;
     }
 
     if(!n.getParam(attempts_param_name, attempts))
     {
-      ROS_ERROR_STREAM("Failed to getParam '" << attempts_param_name << "' (namespace: " << n.getNamespace() << ").");
+      ROS_ERROR_STREAM("GravityCompensatedEffortController: Failed to getParam '" << attempts_param_name << "' (namespace: " << n.getNamespace() << ").");
       return false;
     }
 
     if(!n.getParam(iterations_param_name, iterations))
     {
-      ROS_ERROR_STREAM("Failed to getParam '" << iterations_param_name << "' (namespace: " << n.getNamespace() << ").");
+      ROS_ERROR_STREAM("GravityCompensatedEffortController: Failed to getParam '" << iterations_param_name << "' (namespace: " << n.getNamespace() << ").");
       return false;
     }
 
     if(!n.getParam(precision_param_name, precision))
     {
-      ROS_ERROR_STREAM("Failed to getParam '" << precision_param_name << "' (namespace: " << n.getNamespace() << ").");
+      ROS_ERROR_STREAM("GravityCompensatedEffortController: Failed to getParam '" << precision_param_name << "' (namespace: " << n.getNamespace() << ").");
       return false;
     }
     
@@ -75,7 +76,7 @@ namespace gazebo_gym_utils
     std::string joint_names_str = "";
     for(std::string jn : joint_names)
       joint_names_str+=jn +", ";
-    ROS_INFO_STREAM("Got joint_names = ["<<joint_names_str<<"]");
+    ROS_INFO_STREAM("GravityCompensatedEffortController: Got joint_names = ["<<joint_names_str<<"]");
 
     try
     {
@@ -83,12 +84,12 @@ namespace gazebo_gym_utils
     }
     catch(const std::runtime_error& e)
     {
-      ROS_ERROR_STREAM("Failed to get chain for the specified joints: "<<e.what());
+      ROS_ERROR_STREAM("GravityCompensatedEffortController: Failed to get chain for the specified joints: "<<e.what());
       return false;
     }
 
 
-    ROS_INFO_STREAM("Built chain with segments:");
+    ROS_INFO_STREAM("GravityCompensatedEffortController: Built chain with segments:");
     for(KDL::Segment& seg : robotChain.segments)
     {
       if(seg.getJoint().getType() != KDL::Joint::JointType::None)
@@ -106,7 +107,7 @@ namespace gazebo_gym_utils
       }
       catch (const hardware_interface::HardwareInterfaceException& e)
       {
-        ROS_ERROR_STREAM("Exception thrown: " << e.what());
+        ROS_ERROR_STREAM("GravityCompensatedEffortController: Exception thrown: " << e.what());
         return false;
       }
     }
@@ -128,6 +129,7 @@ namespace gazebo_gym_utils
     lastSuccessfulCommand = std::vector<double>(7);
     command_buffer.writeFromNonRT(computeFk(getCurrentJointPose()));
     commandSubscriber = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &CartesianPositionController::commandCB, this);
+    ROS_INFO("Initialization of CartesianPositionController finished.");
     return true;
   }
 

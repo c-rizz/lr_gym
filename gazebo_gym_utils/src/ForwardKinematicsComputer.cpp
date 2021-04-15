@@ -45,14 +45,14 @@ namespace gazebo_gym_utils
           }
           else
           {
-            ROS_WARN_STREAM("Couldn't find position of joint "<<jointName<<" in joint_state message. Will skip forward kinematics for its chain(s).");
+            ROS_DEBUG_STREAM("Couldn't find position of joint "<<jointName<<" in joint_state message. Will skip forward kinematics for its chain(s).");
             break;
           }
         }
       }
       if(foundJoints!=nrOfJoints)
       {
-        ROS_WARN_STREAM("Couldn't find all joint positions, skipping chain for "<<tipName);
+        ROS_DEBUG_STREAM("Couldn't find all joint positions, skipping chain for "<<tipName);
         continue;
       }
       KDL::JntArrayVel jointPosAndVel(jointPositions,jointVelocities);

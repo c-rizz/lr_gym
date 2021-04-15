@@ -99,7 +99,7 @@ class MultiMasterRosLauncher:
                 return
         thread = threading.Thread(target=run_in_thread)
         thread.start()
-        time.sleep(10) #TODO: Ugly, need a better way to ensure the roslaunch has launched everyting
+        # time.sleep(10) #TODO: Ugly, need a better way to ensure the roslaunch has launched everyting
 
 
         atexit.register(self.stop)

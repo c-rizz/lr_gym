@@ -30,25 +30,26 @@ namespace gazebo_gym_utils
 
   bool GravityCompensatedEffortController::init(hardware_interface::EffortJointInterface* hw, ros::NodeHandle &n)
   {
+    ROS_INFO("Initializing GravityCompensatedEffortController");
     // List of controlled joints
     std::string joint_chain_param_name = "joint_chain";
     std::vector<std::string> joint_names;
     if(!n.getParam(joint_chain_param_name, joint_names))
     {
-      ROS_ERROR_STREAM("Failed to getParam '" << joint_chain_param_name << "' (namespace: " << n.getNamespace() << ").");
+      ROS_ERROR_STREAM("GravityCompensatedEffortController: Failed to getParam '" << joint_chain_param_name << "' (namespace: " << n.getNamespace() << ").");
       return false;
     }
 
     std::string g_param_name = "gravity_acceleration";
     if(!n.getParam(g_param_name, gravity_acceleration))
     {
-      ROS_ERROR_STREAM("Failed to getParam '" << g_param_name << "' (namespace: " << n.getNamespace() << ").");
+      ROS_ERROR_STREAM("GravityCompensatedEffortController: Failed to getParam '" << g_param_name << "' (namespace: " << n.getNamespace() << ").");
       return false;
     }
 
     if(joint_names.size() == 0)
     {
-      ROS_ERROR_STREAM("List of joint names is empty.");
+      ROS_ERROR_STREAM("GravityCompensatedEffortController: List of joint names is empty.");
       return false;
     }
 
@@ -57,7 +58,7 @@ namespace gazebo_gym_utils
     std::string joint_names_str = "";
     for(std::string jn : joint_names)
       joint_names_str+=jn +", ";
-    ROS_INFO_STREAM("Got joint_names = ["<<joint_names_str<<"]");
+    ROS_INFO_STREAM("GravityCompensatedEffortController: Got joint_names = ["<<joint_names_str<<"]");
 
     try
     {
@@ -65,19 +66,19 @@ namespace gazebo_gym_utils
     }
     catch(const std::runtime_error& e)
     {
-      ROS_ERROR_STREAM("Failed to get chain for the specified joints: "<<e.what());
+      ROS_ERROR_STREAM("GravityCompensatedEffortController: Failed to get chain for the specified joints: "<<e.what());
       return false;
     }
 
     KDL::Vector gravityVector(0,0,-gravity_acceleration);
     chainDynParam = std::make_shared<KDL::ChainDynParam>(robotChain, gravityVector);
 
-    ROS_INFO_STREAM("Built chain with segments:");
+    ROS_INFO_STREAM("GravityCompensatedEffortController: Built chain with segments:");
     for(KDL::Segment& seg : robotChain.segments)
     {
       if(seg.getJoint().getType() != KDL::Joint::JointType::None)
       {
-        ROS_INFO_STREAM("Joint "<<seg.getJoint().getName()<<" is not a fixed joint, type = "<<seg.getJoint().getTypeName());
+        ROS_INFO_STREAM("GravityCompensatedEffortController: Joint "<<seg.getJoint().getName()<<" is not a fixed joint, type = "<<seg.getJoint().getTypeName());
         notFixedJointsNames.push_back(seg.getJoint().getName());
       }
     }
@@ -90,12 +91,13 @@ namespace gazebo_gym_utils
       }
       catch (const hardware_interface::HardwareInterfaceException& e)
       {
-        ROS_ERROR_STREAM("Exception thrown: " << e.what());
+        ROS_ERROR_STREAM("GravityCompensatedEffortController: Exception thrown: " << e.what());
         return false;
       }
     }
 
     sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &GravityCompensatedEffortController::commandCB, this);
+    ROS_INFO("Initialization of GravityCompensatedEffortController finished.");
     return true;
   }
 

@@ -23,7 +23,7 @@ import gazebo_gym_utils.ros_launch_utils
 import gazebo_gym.utils.dbg.ggLog as ggLog
 import math
 from gazebo_gym.utils.utils import JointState, LinkState
-
+import time
 
 
 class PandaMoveitPickEnv(ControlledEnv):
@@ -38,7 +38,9 @@ class PandaMoveitPickEnv(ControlledEnv):
                                     1,
                                     1,
                                     1,
-                                    1])
+
+                                    1,   # if > 0.5 then the gripper stays open, if not it closes
+                                    1])  # grasp force
     action_space = gym.spaces.Box(-action_space_high,action_space_high) # 3D translation vector, and grip width
 
     observation_space_high = np.array([ np.finfo(np.float32).max, # end-effector x position
@@ -55,8 +57,7 @@ class PandaMoveitPickEnv(ControlledEnv):
                                         np.finfo(np.float32).max, # joint 6 position
                                         np.finfo(np.float32).max, # joint 7 position
                                         np.finfo(np.float32).max, # flag indicating action fails (zero if there were no fails in last step)
-                                        np.finfo(np.float32).max, # current gripper width
-                                        np.finfo(np.float32).max # current gripper force
+                                        np.finfo(np.float32).max, # Current gripper width
                                         ])
 
     observation_space = gym.spaces.Box(-observation_space_high, observation_space_high)
@@ -73,7 +74,8 @@ class PandaMoveitPickEnv(ControlledEnv):
                     operatingArea = np.array([[-1, -1, 0], [1, 1, 1.5]]),
                     startSimulation : bool = True,
                     backend="gazebo",
-                    environmentController = None):
+                    environmentController = None,
+                    real_robot_ip : str = None):
         """Short summary.
 
         Parameters
@@ -94,6 +96,8 @@ class PandaMoveitPickEnv(ControlledEnv):
 
         """
 
+        self._real_robot_ip = real_robot_ip
+
         if environmentController is None:                
             self._environmentController = MoveitGazeboController(jointsOrder = [("panda","panda_joint1"),
                                                                             ("panda","panda_joint2"),
@@ -112,7 +116,7 @@ class PandaMoveitPickEnv(ControlledEnv):
                                                                                 ("panda","panda_joint6") : 1,
                                                                                 ("panda","panda_joint7") : 3.14159/4},
                                                             gripperActionTopic = "/franka_gripper/gripper_action",
-                                                            gripperInitialWidth = 0.05)
+                                                            gripperInitialWidth = 0.08)
         else:
             self._environmentController = environmentController
 
@@ -158,10 +162,12 @@ class PandaMoveitPickEnv(ControlledEnv):
         self._operatingArea = operatingArea #min xyz, max xyz
 
         self._maxGripperWidth = 0.08
+        self._maxMaxGripperEffort = 140
 
         self._reachedPickPoseThisEpisode = False
         self._didHoldSomethingThisEpisode = False
         self._wasHoldingSomethingPrevStep = False
+
 
     def submitAction(self, action : Action) -> None:
         """Plan and execute moveit movement without blocking.
@@ -175,7 +181,7 @@ class PandaMoveitPickEnv(ControlledEnv):
 
         """
         super().submitAction(action)
-        #print("received action "+str(action))
+        ggLog.info("received action "+str(action))
         clippedAction = np.clip(np.array(action, dtype=np.float32),-1,1)
         action_xyz = clippedAction[0:3]*self._maxPositionChange
         action_rpy  = clippedAction[3:6]*self._maxOrientationChange
@@ -195,9 +201,17 @@ class PandaMoveitPickEnv(ControlledEnv):
 
         self._environmentController.setCartesianPose(linkPoses = {("panda","panda_tcp") : unnorm_action})
 
-        gripperWidth = action[6] * self._maxGripperWidth
-        #print("gripperWidth = ",gripperWidth)
-        self._environmentController.setGripperAction(width = gripperWidth, max_effort = 20.0)
+        maxEffort = np.clip(action[7], -1, 1).item()
+        maxEffort *= self._maxMaxGripperEffort
+        #Only send close and open commands once, if the command a repeated in the real the gripper opens
+        if action[6] > 0.5 and not self._gripperOpen:
+            ggLog.info("Opening")
+            self._environmentController.setGripperAction(width = self._maxGripperWidth, max_effort = maxEffort)
+            self._gripperOpen = True
+        elif action[6] <= 0.5 and self._gripperOpen:
+            ggLog.info("Closing")
+            self._environmentController.setGripperAction(width = 0, max_effort = maxEffort)
+            self._gripperOpen = False
 
 
     def performStep(self) -> None:
@@ -239,14 +253,14 @@ class PandaMoveitPickEnv(ControlledEnv):
 
     def _isHoldingSomething(self, state : State):
         width = state[14]
-        force = state[15]
+        # Sadly the real franka gripper does not give the currently applied force
+        #force = state[15]
 
-        #ggLog.info(f" ----------- _isHoldingSomething: {width}, {force}")
+        ggLog.info(f" ----------- _isHoldingSomething: {width}")
 
-        isit =  width > 0.005 and force < -0.1 #Naive way to check if he's holding something
-        self._didHoldSomethingThisEpisode = isit
+        isHolding = (not self._gripperOpen) and width > 0.001
 
-        return isit
+        return isHolding
 
     def _checkPickPoseReached(self, state : State):
         position_dist2goal, orientation_dist2goal = self._getDist2goal(state)
@@ -280,6 +294,7 @@ class PandaMoveitPickEnv(ControlledEnv):
 
         mixedDistance = np.linalg.norm([posDist,minAngleDist])
         isHoldingSomething = self._isHoldingSomething(state)
+        self._didHoldSomethingThisEpisode |= isHoldingSomething
 
         if isHoldingSomething and not self._wasHoldingSomethingPrevStep:
             ggLog.info("Grasped object")
@@ -315,7 +330,7 @@ class PandaMoveitPickEnv(ControlledEnv):
         self._reachedPickPoseThisEpisode = False
         self._didHoldSomethingThisEpisode = False
         self._wasHoldingSomethingPrevStep = False
-
+        self._gripperOpen = True
 
         if isinstance(self._environmentController, SimulatedEnvController):
             self._environmentController.setLinksStateDirect({   ("cube","cube") : LinkState(position_xyz = (0.45, 0, 0.025),
@@ -324,7 +339,8 @@ class PandaMoveitPickEnv(ControlledEnv):
                                                                                             ang_velocity_xyz = (0,0,0))
                                                             })
         else:
-            raise RuntimeError("Unable to reset environment in non-simulated environments")
+            print("Unable to initialize environment in non-simulated environments. Please reset manually.")
+            input("Press enter to continue")
 
         return
 
@@ -367,8 +383,7 @@ class PandaMoveitPickEnv(ControlledEnv):
         #print(jointStates)
 
         gripWidth = jointStates[("panda","panda_finger_joint1")].position[0] + jointStates[("panda","panda_finger_joint2")].position[0]
-        gripForce = jointStates[("panda","panda_finger_joint1")].effort[0] + jointStates[("panda","panda_finger_joint2")].effort[0]
-
+        #Real franka gripper does not give force information, effort and evlocity are always zero in joint_states
 
         state = [   eePose.position[0],
                     eePose.position[1],
@@ -384,8 +399,7 @@ class PandaMoveitPickEnv(ControlledEnv):
                     jointStates[("panda","panda_joint6")].position[0],
                     jointStates[("panda","panda_joint7")].position[0],
                     self._environmentController.actionsFailsInLastStep(),
-                    gripWidth,
-                    gripForce]
+                    gripWidth]
 
         return np.array(state,dtype=np.float32)
 
@@ -400,9 +414,8 @@ class PandaMoveitPickEnv(ControlledEnv):
         elif backend == "real":
             self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher( rospkg.RosPack().get_path("gazebo_gym")+
                                                                                             "/launch/panda_moveit_pick.launch",
-                                                                                            cli_args=[  "gui:=false",
-                                                                                                        "noplugin:=true",
-                                                                                                        "simulated:=false"],
+                                                                                            cli_args=[  "simulated:=false",
+                                                                                                        "robot_ip:="+self._real_robot_ip],
                                                                                             basePort = 11311,
                                                                                             ros_master_ip = "192.168.2.10")
             self._mmRosLauncher.launchAsync()

@@ -13,15 +13,20 @@ namespace gazebo_gym_utils
                                   ros::NodeHandle&                         root_nh,
                                   ros::NodeHandle&                         controller_nh)
   {
+    ROS_INFO("Initializing LinkStatePublisherController");
     // get all joint names from the hardware interface
     const std::vector<std::string>& joint_names = hw->getNames();
     num_hw_joints_ = joint_names.size();
-    for (unsigned i=0; i<num_hw_joints_; i++)
-      ROS_DEBUG("Got joint %s", joint_names[i].c_str());
+
+    std::string joint_names_str = "";
+    for(std::string jn : joint_names)
+      joint_names_str+=jn +", ";
+    ROS_INFO_STREAM("LinkStatePublisherController: Got joint_names = ["<<joint_names_str<<"]");
+
 
     // get publishing period
     if (!controller_nh.getParam("publish_rate", publish_rate_)){
-      ROS_ERROR("Parameter 'publish_rate' not set");
+      ROS_ERROR("LinkStatePublisherController: Parameter 'publish_rate' not set");
       return false;
     }
 
@@ -52,6 +57,7 @@ namespace gazebo_gym_utils
       realtime_pub_->msg_.link_twists.push_back(geometry_msgs::Twist());
     }
 
+    ROS_INFO("Initializion of LinkStatePublisherController finished.");
     return true;
   }
 

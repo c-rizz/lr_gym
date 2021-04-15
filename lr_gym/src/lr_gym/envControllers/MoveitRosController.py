@@ -208,6 +208,22 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
         self._waitOnStepCallbacks.append(waitCallback)
 
+    def _moveGripperSync(self, width : float, effort : float):
+        goal = control_msgs.msg.GripperCommandGoal()
+        goal.command.position = width/2
+        goal.command.max_effort = effort
+        self._gripperActionClient.send_goal(goal)
+        r = self._gripperActionClient.wait_for_result()
+        if r:
+            if self._gripperActionClient.get_result().reached_goal:
+                return True
+            else:
+                ggLog.error("Gripper failed to reach goal: "+str(self._gripperActionClient.get_result()))
+                return False
+        else:
+            ggLog.error("Failed to perform gripper move: action timed out")
+            return False
+
     def resetWorld(self):
         ggLog.info("Environment controller resetting world...")
         goal = lr_gym_utils.msg.MoveToJointPoseGoal()
@@ -220,18 +236,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
             self._actionsFailsInLastStepCounter+=1
 
         if self._gripperActionTopic is not None:
-            goal = control_msgs.msg.GripperCommandGoal()
-            goal.command.position = self._gripperInitialWidth/2
-            goal.command.max_effort = -1
-            self._gripperActionClient.send_goal(goal)
-            r = self._gripperActionClient.wait_for_result()
-            if r:
-                if self._gripperActionClient.get_result().reached_goal:
-                    return
-                else:
-                    ggLog.error("Gripper failed to reach reset goal: "+str(self._gripperActionClient.get_result()))
-            else:
-                ggLog.error("Failed to perform gripper reset: action timed out")
+            self._moveGripperSync(0,20)
+            self._moveGripperSync(self._gripperInitialWidth,20)
 
     def actionsFailsInLastStep(self):
         return self._actionsFailsInLastStepCounter

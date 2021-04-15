@@ -208,9 +208,9 @@ A series of different environments based on the Franka-Emika Panda arm are avail
  * **PandaEffortKeepVarPose** again features an effort-controller Panda arm, the objective is to keep the panda arm
    end effector in a specific pose that changes between each episode (this environment has not been solved)
  * **PandaMoveitReachingEnv** features a Panda arm controlled in cartesian space with moveit. The objective is to
-   keep the panda arm end effector in a specific pose that does not vary between episodes
+   keep the panda arm end effector in a specific pose that does not vary between episodes. **This environment work both in simulation and in the real.**
  * **PandaMoveitVarReachingEnv** features a Panda arm controlled in cartesian space with moveit. The objective is to
-   keep the panda arm end effector in a specific pose that changes between each episode
+   keep the panda arm end effector in a specific pose that changes between each episode. **This environment work both in simulation and in the real.**
  * **PandaMoveitPick** features a Panda arm controlled in cartesian space via Moveit, it is also possible to control the Franka Hand gripper. The goal is to pick an object placed on the ground in front of tthe robot and lift it up. **This environment work both in simulation and in the real.**
 
 Scripts that solve or test each of these evironments in different ways are available in the examples folder. PandaEffortKeepVarPose and PandaMoveiPick currently do not have a working solve script.
@@ -226,15 +226,16 @@ You can try two pretrained models with the following:
    ```
 
 You can test the PandaMoveitPick environment with an hard-coded policy using the test_pandaMoveitPick.py example.
-* In simulation:
+* **In simulation**:
   ```
   rosrun lr_gym test_pandaMoveitPick.py
   ```
-* In the real (substituting your robot ip):
+* **In the real** (substituting your robot ip):
   ```
   rosrun lr_gym test_pandaMoveitPick.py --real --robot_ip x.x.x.x
   ```
 
+The `--real --robot_ip x.x.x.x` options can also be used for the PandaMoveitVarReachingEnv and PandaMoveitReachingEnv environments, no full training has been attempted.
 
 ## Plotting
 

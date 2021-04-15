@@ -1,29 +1,32 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(gazebo_gym_env_plugin)
+project(lr_gym)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++17 -Wall)
+add_compile_options(-std=c++11 -Wall)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  message_generation
   roscpp
   rospy
   std_msgs
-  std_srvs
+  geometry_msgs
   sensor_msgs
-  genmsg
-  actionlib_msgs
-  actionlib
-  gazebo_dev
+  tf2
+  tf2_ros
+  gazebo_gym_env_plugin
+  lr_gym_utils
 )
 
-
 ## System dependencies are found with CMake's conventions
-find_package(Boost REQUIRED COMPONENTS thread)
-find_package(gazebo REQUIRED)
+# find_package(Boost REQUIRED COMPONENTS system)
+
+
+## Uncomment this if the package has a setup.py. This macro ensures
+## modules and global scripts declared therein get installed
+## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
+catkin_python_setup()
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -50,39 +53,31 @@ find_package(gazebo REQUIRED)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
- FILES
- RenderedCameras.msg
-
- JointInfo.msg
- JointId.msg
- JointsInfoResponse.msg
-
- LinkId.msg
- LinkInfo.msg
- LinksInfoResponse.msg
-
- JointEffortRequest.msg
-)
+# add_message_files(
+#   FILES
+#   Message1.msg
+#   Message2.msg
+# )
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  StepSimulation.srv
-  RenderCameras.srv
-)
+# add_service_files(
+#   FILES
+#   Service1.srv
+#   Service2.srv
+# )
 
+## Generate actions in the 'action' folder
 # add_action_files(
-#   DIRECTORY action FILES
+#   FILES
+#   Action1.action
+#   Action2.action
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  sensor_msgs
-  actionlib_msgs
-)
+# generate_messages(
+#   DEPENDENCIES
+#   std_msgs
+# )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -114,9 +109,20 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-  LIBRARIES gazebo_gym_env_plugin
-  CATKIN_DEPENDS roscpp rospy std_msgs sensor_msgs
+INCLUDE_DIRS
+CATKIN_DEPENDS
+  roscpp
+  rospy
+  std_msgs
+  geometry_msgs
+  sensor_msgs
+  tf2
+  tf2_ros
+
+  gazebo_gym_env_plugin
+  lr_gym_utils
+
+DEPENDS
 )
 
 ###########
@@ -128,32 +134,6 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
-  ${GAZEBO_INCLUDE_DIRS}
 )
 
-## Declare a C++ library
-add_library(gazebo_gym_env_plugin SHARED src/gazeboGymEnvPlugin.cpp src/utils.cpp src/RenderingHelper.cpp src/JointEffortControl.cpp)
-add_dependencies(gazebo_gym_env_plugin ${PROJECT_NAME}_generate_messages_cpp )
-
-## Add cmake target dependencies of the library
-## as an example, code may need to be generated before libraries
-## either from message generation or dynamic reconfigure
-# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Declare a C++ executable
-## With catkin_make all packages are built within a single CMake context
-## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/lr_gym_node.cpp)
-
-## Rename C++ executable without prefix
-## The above recommended prefix causes long target names, the following renames the
-## target back to the shorter version for ease of user use
-## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
-# set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
-
-## Add cmake target dependencies of the executable
-## same as for the library above
-# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Specify libraries to link a library or executable target against
-target_link_libraries(gazebo_gym_env_plugin ${CATKIN_LIBRARIES})
+# include_directories(${Boost_INCLUDE_DIR})

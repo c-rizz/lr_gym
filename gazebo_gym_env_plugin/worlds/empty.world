@@ -9,6 +9,6 @@
       <uri>model://sun</uri>
     </include>
 
-    <plugin name="gazebo_gym_env" filename="libgazebo_gym_env_plugin.so"/>
+    <plugin name="lr_gym_env" filename="libgazebo_gym_env_plugin.so"/>
   </world>
 </sdf>

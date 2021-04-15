@@ -7,7 +7,7 @@ import sensor_msgs
 import time
 
 """
-	This files uses the gazebo_gym_env plugin to save the camera renderings to file
+	This files uses the lr_gym_env plugin to save the camera renderings to file
 """
 
 

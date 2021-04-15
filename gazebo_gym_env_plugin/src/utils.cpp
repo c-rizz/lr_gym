@@ -83,27 +83,27 @@ std::string getCameraRosEncoding(std::shared_ptr<sensors::CameraSensor> sensor)
     ret = sensor_msgs::image_encodings::RGB16;
   else if (sensorFormat == "BAYER_RGGB8")
   {
-    ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
+    ROS_INFO_STREAM("lr_gym_env: bayer simulation maybe computationally expensive.");
     ret = sensor_msgs::image_encodings::BAYER_RGGB8;
   }
   else if (sensorFormat == "BAYER_BGGR8")
   {
-    ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
+    ROS_INFO_STREAM("lr_gym_env: bayer simulation maybe computationally expensive.");
     ret = sensor_msgs::image_encodings::BAYER_BGGR8;
   }
   else if (sensorFormat == "BAYER_GBRG8")
   {
-    ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
+    ROS_INFO_STREAM("lr_gym_env: bayer simulation maybe computationally expensive.");
     ret = sensor_msgs::image_encodings::BAYER_GBRG8;
   }
   else if (sensorFormat == "BAYER_GRBG8")
   {
-    ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
+    ROS_INFO_STREAM("lr_gym_env: bayer simulation maybe computationally expensive.");
     ret = sensor_msgs::image_encodings::BAYER_GRBG8;
   }
   else
   {
-    ROS_ERROR_STREAM("gazebo_gym_env: Unsupported Gazebo ImageFormat "<<sensorFormat<<" on sensor "<<sensor->Name());
+    ROS_ERROR_STREAM("lr_gym_env: Unsupported Gazebo ImageFormat "<<sensorFormat<<" on sensor "<<sensor->Name());
     ret = sensor_msgs::image_encodings::BGR8;
   }
 
@@ -135,27 +135,27 @@ unsigned int getCameraPixelBytes(std::shared_ptr<sensors::CameraSensor> sensor)
     ret = 6;
   else if (sensorFormat == "BAYER_RGGB8")
   {
-    ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
+    ROS_INFO_STREAM("lr_gym_env: bayer simulation maybe computationally expensive.");
     ret = 1;
   }
   else if (sensorFormat == "BAYER_BGGR8")
   {
-    ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
+    ROS_INFO_STREAM("lr_gym_env: bayer simulation maybe computationally expensive.");
     ret = 1;
   }
   else if (sensorFormat == "BAYER_GBRG8")
   {
-    ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
+    ROS_INFO_STREAM("lr_gym_env: bayer simulation maybe computationally expensive.");
     ret = 1;
   }
   else if (sensorFormat == "BAYER_GRBG8")
   {
-    ROS_INFO_STREAM("gazebo_gym_env: bayer simulation maybe computationally expensive.");
+    ROS_INFO_STREAM("lr_gym_env: bayer simulation maybe computationally expensive.");
     ret = 1;
   }
   else
   {
-    ROS_ERROR_STREAM("gazebo_gym_env: Unsupported Gazebo ImageFormat "<<sensorFormat<<" on sensor "<<sensor->Name());
+    ROS_ERROR_STREAM("lr_gym_env: Unsupported Gazebo ImageFormat "<<sensorFormat<<" on sensor "<<sensor->Name());
     ret = 3;
   }
 

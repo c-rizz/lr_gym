@@ -5,13 +5,13 @@ for easily implementing new ones.
 
 Three different ROS packages are included:
 
-* gazebo_gym is the main package, and provides the means to easily implement RL ROS environments,
+* lr_gym is the main package, and provides the means to easily implement RL ROS environments,
 and the various demos.
 * gazebo_gym_env_plugin implements a gazebo plugin for controlling gazebo simulations according
  to the needs of RL methods. In particular it allows to step the simulation of precise durations,
  to obtain renderings from simulated cameras even while the simulation is stopped and reduces
  communication overhead making simulation MUCH faster.
-* gazebo_gym_utils provides various utilities for helping development. Important ones are:
+* lr_gym_utils provides various utilities for helping development. Important ones are:
     - A node that can receive and execute moveit commands via ROS messaging. This is needed as an intermediate
       node for controlling moveit from python3 code.
     - A ros controller that allows to perform effort control on top of a gravity-compensation controller
@@ -19,9 +19,9 @@ and the various demos.
 
 
 
-## The gazebo_gym package
+## The lr_gym package
 
-In the gazebo_gym/src/gazebo_gym folder you can find python3 code for implementing ROS-based
+In the lr_gym/src/lr_gym folder you can find python3 code for implementing ROS-based
 RL environments.
 The implementation of the environments has been split in two logically separated parts.
 
@@ -56,7 +56,7 @@ catkin workspace src folder:
 
  * This current repository (if you didn't do it already):
    ```
-   git clone --branch master https://gitlab.idiap.ch/learn-real/gazebo_gym.git
+   git clone --branch master https://gitlab.idiap.ch/learn-real/lr_gym.git
    ```
  * For using the Panda arm you will need the `lr_panda` repository:
    ```
@@ -72,7 +72,7 @@ catkin workspace src folder:
    ```
 
 You will also need to install some python3 modules, preferably in a python virtual
-environment. You can use the build_virtualenv.sh helper script in the gazebo_gym folder.
+environment. You can use the build_virtualenv.sh helper script in the lr_gym folder.
 However you need to have python3.7 (stable_baselines 2 requires tensorflow 1.15, which requires
 python<=3.7).
 
@@ -88,13 +88,13 @@ At this point you can create the virtual python environment with the following h
 script (if you don't have a gpu you can specify sb_cpu instead of sb):
 
 ```
-src/gazebo_gym/gazebo_gym/build_virtualenv.sh sb
+src/lr_gym/lr_gym/build_virtualenv.sh sb
 ```
 
 At this point you can enter the virtual environment with:
 
 ```
-. ./virtualenv/gazebo_gym_sb/bin/activate
+. ./virtualenv/lr_gym_sb/bin/activate
 ```
 
 
@@ -127,14 +127,14 @@ The environment can be tested using a python script that executes a hard-coded p
 through the python gym interface:
 
 ```
-rosrun gazebo_gym test_cartpole_env.py
+rosrun lr_gym test_cartpole_env.py
 ```
 
 By default the script does not use the simulated camera, it is possible to enable
 it with:
 
 ```
-rosrun gazebo_gym test_cartpole_env.py --render
+rosrun lr_gym test_cartpole_env.py --render
 ```
 
 The rendered frames can be saved to file by specifying the --saveframes option.
@@ -146,13 +146,13 @@ The simulation step length can be changed using the --steplength option (the def
 It is also possible to train a basic DQN policy by using the following:
 
 ```
-rosrun gazebo_gym solve_cartpole.py
+rosrun lr_gym solve_cartpole.py
 ```
 
 To see the simulation you can launch a gazebo client using the following:
 
 ```
-roslaunch gazebo_gym gazebo_client.launch id:=0
+roslaunch lr_gym gazebo_client.launch id:=0
 ```
 
 It should reach the maximum episode length of 500 steps in about 400 episodes.
@@ -163,14 +163,14 @@ It should reach the maximum episode length of 500 steps in about 400 episodes.
 You can also train a SAC policy using multiple Gazebo simulations at the same time.
 
 ```
-rosrun gazebo_gym solve_cartpole_sb2_sac_vec.py --envsNum=4
+rosrun lr_gym solve_cartpole_sb2_sac_vec.py --envsNum=4
 ```
 
 This will start 4 gazebo simulations in 4 different ros masters. To view the simulations
 you can launch the following changing the id parameter:
 
 ```
-roslaunch gazebo_gym gazebo_client.launch id:=0
+roslaunch lr_gym gazebo_client.launch id:=0
 ```
 
 It should reach the maximum episode length  of 500 steps in about 60 episode batches (60x4 episodes)
@@ -180,20 +180,20 @@ It should reach the maximum episode length  of 500 steps in about 60 episode bat
 
 You can execute a pre-trained policy with:
 ```
-rosrun gazebo_gym solve_hopper.py --load src/gazebo_gym/gazebo_gym/trained_models/td3_hopper_20200605-175927s140000gazebo-urdf-gazeboGym.zip
+rosrun lr_gym solve_hopper.py --load src/lr_gym/lr_gym/trained_models/td3_hopper_20200605-175927s140000gazebo-urdf-gazeboGym.zip
 ```
 
 You can train a new TD3 policy with
 
 ```
-rosrun gazebo_gym solve_hopper.py
+rosrun lr_gym solve_hopper.py
 ```
 
 You can specify the number of timesteps to train for with the --iterations option.
 
 You can also run the hopper environment in pybullet specifying the --pybullet option, in this mode you can also use an mjcf model (adapted from the OpenAI gym one) instead of the urdf one, using the --mjcf option. Trained models are also provided for these two modes.
 
-As always the simulation can be visualized using 'roslaunch gazebo_gym gazebo_client.launch'
+As always the simulation can be visualized using 'roslaunch lr_gym gazebo_client.launch'
 
 ## Examples - Panda Arm
 
@@ -214,21 +214,21 @@ Scripts that solve or test each of these evironments in different ways are avail
 You can try two pretrained models with the following:
  * PandaMoveitVarReachingEnv:
    ```
-    rosrun gazebo_gym solve_pandaMoveitVarReaching.py --load src/gazebo_gym/gazebo_gym/trained_models/pandaMoveitPoseReachingEnv320210309-184658s200000_62400_steps.zip
+    rosrun lr_gym solve_pandaMoveitVarReaching.py --load src/lr_gym/lr_gym/trained_models/pandaMoveitPoseReachingEnv320210309-184658s200000_62400_steps.zip
    ```
  * PandaEffortKeepPose:
    ```
-    rosrun gazebo_gym solve_panda_effort_keep_pose_vec.py --load solve_panda_effort_keep_tensorboard/20201114-212527/checkpoints/sac_pandaEffortKeep_20201114-212527s15000_3000000_steps.zip
+    rosrun lr_gym solve_panda_effort_keep_pose_vec.py --load solve_panda_effort_keep_tensorboard/20201114-212527/checkpoints/sac_pandaEffortKeep_20201114-212527s15000_3000000_steps.zip
    ```
 
 You can test the PandaMoveitPick environment with an hard-coded policy using the test_pandaMoveitPick.py example.
 * In simulation:
   ```
-  rosrun gazebo_gym test_pandaMoveitPick.py
+  rosrun lr_gym test_pandaMoveitPick.py
   ```
 * In the real (substituting your robot ip):
   ```
-  rosrun gazebo_gym test_pandaMoveitPick.py --real --robot_ip x.x.x.x
+  rosrun lr_gym test_pandaMoveitPick.py --real --robot_ip x.x.x.x
   ```
 
 
@@ -238,10 +238,10 @@ Executing and environment via the GymEnvWrapper allows to log information about 
 You can create plots of the learnig curves from these log suing the `plotGymEnvLogs.py` script. For example:
 
 ```
-rosrun gazebo_gym plotGymEnvLogs.py --csvfile solve_cartpole_env/20210310-120235/GymEnvWrapper_log.csv
+rosrun lr_gym plotGymEnvLogs.py --csvfile solve_cartpole_env/20210310-120235/GymEnvWrapper_log.csv
 ```
 
-Check the `rosrun gazebo_gym plotGymEnvLogs.py --help` for more info
+Check the `rosrun lr_gym plotGymEnvLogs.py --help` for more info
 
 ## Gazebo Plugin
 To correctly implement the OpenAI gym environment interface, it is necessary to execute

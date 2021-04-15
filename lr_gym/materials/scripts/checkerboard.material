@@ -1,0 +1,16 @@
+material lr_gym/checkerboard
+{
+	technique
+	{
+		pass
+		{
+
+			texture_unit
+			{
+				texture ../textures/bigCheckerboard.png
+				filtering none
+				scale 1 1
+			}
+		}
+	}
+}

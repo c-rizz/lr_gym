@@ -1,0 +1,35 @@
+# JointGroupPositionController for the arm, allows to set the position of the joints
+panda_arm_effort_effort_compensated_controller:
+    type: lr_gym_utils/GravityCompensatedEffortController
+    joint_chain:
+        - panda_joint1
+        - panda_joint2
+        - panda_joint3
+        - panda_joint4
+        - panda_joint5
+        - panda_joint6
+        - panda_joint7
+        - panda_joint8
+    gravity_acceleration: 9.80665
+
+# Not an actual controller, it just publishes the joint state of the robot
+link_state_controller:
+    type: lr_gym_utils/LinkStatePublisherController
+    publish_rate: 100
+
+# JointGroupPositionController for the arm, allows to set the position of the joints
+panda_arm_cartesian_position_controller:
+    type: lr_gym_utils/CartesianPositionController
+    joint_chain:
+        - panda_joint1
+        - panda_joint2
+        - panda_joint3
+        - panda_joint4
+        - panda_joint5
+        - panda_joint6
+        - panda_joint7
+        - panda_joint8
+
+    attempts: 1000
+    iterations: 10000
+    precision: 0.0001

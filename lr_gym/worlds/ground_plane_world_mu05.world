@@ -1,0 +1,103 @@
+<sdf version="1.4">
+<world name="default">
+    <include>
+        <uri>model://sun</uri>
+    </include>
+
+    <gravity>0 0 -9.80665</gravity>
+
+
+    <plugin name='lr_gym_env' filename='libgazebo_gym_env_plugin.so'/>
+
+    <physics name="bullet_default" type="bullet" default="true">
+      <max_step_size>0.0041666</max_step_size> <!-- 240fps, bullet should be optimized for this frequency -->
+      <real_time_update_rate>1200</real_time_update_rate> <!-- steps done in each real-time second, -1 does as many as possible-->
+      <bullet>
+        <solver>
+          <type>sequential_impulse</type>
+          <iters>10</iters>
+          <sor>1</sor>
+        </solver>
+        <constraints>
+          <cfm>0.01</cfm>
+          <erp>0.2</erp>
+          <contact_surface_layer>0.001</contact_surface_layer>
+          <split_impulse>1</split_impulse> <!-- Do not bounce objects away in case of penetration -->
+          <split_impulse_penetration_threshold>-0.04</split_impulse_penetration_threshold> <!-- ONly use split impulse for contacts this deep -->
+        </constraints>
+      </bullet>
+    </physics>
+
+    <physics name="ode_default" type="ode" default="true">
+      <max_step_size>0.001</max_step_size>
+      <real_time_update_rate>5000</real_time_update_rate> <!-- steps done in each real-time second, -1 does as many as possible-->
+      <ode>
+        <solver>
+          <island_threads>4</island_threads>
+        </solver>
+      </ode>
+    </physics>
+
+
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="ground_plane">
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <script>
+              <name>Gazebo/Grey</name>
+            </script>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <surface>                                                                                                                                                                             
+            <contact>                                                                                                                                                                           
+              <ode>                                                                                                                                                                             
+                <kp>2e+05</kp>                                                                                                                                                                  
+                <kd>80</kd>
+                <!-- Equivalent to CFM = 10e-2, ERP = 0.2, with step size = 10^-3,
+                    See http://www.ode.org/ode-latest-userguide.html#sec_3_8_2 -->                                                                                                                                                                 
+              </ode>                                                                                                                                                                            
+            </contact>                                                                                                                                                                          
+            <friction>
+              <!--
+              <bounce>
+                <restitution_coefficient> 0.5 </restitution_coefficient>
+                <threshold> 0.5 </threshold>
+              </bounce>
+              -->
+              <torsional>
+                <coefficient>0.5</coefficient>
+              </torsional>
+              <ode>  <!-- gazebo reads the ode tag even for bullet, see https://github.com/osrf/gazebo/blob/gazebo9/gazebo/physics/bullet/BulletSurfaceParams.cc -->
+                <!-- Some Coulomb friction coefficient examples:
+                    https://web.mit.edu/8.13/8.13c/references-fall/aip/aip-handbook-section2d.pdf
+                    https://engineeringlibrary.org/reference/coefficient-of-friction
+                    https://www.engineeringtoolbox.com/friction-coefficients-d_778.html
+                    https://www.tribonet.org/wiki/friction-coefficients-in-atmosphere-and-vacuum/
+                -->                                                                                                                                                                        
+                <mu>0.5</mu>                                                                                                                                                                    
+                <mu2>0.5</mu2>                                                                                                                                                                  
+              </ode>                                                                                                                                                                            
+            </friction>                                                                                                                                                                         
+          </surface>
+        </collision>
+      </link>
+    </model>
+
+
+</world>
+</sdf>

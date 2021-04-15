@@ -333,7 +333,8 @@ class PandaMoveitReachingEnv(ControlledEnv):
             self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher( rospkg.RosPack().get_path("gazebo_gym")+
                                                                                             "/launch/launch_panda_moveit.launch",
                                                                                             cli_args=[  "simulated:=false",
-                                                                                                        "robot_ip:="+self._real_robot_ip],
+                                                                                                        "robot_ip:="+self._real_robot_ip,
+                                                                                                        "control_mode:=position"],
                                                                                             basePort = 11311,
                                                                                             ros_master_ip = "127.0.0.1")
             self._mmRosLauncher.launchAsync()

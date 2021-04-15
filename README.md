@@ -1,4 +1,4 @@
-# Gazebo/ROS Gym
+# Learn-Real Gym
 
 This repository implements various Reinforcement Learning environments and provides a framework
 for easily implementing new ones.
@@ -37,7 +37,7 @@ simulators, or even in the real world. An example of this is the HopperEnv envir
 both Gazebo and PyBullet.
 
 Different environment controllers have been implemented for different simulators and for the real world.
-All of the environments are derived form EnvironmentController
+All of the environments controllers are derived form EnvironmentController
 
 * **GazeboController** and GazeboControllerNoPlugin provide the means to control a Gazebo simulation
 * **PyBulletController** allows to control a PyBullet simulation
@@ -46,6 +46,10 @@ simulations and for the real world (but it will be less efficient and "precise" 
 * **EffortRosControlController** is built on top of RosEnvController and uses ros_control effort controllers to
 command joint efforts
 * **MoveitRosController** is built on top of RosEnvController and uses MoveIt to control a robot in cartesian space
+* **MoveitGazeboController** is build on top of MoveitRosController and GazeboController, it integrates the moveit-based
+ control with useful methods only available in simulation
+
+There are various environments already implemented, you can find them in the `lr_gym/src/lr_gyn/envs` folder.
 
 
 ## Setup - stable_baselines 2

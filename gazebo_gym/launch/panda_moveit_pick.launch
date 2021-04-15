@@ -19,7 +19,7 @@
 
 
     <!-- Launch gazebo simulation -->
-    <include file="$(find gazebo_gym)/launch/launch_panda_effort_moveit_sim.launch" >
+    <include file="$(find gazebo_gym)/launch/launch_panda_moveit.launch" >
       <arg name="gui" value="$(arg gui)"/>
       <arg name="noplugin" value="$(arg noplugin)"/>
       <arg name="start_controllers" value="true"/>

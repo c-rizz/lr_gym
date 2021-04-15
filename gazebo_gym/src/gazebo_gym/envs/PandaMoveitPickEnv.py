@@ -181,7 +181,7 @@ class PandaMoveitPickEnv(ControlledEnv):
 
         """
         super().submitAction(action)
-        ggLog.info("received action "+str(action))
+        # ggLog.info("received action "+str(action))
         clippedAction = np.clip(np.array(action, dtype=np.float32),-1,1)
         action_xyz = clippedAction[0:3]*self._maxPositionChange
         action_rpy  = clippedAction[3:6]*self._maxOrientationChange
@@ -205,11 +205,11 @@ class PandaMoveitPickEnv(ControlledEnv):
         maxEffort *= self._maxMaxGripperEffort
         #Only send close and open commands once, if the command a repeated in the real the gripper opens
         if action[6] > 0.5 and not self._gripperOpen:
-            ggLog.info("Opening")
+            # ggLog.info("Opening")
             self._environmentController.setGripperAction(width = self._maxGripperWidth, max_effort = maxEffort)
             self._gripperOpen = True
         elif action[6] <= 0.5 and self._gripperOpen:
-            ggLog.info("Closing")
+            # ggLog.info("Closing")
             self._environmentController.setGripperAction(width = 0, max_effort = maxEffort)
             self._gripperOpen = False
 
@@ -248,7 +248,7 @@ class PandaMoveitPickEnv(ControlledEnv):
         orientation_dist2goal = quaternion.rotation_intrinsic_distance(orientation_quat,goalQuat)
         orientation_dist2goal = min([orientation_dist2goal, 3.14159-orientation_dist2goal]) #same thing if it's 180 degrees rotated
 
-        ggLog.info(f"position_dist2goal = {position_dist2goal} , orientation_dist2goal = {orientation_dist2goal}")
+        # ggLog.info(f"position_dist2goal = {position_dist2goal} , orientation_dist2goal = {orientation_dist2goal}")
         return position_dist2goal, orientation_dist2goal
 
     def _isHoldingSomething(self, state : State):
@@ -256,7 +256,7 @@ class PandaMoveitPickEnv(ControlledEnv):
         # Sadly the real franka gripper does not give the currently applied force
         #force = state[15]
 
-        ggLog.info(f" ----------- _isHoldingSomething: {width}")
+        # ggLog.info(f" ----------- _isHoldingSomething: {width}")
 
         isHolding = (not self._gripperOpen) and width > 0.001
 
@@ -297,9 +297,9 @@ class PandaMoveitPickEnv(ControlledEnv):
         self._didHoldSomethingThisEpisode |= isHoldingSomething
 
         if isHoldingSomething and not self._wasHoldingSomethingPrevStep:
-            ggLog.info("Grasped object")
+            ggLog.info("Detected successful object grasp")
         elif not isHoldingSomething and self._wasHoldingSomethingPrevStep:
-            ggLog.info("Dropped object")
+            ggLog.info("Detected object drop")
 
         self._wasHoldingSomethingPrevStep = isHoldingSomething
 
@@ -326,7 +326,7 @@ class PandaMoveitPickEnv(ControlledEnv):
 
 
     def initializeEpisode(self) -> None:
-        ggLog.info("Initializing episode...........................................")
+        # ggLog.info("Initializing episode...........................................")
         self._reachedPickPoseThisEpisode = False
         self._didHoldSomethingThisEpisode = False
         self._wasHoldingSomethingPrevStep = False
@@ -417,7 +417,7 @@ class PandaMoveitPickEnv(ControlledEnv):
                                                                                             cli_args=[  "simulated:=false",
                                                                                                         "robot_ip:="+self._real_robot_ip],
                                                                                             basePort = 11311,
-                                                                                            ros_master_ip = "192.168.2.10")
+                                                                                            ros_master_ip = "127.0.0.1")
             self._mmRosLauncher.launchAsync()
         else:
             raise NotImplementedError("Backend '"+backend+"' not supported")

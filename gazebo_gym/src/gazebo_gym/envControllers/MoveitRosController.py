@@ -189,7 +189,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         if self._gripperActionTopic is None:
             raise RuntimeError("Called setGripperAction, but gripperActionTopic is not set. Should have been set in the constructor.")
 
-        ggLog.info(f"Setting gripper action: width = {width}, max_effort = {max_effort}")
+        # ggLog.info(f"Setting gripper action: width = {width}, max_effort = {max_effort}")
         goal = control_msgs.msg.GripperCommandGoal()
         goal.command.position = width/2
         goal.command.max_effort = max_effort
@@ -245,7 +245,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
             except Exception as e:
                 ggLog.info("Moveit action failed to complete (this is not necessarily a bad thing) exception = "+str(e))
                 actionFailed+=1
-                time.sleep(5)
+                #time.sleep(5)
         self._waitOnStepCallbacks.clear()
         return actionFailed
 

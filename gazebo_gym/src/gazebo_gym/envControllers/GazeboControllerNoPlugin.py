@@ -408,8 +408,8 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
             req.link_state.twist.angular.y = linkState.ang_velocity_xyz[1]
             req.link_state.twist.angular.z = linkState.ang_velocity_xyz[2]
 
-            print(req)
-            print(type(req))
+            #print(req)
+            #print(type(req))
             resp = self._setLinkStateService(req)
             
             if not resp.success:

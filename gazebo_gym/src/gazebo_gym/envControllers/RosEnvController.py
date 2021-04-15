@@ -204,7 +204,7 @@ class RosEnvController(EnvironmentController):
 
         self._jointStatesMutex.acquire()
 
-        ggLog.info("RosEnvController.getJointsState() called")
+        # ggLog.info("RosEnvController.getJointsState() called")
 
 
         for j in requestedJoints:

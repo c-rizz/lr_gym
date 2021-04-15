@@ -4,7 +4,6 @@ import time
 import numpy as np
 import argparse
 from datetime import datetime
-from stable_baselines.common import env_checker
 
 from gazebo_gym.envs.PandaMoveitPickEnv import PandaMoveitPickEnv
 from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
@@ -61,10 +60,7 @@ def main(real : bool, robot_ip : str) -> None:
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
 
-    #input("Robot will move. Press Enter to continue...")
-    #env_checker.check_env(env)
-    #print("Robot will move. Checked environment gym compliance :)")
-
+    time.sleep(5) #Wait so the console output is cleaner (Just for visualization purposes)
     input("Press Enter to continue...")
 
     print("Testing...")

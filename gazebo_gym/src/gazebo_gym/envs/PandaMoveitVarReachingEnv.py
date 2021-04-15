@@ -18,11 +18,12 @@ import gazebo_gym
 
 import gazebo_gym.utils.dbg.dbg_pose as dbg_pose
 from gazebo_gym.utils.utils import Pose
+from gazebo_gym.envs.ControlledEnv import ControlledEnv
 from gazebo_gym.envControllers.MoveitRosController import MoveitRosController
 
 
 
-class PandaMoveitVarReachingEnv(BaseEnv):
+class PandaMoveitVarReachingEnv(ControlledEnv):
     """This class represents and environment in which a Panda arm is controlled with cartesian movements to reach a goal pose.
     """
 
@@ -59,7 +60,10 @@ class PandaMoveitVarReachingEnv(BaseEnv):
                     goalToleranceOrientation_rad : float = 5*3.14159/180,
                     operatingArea = np.array([[-1, -1, 0], [1, 1, 1.5]]),
                     startJointPose : List[float] = [0,0,0,-1,0,2.57,0],
-                    startSimulation : bool = True):
+                    startSimulation : bool = True,
+                    backend="gazebo",
+                    environmentController = None,
+                    real_robot_ip : str = None):
         """Short summary.
 
         Parameters
@@ -77,7 +81,10 @@ class PandaMoveitVarReachingEnv(BaseEnv):
 
         """
 
-        self._environmentController = MoveitRosController(jointsOrder = [("panda","panda_joint1"),
+        self._real_robot_ip = real_robot_ip
+
+        if environmentController is None:                
+            self._environmentController = MoveitRosController(jointsOrder = [("panda","panda_joint1"),
                                                                          ("panda","panda_joint2"),
                                                                          ("panda","panda_joint3"),
                                                                          ("panda","panda_joint4"),
@@ -93,7 +100,13 @@ class PandaMoveitVarReachingEnv(BaseEnv):
                                                                               ("panda","panda_joint5") : startJointPose[4],
                                                                               ("panda","panda_joint6") : startJointPose[5],
                                                                               ("panda","panda_joint7") : startJointPose[6]})
-        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, startSimulation = startSimulation)
+        else:
+            self._environmentController = environmentController
+        
+        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, 
+                        startSimulation = startSimulation,
+                        environmentController=self._environmentController,
+                        simulationBackend=backend)
 
         self._goalPoseSamplFunc = goalPoseSamplFunc
         self._goalTolerancePosition = goalTolerancePosition
@@ -328,13 +341,22 @@ class PandaMoveitVarReachingEnv(BaseEnv):
         return state
 
     def buildSimulation(self, backend : str = "gazebo"):
-        if backend != "gazebo":
-            raise NotImplementedError("Backend "+backend+" not supported")
+        if backend == "gazebo":
+            self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher( rospkg.RosPack().get_path("gazebo_gym")+
+                                                                                            "/launch/launch_panda_moveit.launch",
+                                                                                            cli_args=["gui:=false", "load_gripper:=false"])
+            self._mmRosLauncher.launchAsync()
 
-        self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher( rospkg.RosPack().get_path("gazebo_gym")+
-                                                                                        "/launch/launch_panda_moveit.launch",
-                                                                                        cli_args=["gui:=false", "load_gripper:=false"])
-        self._mmRosLauncher.launchAsync()
+        elif backend == "real":
+            self._mmRosLauncher = gazebo_gym_utils.ros_launch_utils.MultiMasterRosLauncher( rospkg.RosPack().get_path("gazebo_gym")+
+                                                                                            "/launch/launch_panda_moveit.launch",
+                                                                                            cli_args=[  "simulated:=false",
+                                                                                                        "robot_ip:="+self._real_robot_ip],
+                                                                                            basePort = 11311,
+                                                                                            ros_master_ip = "127.0.0.1")
+            self._mmRosLauncher.launchAsync()
+        else:
+            raise NotImplementedError("Backend "+backend+" not supported")
 
 
     def _destroySimulation(self):

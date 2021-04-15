@@ -14,7 +14,7 @@ from gazebo_gym.envs.GymEnvWrapper import GymEnvWrapper
 import gazebo_gym.utils.dbg.ggLog as ggLog
 
 
-def main(trainIterations : int) -> None:
+def main(trainIterations : int, real : bool, robot_ip : str) -> None:
     """Solve the gazebo Panda reaching environment."""
 
 
@@ -25,7 +25,17 @@ def main(trainIterations : int) -> None:
     folderName = "./solve_pandaMoveitReaching/"+runId
 
     print("Setting up environment...")
-    env = GymEnvWrapper(PandaMoveitReachingEnv(goalPose=[0.3,-0.3,0.5,-1,0,0,0], maxActionsPerEpisode = 30), episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
+    if not real:
+        ggEnv = PandaMoveitReachingEnv( goalPose=[0.3,-0.3,0.5,-1,0,0,0],
+                                        maxActionsPerEpisode = 30)
+    else:
+        ggEnv = PandaMoveitReachingEnv( goalPose=[0.3,-0.3,0.5,-1,0,0,0],
+                                        maxActionsPerEpisode = 30,
+                                        backend="real",
+                                        real_robot_ip=robot_ip)
+
+    env = GymEnvWrapper(ggEnv,
+                        episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
     print("Environment created")
 
     #setup seeds for reproducibility
@@ -94,6 +104,8 @@ def main(trainIterations : int) -> None:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--iterations", default=10000, type=int, help="Number of triaiing steps to perform (Default is 10000)")
+    ap.add_argument("--real", default=False, action='store_true', help="Use the real robot")
+    ap.add_argument("--robot_ip", default="0.0.0.0", type=str, help="Ip address of the robot")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
-    main(trainIterations = args["iterations"])
+    main(trainIterations = args["iterations"], real=args["real"], robot_ip=args["robot_ip"])

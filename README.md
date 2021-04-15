@@ -206,11 +206,10 @@ A series of different environments based on the Franka-Emika Panda arm are avail
  * **PandaMoveitReachingEnv** features a Panda arm controlled in cartesian space with moveit. The objective is to
    keep the panda arm end effector in a specific pose that does not vary between episodes
  * **PandaMoveitVarReachingEnv** features a Panda arm controlled in cartesian space with moveit. The objective is to
-   keep the panda arm end effector in a specific pose that chnages between each episode
+   keep the panda arm end effector in a specific pose that changes between each episode
+ * **PandaMoveitPick** features a Panda arm controlled in cartesian space via Moveit, it is also possible to control the Franka Hand gripper. The goal is to pick an object placed on the ground in front of tthe robot and lift it up. **This environment work both in simulation and in the real.**
 
-
-Scripts that solve each of these evironments in different ways are available in the examples folder. PandaEffortKeepVarPose
-currently does not have a working solve script.
+Scripts that solve or test each of these evironments in different ways are available in the examples folder. PandaEffortKeepVarPose and PandaMoveiPick currently do not have a working solve script.
 
 You can try two pretrained models with the following:
  * PandaMoveitVarReachingEnv:
@@ -221,6 +220,17 @@ You can try two pretrained models with the following:
    ```
     rosrun gazebo_gym solve_panda_effort_keep_pose_vec.py --load solve_panda_effort_keep_tensorboard/20201114-212527/checkpoints/sac_pandaEffortKeep_20201114-212527s15000_3000000_steps.zip
    ```
+
+You can test the PandaMoveitPick environment with an hard-coded policy using the test_pandaMoveitPick.py example.
+* In simulation:
+  ```
+  rosrun gazebo_gym test_pandaMoveitPick.py
+  ```
+* In the real (substituting your robot ip):
+  ```
+  rosrun gazebo_gym test_pandaMoveitPick.py --real --robot_ip x.x.x.x
+  ```
+
 
 ## Plotting
 

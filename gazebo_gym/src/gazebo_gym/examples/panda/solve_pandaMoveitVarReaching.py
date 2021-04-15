@@ -103,7 +103,7 @@ def load(model, filename : str, env : gazebo_gym.envs.BaseEnv.BaseEnv) -> None:
     return model
 
 
-def main(fileToLoad : str = None, usePlugin : bool = False):
+def main(fileToLoad : str = None, real : bool = False, robot_ip : str = None) -> None:
 
 
 
@@ -123,12 +123,21 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
 
 
     print("Setting up environment...")
-    env = PandaMoveitVarReachingEnv(goalPoseSamplFunc=sampleGoal,
-                                    maxActionsPerEpisode = 30,
-                                    operatingArea = np.array([[0, -1, 0.1], [1, 1, 1.35]]),
-                                    startJointPose = [0,0,0,-1,0,2.57,0])
+    if not real:
+        ggEnv = PandaMoveitVarReachingEnv(  goalPoseSamplFunc=sampleGoal,
+                                            maxActionsPerEpisode = 30,
+                                            operatingArea = np.array([[0, -1, 0.1], [1, 1, 1.35]]),
+                                            startJointPose = [0,0,0,-1,0,2.57,0])
+    else:
+        ggEnv = PandaMoveitVarReachingEnv(  goalPoseSamplFunc=sampleGoal,
+                                            maxActionsPerEpisode = 30,
+                                            operatingArea = np.array([[0, -1, 0.1], [1, 1, 1.35]]),
+                                            startJointPose = [0,0,0,-1,0,2.57,0],
+                                            backend="real",
+                                            real_robot_ip=robot_ip)
+
     # env = GymEnvWrapper(env, episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
-    env = ToGoalEnvWrapper( env,
+    env = ToGoalEnvWrapper( ggEnv,
                             observationMask  = (0,0,0,0,0,0,  0,0,0,0,0,0),
                             desiredGoalMask  = (0,0,0,0,0,0,  1,1,1,1,1,1),
                             achievedGoalMask = (1,1,1,1,1,1,  0,0,0,0,0,0),
@@ -177,8 +186,9 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--load", default=None, type=str, help="load this model instead of perfomring the training")
-    ap.add_argument("--useplugin", default=False, action='store_true', help="Use the gazebo_gym Gazebo plugin to control the simulation")
+    ap.add_argument("--real", default=False, action='store_true', help="Use the real robot")
+    ap.add_argument("--robot_ip", default="0.0.0.0", type=str, help="Ip address of the robot")
 
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
-    main(fileToLoad = args["load"], usePlugin = args["useplugin"])
+    main(fileToLoad = args["load"], real=args["real"], robot_ip=args["robot_ip"])

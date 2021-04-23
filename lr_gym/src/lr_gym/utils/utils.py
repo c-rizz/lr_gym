@@ -11,6 +11,7 @@ import collections
 from typing import List, Tuple
 import os
 import quaternion
+import signal
 
 name_to_dtypes = {
     "rgb8":    (np.uint8,  3),
@@ -248,3 +249,23 @@ class LinkState:
 
     def __repr__(self):
         return self.__str__()
+
+
+sigint_received = False
+
+def init():
+    prevHandler = signal.getsignal(signal.SIGINT)
+
+    def sigint_handler(signal, stackframe):
+        try:
+            prevHandler(signal,stackframe)
+        except KeyboardInterrupt:
+            pass #If it was the original one, doesn't do anything, if it was something else it got executed
+
+        global sigint_received
+        sigint_received = True
+
+        raise KeyboardInterrupt #Someday do something better
+
+    signal.signal(signal.SIGINT, sigint_handler)
+

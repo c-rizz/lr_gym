@@ -171,7 +171,7 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
         return self._stepLength_sec
 
     def _performRender(self, requestedCameras : List[str]):
-        ggLog.info("Rendering cameras "+str(requestedCameras))
+        # ggLog.info("Rendering cameras "+str(requestedCameras))
         req = gazebo_gym_env_plugin.srv.RenderCamerasRequest()
         req.cameras=requestedCameras
         req.request_time = time.time()

@@ -5,6 +5,7 @@ Base-class for cresting GAzebo-based gym environments.
 The provided class must be extended to define a specific environment
 """
 
+# import traceback
 
 import lr_gym.utils.dbg.ggLog as ggLog
 
@@ -270,7 +271,8 @@ class GymEnvWrapper(gym.Env):
             the initial observation.
 
         """
-        #ggLog.info("reset()")
+        # ggLog.info("reset()")
+        # traceback.print_stack()
         self._resetCount += 1
         if self._verbose:
             ggLog.info(" ------- Resetting Environment (#"+str(self._resetCount)+")-------")
@@ -389,7 +391,8 @@ class GymEnvWrapper(gym.Env):
         if self._logEpisodeInfo:
             self._logFile.close()
         self._ggEnv.close()
-        self._videoWriter.release()
+        if self._saveVideo:
+            self._videoWriter.release()
 
 
 
@@ -436,3 +439,8 @@ class GymEnvWrapper(gym.Env):
 
     def getBaseEnv(self) -> BaseEnv:
         return self._ggEnv
+
+    def __del__(self):
+        # This is only called when the object is garbage-collected, so users should
+        # still call close themselves, we don't know when garbage collection will happen
+        self.close()

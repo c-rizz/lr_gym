@@ -11,6 +11,7 @@ from lr_gym.utils.dbg import ggLog
 import datetime
 import gym
 import stable_baselines
+from pyvirtualdisplay import Display
 
 from lr_gym.algorithms.sac_vec_sb2 import SAC_vec
 from lr_gym.utils.subproc_vec_env_no_reset import SubprocVecEnv_noReset
@@ -33,7 +34,7 @@ def buildModel(random_seed : int, env : gym.Env, folderName : str):
 
     return model
 
-def main() -> None:
+def main(envsNum : int) -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
 
     It does not use the rendering at all, it learns from the joint states.
@@ -44,10 +45,6 @@ def main() -> None:
     None
 
     """
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--envsNum", required=False, default=1, type=int, help="Number of environments to run in parallel")
-    ap.set_defaults(feature=True)
-    args = vars(ap.parse_args())
 
     training_episode_batches = 320
     run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
@@ -59,7 +56,7 @@ def main() -> None:
     def constructEnv(i):
         return GymEnvWrapper(CartpoleContinuousEnv(render=False, startSimulation = True), episodeInfoLogFile = folderName+"/GymEnvWrapper_log."+str(i)+".csv")
 
-    env = SubprocVecEnv_noReset([lambda i=i: constructEnv(i) for i in range(args["envsNum"])])  # 7 is good on an 8-core cpu (tested on i7-6820HK, 4 cores, 8 threads)
+    env = SubprocVecEnv_noReset([lambda i=i: constructEnv(i) for i in range(envsNum)])  # 7 is good on an 8-core cpu (tested on i7-6820HK, 4 cores, 8 threads)
 
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
@@ -109,4 +106,9 @@ def main() -> None:
     ggLog.info("Average rewar = "+str(avgReward))
 
 if __name__ == "__main__":
-    main()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--envsNum", required=False, default=1, type=int, help="Number of environments to run in parallel")
+    ap.set_defaults(feature=True)
+    args = vars(ap.parse_args())
+    with Display() as disp:
+        main(envsNum = args["envsNum"])

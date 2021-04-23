@@ -13,11 +13,11 @@ def makePlot(csvfile : str, x_data_id : str, max_x : float):
     df = pd.read_csv(csvfile)
 
     if max_x is not None:
-        df = df.loc[df['time_from_start'] < max_x]
+        df = df.loc[df[x_data_id] < max_x]
 
     avg_reward = df["ep_reward"].rolling(20).mean()
 
-
+    plt.clf()
     sns.set_theme(style="darkgrid")
     #sns.set_style("dark")
     #sns.set_context("paper")

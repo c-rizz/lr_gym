@@ -16,6 +16,7 @@ import lr_gym
 import os
 import time
 import lr_gym.utils.dbg.ggLog as ggLog
+import lr_gym.utils.utils
 
 class RosEnvController(EnvironmentController):
     """This class allows to control the execution of a ROS-based environment.
@@ -126,7 +127,7 @@ class RosEnvController(EnvironmentController):
                 time.sleep(1)
 
         rospy.init_node('ros_env_controller', anonymous=True)
-
+        lr_gym.utils.utils.init()
 
         self._simTimeStart = rospy.get_time() #Will be overwritten by resetWorld
         self._lastStepEnd = self._simTimeStart #Will be overwritten by resetWorld

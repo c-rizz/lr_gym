@@ -109,23 +109,7 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
     def startController(self):
         """Start up the controller. This must be called after setCamerasToObserve, setLinksToObserve and setJointsToObserve."""
 
-        # init_node uses use_sim_time to determine which time to use, but I can't
-        # find a reliable way for it to be set before init_node is being called
-        # So we wait for it to be set to either true or false
-        useSimTime = None
-        while useSimTime is None:
-            try:
-                useSimTime = rospy.get_param("/use_sim_time")
-            except KeyError:
-                print("Could not get /use_sim_time. Will retry")
-                time.sleep(1)
-            except ConnectionRefusedError:
-                print("No connection to ROS parameter server. Will retry")
-                time.sleep(1)
-
-        if self._rosMasterUri is not None:
-            os.environ["ROS_MASTER_URI"] = self._rosMasterUri
-        rospy.init_node('gazebo_env_controller', anonymous=True)
+        super().startController()
 
         self._makeRosConnections()
 

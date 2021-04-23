@@ -16,6 +16,7 @@ from typing import Tuple
 from lr_gym.envs.CartpoleEnv import CartpoleEnv
 import lr_gym.utils
 import cv2
+import lr_gym.utils.dbg.ggLog as ggLog
 
 class CartpoleContinuousVisualEnv(CartpoleEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup."""
@@ -27,7 +28,8 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
                     simulatorController = None,
                     startSimulation : bool = False,
                     _obs_img_height_width : Tuple[int,int] = (64,64),
-                    frame_stacking_size : int = 1):
+                    frame_stacking_size : int = 1,
+                    imgEncoding : str = "float"):
         """Short summary.
 
         Parameters
@@ -64,9 +66,18 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         self._obs_img_height = _obs_img_height_width[0]
         self._obs_img_width = _obs_img_height_width[1]
         self._frame_stacking_size = 3
-        self.observation_space = gym.spaces.Box(low=0, high=1,
-                                                shape=(self._frame_stacking_size, self._obs_img_height, self._obs_img_width),
-                                                dtype=np.float32)
+        self._imgEncoding = imgEncoding
+        if imgEncoding == "float":
+            self.observation_space = gym.spaces.Box(low=0, high=1,
+                                                    shape=(self._frame_stacking_size, self._obs_img_height, self._obs_img_width),
+                                                    dtype=np.float32)
+        elif imgEncoding == "int":
+            self.observation_space = gym.spaces.Box(low=0, high=255,
+                                                    shape=(self._frame_stacking_size, self._obs_img_height, self._obs_img_width),
+                                                    dtype=np.uint8)
+        else:
+            raise AttributeError(f"Unsupported imgEncoding '{imgEncoding}' requested, it can be either 'int' or 'float'")
+        
         self.action_space = gym.spaces.Box(low=np.array([0]),high=np.array([1]))
 
         self._environmentController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
@@ -106,7 +117,13 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         #npArrImage = npArrImage[int(imgHeight*0/240.0):int(imgHeight*160/240.0),:] #crop top and bottom, it's an ndarray, it's fast
         npArrImage = cv2.resize(npArrImage, dsize = (self._obs_img_width, self._obs_img_height), interpolation = cv2.INTER_LINEAR)
         npArrImage = np.reshape(npArrImage, (self._obs_img_height, self._obs_img_width))
-        npArrImage = np.float32(npArrImage / 255)
+        if self._imgEncoding == "float":
+            npArrImage = np.float32(npArrImage / 255)
+        elif self._imgEncoding == "int":
+            npArrImage = np.uint8(npArrImage)
+        else:
+            raise RuntimeError(f"Unknown img encoding {self._imgEncoding}")
+        
         #print("npArrImage.shape = "+str(npArrImage.shape))
         return npArrImage
 
@@ -136,7 +153,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
                             states[("cartpole_v0","foot_joint")].rate[0],
                             states[("cartpole_v0","cartpole_joint")].position[0],
                             states[("cartpole_v0","cartpole_joint")].rate[0]]),
-                  self._stackedImg)
+                  np.copy(self._stackedImg))
 
     def checkEpisodeEnded(self, previousState : Tuple[float,float,float,float, np.ndarray], state : Tuple[float,float,float,float, np.ndarray]) -> bool:
         if super(CartpoleEnv, self).checkEpisodeEnded(previousState, state):
@@ -159,6 +176,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
 
     def performStep(self) -> None:
         for i in range(self._frame_stacking_size):
+            #ggLog.info(f"Stepping {i}")
             self._environmentController.step()
             img = self._environmentController.getRenderings(["camera"])[0]
             if img is None:
@@ -171,6 +189,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
 
 
     def performReset(self):
+        #ggLog.info("PerformReset")
         super().performReset()
         self._environmentController.resetWorld()
         self._intendedSimTime = 0

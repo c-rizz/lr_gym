@@ -15,6 +15,8 @@ from lr_gym.envControllers.GazeboController import GazeboController
 from lr_gym.envControllers.PyBulletController import PyBulletController
 
 import random
+import torchvision
+import numpy as np
 
 def main(simulatorController, doRender : bool = False, noPlugin : bool = False, saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength : float = 0) -> None:
     """Run the gazebo cartpole environment with a simple hard-coded policy.
@@ -72,6 +74,14 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
             #rospy.loginfo("Episode "+str(episode)+" frame "+str(frame))
 
             img = obs
+
+            print(f"img has shape {img.shape}")
+            # input image is CxHxW, but opencv wants HxWxC
+            img = np.transpose(img, (1,2,0))
+            img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+            img = img*255
+            
+            print(f"imgCv has shape {img.shape}")
             if saveFrames and img.size!=0:
                 r = cv2.imwrite(imagesOutFolder+"/frame-"+str(episode)+"-"+str(frame)+".png",img)
                 if not r:

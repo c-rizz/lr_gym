@@ -31,7 +31,7 @@ def main() -> None:
     #env = gym.make('CartPoleStayUp-v0')
     def constructEnv():
         return GymEnvWrapper(CartpoleEnv(render = False, startSimulation = True))
-    env = stable_baselines3.common.vec_env.SubprocVecEnv([constructEnv for i in range(args["envsNum"])])  # 7 is good on an 8-core cpu (tested on i7-6820HK, 4 cores, 8 threads)
+    env = stable_baselines3.common.vec_env.SubprocVecEnv([constructEnv for i in range(args["envsNum"])])  # 4 is good on an 8-core cpu (tested on i7-6820HK, 4 cores, 8 threads)
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
@@ -49,7 +49,7 @@ def main() -> None:
 
     time.sleep(10)
 
-    env = CartpoleEnv(render = False, startSimulation = True)
+    env = GymEnvWrapper(CartpoleEnv(render = False, startSimulation = True))
 
     input("Press Enter to continue.")
 

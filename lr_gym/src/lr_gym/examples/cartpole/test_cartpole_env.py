@@ -8,6 +8,7 @@ import os
 import argparse
 import lr_gym.utils.PyBulletUtils as PyBulletUtils
 import errno
+from pyvirtualdisplay import Display
 
 from lr_gym.envs.CartpoleEnv import CartpoleEnv
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper
@@ -125,10 +126,12 @@ if __name__ == "__main__":
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
 
-    if args["pybullet"]:
-        PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/cartpole_v0.urdf")
-        simulatorController = PyBulletController(stepLength_sec = args["steplength"])
-    else:
-        simulatorController = GazeboController(stepLength_sec = args["steplength"])
 
-    main(simulatorController, doRender = args["render"], noPlugin=args["noplugin"], saveFrames=args["saveframes"], stepLength_sec=args["steplength"], sleepLength = args["sleeplength"])
+    with Display() as disp:
+        if args["pybullet"]:
+            PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/cartpole_v0.urdf")
+            simulatorController = PyBulletController(stepLength_sec = args["steplength"])
+        else:
+            simulatorController = GazeboController(stepLength_sec = args["steplength"])
+
+        main(simulatorController, doRender = args["render"], noPlugin=args["noplugin"], saveFrames=args["saveframes"], stepLength_sec=args["steplength"], sleepLength = args["sleeplength"])

@@ -79,7 +79,7 @@ def main(envsNum : int) -> None:
     t_preVal = time.time()
     rewards=[]
     totFrames=0
-    totDuration=0
+    totDuration=0.0
     #frames = []
     #do an average over a bunch of episodes
     for episode in tqdm.tqdm(range(0,50)):

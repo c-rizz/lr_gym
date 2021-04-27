@@ -118,7 +118,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         npArrImage = cv2.resize(npArrImage, dsize = (self._obs_img_width, self._obs_img_height), interpolation = cv2.INTER_LINEAR)
         npArrImage = np.reshape(npArrImage, (self._obs_img_height, self._obs_img_width))
         if self._imgEncoding == "float":
-            npArrImage = np.float32(npArrImage / 255)
+            npArrImage = np.float32(npArrImage / 255) 
         elif self._imgEncoding == "int":
             npArrImage = np.uint8(npArrImage)
         else:

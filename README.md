@@ -124,6 +124,13 @@ You can now build with:
 catkin build
 ```
 
+To use in headless setups you may want to use pyvirtualdisplay, for it to work you
+will need to install the following system dependencies:
+
+```
+sudo apt install xvfb xserver-xephyr tigervnc-standalone-server xfonts-base
+```
+
 
 ## Examples - Cartpole
 

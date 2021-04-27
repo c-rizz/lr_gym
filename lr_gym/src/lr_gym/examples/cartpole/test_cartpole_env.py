@@ -52,7 +52,7 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
     wallTimeStart = time.time()
     rewards=[]
     totFrames=0
-    totDuration=0
+    totDuration=0.0
     #frames = []
     totalSimTime = 0
 

@@ -10,6 +10,7 @@ import multiprocessing
 from lr_gym.envControllers.GazeboController import GazeboController
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper
 import argparse
+from pyvirtualdisplay import Display
 
 def main() -> None:
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
@@ -56,7 +57,7 @@ def main() -> None:
     t_preVal = time.time()
     rewards=[]
     totFrames=0
-    totDuration=0
+    totDuration=0.0
     #frames = []
     #do an average over a bunch of episodes
     for episode in tqdm.tqdm(range(0,50)):
@@ -87,4 +88,5 @@ def main() -> None:
     print("Closed.")
 
 if __name__ == "__main__":
-    main()
+    with Display() as disp:
+        main()

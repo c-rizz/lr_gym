@@ -8,7 +8,8 @@ import cv2
 import os
 import argparse
 import lr_gym.utils.PyBulletUtils as PyBulletUtils
-import stable_baselines
+import stable_baselines3
+from pyvirtualdisplay import Display
 
 from lr_gym.envs.CartpoleEnv import CartpoleEnv
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper
@@ -16,7 +17,7 @@ from lr_gym.envControllers.GazeboController import GazeboController
 from lr_gym.envControllers.PyBulletController import PyBulletController
 
 
-def main(simulatorController, doRender : bool = False, noPlugin : bool = False, saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength : float = 0, parallelEnvsNum : int = 1) -> None:
+def main(simulator : str, doRender : bool = False, noPlugin : bool = False, saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength : float = 0, parallelEnvsNum : int = 1) -> None:
     """Run the gazebo cartpole environment with a simple hard-coded policy.
 
     Parameters
@@ -37,8 +38,14 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
     """
 
     def constructEnv():
+        if simulator == 'pybullet':
+            PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/cartpole_v0.urdf")
+            simulatorController = PyBulletController(stepLength_sec = stepLength_sec)
+        if simulator == 'gazebo':
+            simulatorController = GazeboController(stepLength_sec = stepLength_sec)
         return GymEnvWrapper(CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController, startSimulation = True), quiet=True)
-    env = stable_baselines.common.vec_env.SubprocVecEnv([constructEnv for i in range(parallelEnvsNum)])
+    env = stable_baselines3.common.vec_env.SubprocVecEnv([constructEnv for i in range(parallelEnvsNum)])
+    
     #env = gym.make('CartPoleStayUp-v0')
     #env = CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController, startSimulation = True)
     #setup seeds for reproducibility
@@ -128,17 +135,17 @@ if __name__ == "__main__":
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
 
+    with Display() as disp:
+        if args["pybullet"]:
+            simName = 'pybullet'
+        else:
+            simName = 'gazebo'
 
-    if args["pybullet"]:
-        PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/cartpole_v0.urdf")
-        simulatorController = PyBulletController(stepLength_sec = args["steplength"])
-    else:
-        simulatorController = GazeboController(stepLength_sec = args["steplength"])
 
-    main(   simulatorController,
-            doRender = args["render"],
-            noPlugin=args["noplugin"],
-            saveFrames=args["saveframes"],
-            stepLength_sec=args["steplength"],
-            sleepLength = args["sleeplength"],
-            parallelEnvsNum = args["envsNum"])
+        main(   simulator = simName,
+                doRender = args["render"],
+                noPlugin=args["noplugin"],
+                saveFrames=args["saveframes"],
+                stepLength_sec=args["steplength"],
+                sleepLength = args["sleeplength"],
+                parallelEnvsNum = args["envsNum"])

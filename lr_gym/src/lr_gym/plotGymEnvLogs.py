@@ -70,10 +70,10 @@ else:
 #fig, ax = plt.subplots(figsize=(11, 8.5))
 while not ctrl_c_received:
     #print("Plotting")
-    makePlot(args["csvfile"], x_data_id, max_x = args["maxx"], y_data_id="ep_reward")
-    plt.savefig(os.path.dirname(args["csvfile"])+"/reward.pdf")
-    #plt.show(block=True)
     try:
+        makePlot(args["csvfile"], x_data_id, max_x = args["maxx"], y_data_id="ep_reward")
+        plt.savefig(os.path.dirname(args["csvfile"])+"/reward.pdf")
+        #plt.show(block=True)
         if not args["nogui"]:
             plt.draw()
             plt.pause(0.01)

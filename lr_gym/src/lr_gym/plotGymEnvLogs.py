@@ -10,7 +10,7 @@ import signal
 import os
 import pandas
 
-def makePlot(csvfile : str, x_data_id : str, max_x : float, y_data_id : str):
+def makePlot(csvfile : str, x_data_id : str, max_x : float, y_data_id : str, max_y : float):
     df = pd.read_csv(csvfile)
 
     if max_x is not None:
@@ -28,6 +28,9 @@ def makePlot(csvfile : str, x_data_id : str, max_x : float, y_data_id : str):
     plt.title(os.path.dirname(args["csvfile"]).split("/")[-1]+"/"+os.path.basename(csvfile))
     if max_x is not None:
         p.set_xlim(-10,max_x)
+    if max_y is not None:
+        miny = df[y_data_id].min()
+        p.set_ylim(miny,max_y)
     plt.tight_layout()
 
 
@@ -45,6 +48,7 @@ ap.add_argument("--once", default=False, action='store_true', help="Plot only on
 ap.add_argument("--usetimex", default=False, action='store_true', help="Use time on the x axis")
 ap.add_argument("--useenvstepsx", default=False, action='store_true', help="Use environment steps on the x axis")
 ap.add_argument("--maxx", required=False, default=None, type=float, help="Maximum x value to plot")
+ap.add_argument("--maxy", required=False, default=None, type=float, help="Maximum y axis value")
 ap.add_argument("--period", required=False, default=5, type=float, help="Seconds to wait between plot update")
 ap.set_defaults(feature=True)
 args = vars(ap.parse_args())
@@ -71,7 +75,7 @@ else:
 while not ctrl_c_received:
     #print("Plotting")
     try:
-        makePlot(args["csvfile"], x_data_id, max_x = args["maxx"], y_data_id="ep_reward")
+        makePlot(args["csvfile"], x_data_id, max_x = args["maxx"], y_data_id="ep_reward", max_y = args["maxy"], )
         plt.savefig(os.path.dirname(args["csvfile"])+"/reward.pdf")
         #plt.show(block=True)
         if not args["nogui"]:

@@ -3,16 +3,22 @@
 import rospy
 import time
 import tqdm
+from typing import Tuple
+import inspect
+import numpy as np
+from nptyping import NDArray
+
 from stable_baselines3 import SAC
 from stable_baselines3.sac import MlpPolicy
 from lr_gym.envs.CartpoleContinuousEnv import CartpoleContinuousEnv
+from lr_gym.envs.CartpoleNoisyContinuousEnv import CartpoleNoisyContinuousEnv
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper
 import lr_gym.utils.dbg.ggLog as ggLog
 import gym
 import datetime
 import lr_gym.utils.utils
 
-def main() -> None:
+def main(obsNoise : NDArray[(4,),np.float32]) -> None: 
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
 
     It does not use the rendering at all, it learns from the joint states.
@@ -24,14 +30,18 @@ def main() -> None:
 
     """
 
-    run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-    folderName = "./solve_cartpole_env_sb3_sac/"+run_id
+    
+    folderName = lr_gym.utils.utils.setupLoggingForRun(__file__, inspect.currentframe())
     lr_gym.utils.utils.pyTorch_makeDeterministic()
+
     #logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s.%(msecs)03d][%(levelname)s] %(message)s', datefmt='%Y-%m-%d,%H:%M:%S')
 
     #rospy.init_node('solve_dqn_stable_baselines', anonymous=True, log_level=rospy.WARN)
     #env = gym.make('Pendulum-v0')
-    ggEnv = CartpoleContinuousEnv(render=False, startSimulation = True)
+    if obsNoise is None:
+        ggEnv = CartpoleContinuousEnv(render=False, startSimulation = True)
+    else:
+        ggEnv = CartpoleNoisyContinuousEnv(render=False, startSimulation = True, observation_noise_std=obsNoise)
     env = GymEnvWrapper(ggEnv, episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
@@ -95,4 +105,5 @@ def main() -> None:
     ggLog.info("Average reward = "+str(avgReward))
 
 if __name__ == "__main__":
-    main()
+    n = None    
+    main(n)

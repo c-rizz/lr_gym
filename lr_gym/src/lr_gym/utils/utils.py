@@ -12,6 +12,9 @@ from typing import List, Tuple
 import os
 import quaternion
 import signal
+import datetime
+import inspect
+import shutil
 
 name_to_dtypes = {
     "rgb8":    (np.uint8,  3),
@@ -268,4 +271,45 @@ def init():
         raise KeyboardInterrupt #Someday do something better
 
     signal.signal(signal.SIGINT, sigint_handler)
+
+
+def createSymlink(src, dst):
+    try:
+        os.symlink(src, dst)
+    except FileExistsError:
+        os.unlink(dst)
+        os.symlink(src, dst)
+
+def setupLoggingForRun(file : str, currentframe):
+    """Sets up a logging output folder for a training run.
+        It creates the folder, saves the current main script file for reference
+
+    Parameters
+    ----------
+    file : str
+        Path of the main script, the file wil be copied in the log folder
+    frame : [type]
+        Current frame from the main method, use inspect.currentframe() to get it. It will be used to save the
+        call parameters.
+
+    Returns
+    -------
+    str
+        The logging folder to be used
+    """
+
+    run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    script_out_folder = os.getcwd()+"/"+os.path.basename(file)
+    folderName = script_out_folder+"/"+run_id
+    os.makedirs(folderName)
+    createSymlink(src = folderName, dst = script_out_folder+"/latest")
+    shutil.copyfile(file, folderName+"/main_script")
+    if currentframe is not None:
+        args, _, _, values = inspect.getargvalues(currentframe)
+    else:
+        args, values = ([],{})
+    inputargs = [(i, values[i]) for i in args]
+    with open(folderName+"/input_args.txt", "w") as input_args_file:
+        print(str(inputargs), file=input_args_file)
+    return folderName
 

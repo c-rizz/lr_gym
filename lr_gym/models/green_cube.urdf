@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="cube">
+  <material name="green">
+    <color rgba="0 1 0 1"/>
+  </material>
+
+  <link name="cube">
+    <visual>
+      <geometry>
+        <box size="0.05 0.05 0.05" />
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.05 0.05 0.05" />
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.2"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+  </link>
+  <gazebo reference="cube">
+    <material>Gazebo/Green</material>
+    <!--
+    <mu1>142</mu1>
+    <mu2>143</mu2>
+    <kp>1000000</kp>
+    <kd>100000</kd>
+    <selfCollide>true</selfCollide>
+    <gravity>true</gravity>
+    <dampingFactor>0</dampingFactor> -->
+    <!-- <maxVel>?</maxVel> Reasonable default? -->
+    <!-- <minDepth>?</minDepth> Reasonable default? -->
+    <!-- <maxContacts>?</maxContacts> Reasonable default? -->
+
+    <!-- I directly write the sdf specification, it will be merged in the link with the urdf by gazebo
+         see: http://gazebosim.org/tutorials/?tut=ros_urdf
+         http://sdformat.org/spec?ver=1.7&elem=collision#link_collision -->
+    <collision>                                                                                                                                                                         
+      <surface>                                                                                                                                                                             
+        <contact>                                                                                                                                                                           
+          <ode>                                                                                                                                                                             
+            <kp>2e+05</kp>                                                                                                                                                                  
+            <kd>80</kd>
+            <!-- Equivalent to CFM = 10e-2, ERP = 0.2, with step size = 10^-3,
+                 See http://www.ode.org/ode-latest-userguide.html#sec_3_8_2 -->                                                                                                                                                                 
+          </ode>                                                                                                                                                                            
+        </contact>                                                                                                                                                                          
+        <friction>
+          <torsional>
+            <coefficient>0.5</coefficient>
+          </torsional>
+          <ode>     
+            <!-- Some Coulomb friction coefficient examples:
+                 https://web.mit.edu/8.13/8.13c/references-fall/aip/aip-handbook-section2d.pdf
+                 https://engineeringlibrary.org/reference/coefficient-of-friction
+                 https://www.engineeringtoolbox.com/friction-coefficients-d_778.html
+                 https://www.tribonet.org/wiki/friction-coefficients-in-atmosphere-and-vacuum/
+            -->                                                                                                                                                                        
+            <mu>0.5</mu>                                                                                                                                                                    
+            <mu2>0.5</mu2>                                                                                                                                                                  
+          </ode>                                                                                                                                                                            
+        </friction>                                                                                                                                                                         
+      </surface>                                                                                                                                                                            
+    </collision> 
+  </gazebo>
+</robot>
+

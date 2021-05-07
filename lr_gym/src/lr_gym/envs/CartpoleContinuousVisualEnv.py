@@ -27,7 +27,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
                     stepLength_sec : float = 0.05,
                     simulatorController = None,
                     startSimulation : bool = False,
-                    _obs_img_height_width : Tuple[int,int] = (64,64),
+                    obs_img_height_width : Tuple[int,int] = (64,64),
                     frame_stacking_size : int = 1,
                     imgEncoding : str = "float"):
         """Short summary.
@@ -63,8 +63,8 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
                                             startSimulation = startSimulation,
                                             simulationBackend = "gazebo")
         #aspect = 426/160.0
-        self._obs_img_height = _obs_img_height_width[0]
-        self._obs_img_width = _obs_img_height_width[1]
+        self._obs_img_height = obs_img_height_width[0]
+        self._obs_img_width = obs_img_height_width[1]
         self._frame_stacking_size = 3
         self._imgEncoding = imgEncoding
         if imgEncoding == "float":
@@ -109,9 +109,12 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
     def _reshapeFrame(self, frame):
         npArrImage = lr_gym.utils.utils.image_to_numpy(frame)
         npArrImage = cv2.cvtColor(npArrImage, cv2.COLOR_BGR2GRAY)
-        assert npArrImage.shape[0] == 240, "Next few lines assume image size is 426x240"
-        assert npArrImage.shape[1] == 426, "Next few lines assume image size is 426x240"
-        npArrImage = npArrImage[0:150, 100:326] #crop bottom 90px , left 100px, right 100px
+        # assert npArrImage.shape[0] == 240, "Next few lines assume image size is 426x240"
+        # assert npArrImage.shape[1] == 426, "Next few lines assume image size is 426x240"
+        og_width = npArrImage.shape[1]
+        og_height = npArrImage.shape[0]
+        npArrImage = npArrImage[0:int(150.0/240*og_height), int(100/426.0*og_width):int(326/426.0*og_width)] #crop bottom 90px , left 100px, right 100px
+        # print("shape",npArrImage.shape)
         #imgHeight = npArrImage.shape[0]
         #imgWidth = npArrImage.shape[1]
         #npArrImage = npArrImage[int(imgHeight*0/240.0):int(imgHeight*160/240.0),:] #crop top and bottom, it's an ndarray, it's fast

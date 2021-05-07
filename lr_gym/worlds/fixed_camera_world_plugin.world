@@ -145,9 +145,14 @@
               <height>480</height>
       				<width>854</width>
               -->
+              <!--
               <height>240</height>
       				<width>426</width>
-
+              -->
+              <!--
+              <height>120</height>
+      				<width>213</width>
+              -->
 
       			</image>
       			<clip>

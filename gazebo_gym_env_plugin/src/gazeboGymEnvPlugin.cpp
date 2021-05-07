@@ -59,7 +59,7 @@ namespace gazebo
     AverageKeeper avgRenderRequestDelay;
     AverageKeeper avgStepRequestDelay;
     AverageKeeper avgSteppingTime;
-
+    AverageKeeper totStepCallbackDuration;
 
 
 
@@ -357,7 +357,7 @@ namespace gazebo
         }
       }
 
-
+      totStepCallbackDuration.onTaskStart();
       int requestedIterations = -1;
       if(req.step_duration_secs!=0)
         requestedIterations = req.step_duration_secs/world->Physics()->GetMaxStepSize();
@@ -408,6 +408,7 @@ namespace gazebo
       if(req.requested_links.size()>0)
         getLinksInfo(req.requested_links,res.links_info);
 
+      totStepCallbackDuration.onTaskEnd();
       //Print timing info
       ROS_DEBUG_STREAM("-------------------------------------------------");
       ROS_DEBUG_STREAM("Render request delay:         avg="<<avgRenderRequestDelay.getAverage()*1000<<"ms");
@@ -417,6 +418,7 @@ namespace gazebo
       ROS_DEBUG_STREAM("Total Render duration:        avg="<<renderingHelper->getAvgTotalRenderTime()*1000<<"ms");
       ROS_DEBUG_STREAM("Step request delay:           avg="<<avgStepRequestDelay.getAverage()*1000<<"ms");
       ROS_DEBUG_STREAM("Step wall duration:           avg="<<avgSteppingTime.getAverage()*1000<<"ms");
+      ROS_DEBUG_STREAM("Tot call duration:            avg="<<totStepCallbackDuration.getAverage()*1000<<"ms");
 
       return true;//Must be false only in case we cannot send a response
     }

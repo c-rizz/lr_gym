@@ -31,8 +31,7 @@ def main(obsNoise : NDArray[(4,),np.float32]) -> None:
     """
 
     
-    folderName = lr_gym.utils.utils.setupLoggingForRun(__file__, inspect.currentframe())
-    lr_gym.utils.utils.pyTorch_makeDeterministic()
+    folderName = lr_gym.utils.utils.lr_gym_startup(__file__, inspect.currentframe())
 
     #logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s.%(msecs)03d][%(levelname)s] %(message)s', datefmt='%Y-%m-%d,%H:%M:%S')
 

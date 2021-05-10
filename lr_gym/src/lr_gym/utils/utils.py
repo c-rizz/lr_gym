@@ -16,6 +16,8 @@ import datetime
 import inspect
 import shutil
 
+import lr_gym.utils.dbg.ggLog as ggLog
+
 name_to_dtypes = {
     "rgb8":    (np.uint8,  3),
     "rgba8":   (np.uint8,  4),
@@ -180,11 +182,11 @@ def pyTorch_makeDeterministic():
         Still, DOES NOT ENSURE REPRODUCIBILTY ACROSS DIFFERENT TORCH/CUDA BUILDS AND
         HARDWARE ARCHITECTURES
     """
-    import torch
-    torch.manual_seed(0)
+    import torch as th
+    th.manual_seed(0)
     np.random.seed(0)
-    torch.backends.cudnn.benchmark = False
-    torch.use_deterministic_algorithms(True)
+    th.backends.cudnn.benchmark = False
+    th.use_deterministic_algorithms(True)
     # Following may make things better, see https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
@@ -256,7 +258,7 @@ class LinkState:
 
 sigint_received = False
 
-def init():
+def setupSigintHandler():
     prevHandler = signal.getsignal(signal.SIGINT)
 
     def sigint_handler(signal, stackframe):
@@ -313,3 +315,20 @@ def setupLoggingForRun(file : str, currentframe):
         print(str(inputargs), file=input_args_file)
     return folderName
 
+
+    
+def lr_gym_startup(main_file_path : str, currentframe, using_pytorch : bool = True) -> str:
+    logFolder = setupLoggingForRun(main_file_path, currentframe)
+    setupSigintHandler()
+    if using_pytorch:
+        import torch as th
+        pyTorch_makeDeterministic()
+        if th.cuda.is_available():
+            ggLog.info(f"CUDA AVAILABLE: device = {th.cuda.get_device_name()}")
+        else:
+            ggLog.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"+
+                        "                  NO CUDA AVAILABLE!\n"+
+                        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n"+
+                        "Will continue in 10 sec...")
+            time.sleep(10)
+    return logFolder

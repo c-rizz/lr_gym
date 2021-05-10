@@ -127,7 +127,7 @@ class RosEnvController(EnvironmentController):
                 time.sleep(1)
 
         rospy.init_node('ros_env_controller', anonymous=True)
-        lr_gym.utils.utils.init()
+        lr_gym.utils.utils.setupSigintHandler()
 
         self._simTimeStart = rospy.get_time() #Will be overwritten by resetWorld
         self._lastStepEnd = self._simTimeStart #Will be overwritten by resetWorld

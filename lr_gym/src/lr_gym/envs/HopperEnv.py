@@ -11,6 +11,7 @@ import rospy.client
 import gym
 import numpy as np
 from typing import Tuple
+from nptyping import NDArray
 
 import lr_gym_utils.ros_launch_utils
 import rospkg
@@ -52,6 +53,8 @@ class HopperEnv(ControlledEnv):
     LEG_FOOT_JOINT_POS_OBS = 12
     LEG_FOOT_JOINT_VEL_OBS = 13
     CONTACT_OBS = 14
+    AVG_X_POS = 15
+    PREV_AVG_X_POS = 16
 
     MAX_TORQUE = 75
 
@@ -111,11 +114,11 @@ class HopperEnv(ControlledEnv):
 
         self._environmentController.startController()
 
-    def submitAction(self, action : Tuple[float,float,float]) -> None:
+    def submitAction(self, action : NDArray[(3,), np.float32]) -> None:
         super().submitAction(action)
 
-        if len(action)!=3:
-            raise AttributeError("Action must have length 3, it is "+str(action))
+        if action.size!=3:
+            raise AttributeError("Action must have length 3, but action="+str(action))
 
         unnormalizedAction = (  float(np.clip(action[0],-1,1))*self.MAX_TORQUE,
                                 float(np.clip(action[1],-1,1))*self.MAX_TORQUE,
@@ -131,7 +134,7 @@ class HopperEnv(ControlledEnv):
         if super().checkEpisodeEnded(previousState, state):
             return True
 
-        if state[15]<-0.5: #Too far back
+        if state[self.AVG_X_POS]<-0.5: #Too far back
             return True
 
         torso_z_displacement = state[self.POS_Z_OBS]
@@ -250,9 +253,9 @@ class HopperEnv(ControlledEnv):
                 self._environmentController.setRosMasterUri(self._mmRosLauncher.getRosMasterUri())
         elif backend == "bullet":
             if self._useMjcfFile:
-                PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("lr_gym")+"/models/hopper.xml",fileFormat = "mjcf")
+                PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("lr_gym")+"/models/hopper_mjcf_pybullet.xml",fileFormat = "mjcf")
             else:
-                PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("lr_gym")+"/models/hopper_v0.urdf")
+                PyBulletUtils.buildSimpleEnv(rospkg.RosPack().get_path("lr_gym")+"/models/hopper_v0_pybullet.urdf")
         else:
             raise NotImplementedError("Backend "+backend+" not supported")
 

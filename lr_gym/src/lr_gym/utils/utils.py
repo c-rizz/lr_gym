@@ -323,6 +323,7 @@ def lr_gym_startup(main_file_path : str, currentframe, using_pytorch : bool = Tr
     if using_pytorch:
         import torch as th
         pyTorch_makeDeterministic()
+        th.autograd.set_detect_anomaly(True) # Detect NaNs
         if th.cuda.is_available():
             ggLog.info(f"CUDA AVAILABLE: device = {th.cuda.get_device_name()}")
         else:

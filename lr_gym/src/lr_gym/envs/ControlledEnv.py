@@ -68,7 +68,7 @@ class ControlledEnv(BaseEnv):
                          startSimulation = startSimulation,
                          simulationBackend = simulationBackend)
 
-        self._intendedSimTime = 0
+        self._intendedSimTime = 0.0
         self._intendedStepLength_sec = stepLength_sec
 
 
@@ -83,7 +83,7 @@ class ControlledEnv(BaseEnv):
     def performReset(self):
         super().performReset()
         self._environmentController.resetWorld()
-        self._intendedSimTime = 0
+        self._intendedSimTime = 0.0
         self.initializeEpisode()
 
 

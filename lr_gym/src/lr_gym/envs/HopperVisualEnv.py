@@ -5,28 +5,42 @@ Class implementing Gazebo-based gym cartpole environment.
 Based on ControlledEnv
 """
 
-
 import rospy
 import rospy.client
 
 import gym
 import numpy as np
-from typing import Tuple
-
-from lr_gym.envs.CartpoleEnv import CartpoleEnv
-import lr_gym.utils
+from typing import Tuple, Any
+from nptyping import NDArray
 import cv2
-import lr_gym.utils.dbg.ggLog as ggLog
 
-class CartpoleContinuousVisualEnv(CartpoleEnv):
-    """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup."""
+import lr_gym_utils.ros_launch_utils
+import rospkg
+import lr_gym.utils.PyBulletUtils as PyBulletUtils
+from lr_gym.envs.HopperEnv import HopperEnv
+from lr_gym.envControllers.EnvironmentController import EnvironmentController
+from lr_gym.envControllers.GazeboController import GazeboController
+from lr_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
+#import tf2_py
+import lr_gym.utils
 
+class HopperVisualEnv(HopperEnv):
+    """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
 
+    It makes use of the lr_gym_env gazebo plugin to perform simulation stepping and rendering.
+    """
+
+    RobotState = NDArray[(15,), np.float32]
+    ImgObservation = NDArray[(Any,Any,Any),np.float32]
+    State = Tuple[RobotState, ImgObservation]
+    
     def __init__(   self,
                     maxActionsPerEpisode : int = 500,
+                    render : bool = False,
                     stepLength_sec : float = 0.05,
-                    simulatorController = None,
-                    startSimulation : bool = False,
+                    simulatorController : EnvironmentController = None,
+                    startSimulation : bool = True,
+                    simulationBackend : str = "gazebo",
                     obs_img_height_width : Tuple[int,int] = (64,64),
                     frame_stacking_size : int = 3,
                     imgEncoding : str = "float"):
@@ -56,12 +70,12 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
 
         """
 
+        super(HopperEnv, self).__init__(maxActionsPerEpisode = maxActionsPerEpisode,
+                         stepLength_sec = stepLength_sec,
+                         environmentController = simulatorController,
+                         startSimulation = startSimulation,
+                         simulationBackend = simulationBackend)
         self._stepLength_sec = stepLength_sec
-        super(CartpoleEnv, self).__init__(  maxActionsPerEpisode = maxActionsPerEpisode,
-                                            stepLength_sec = stepLength_sec,
-                                            environmentController = simulatorController,
-                                            startSimulation = startSimulation,
-                                            simulationBackend = "gazebo")
         #aspect = 426/160.0
         self._obs_img_height = obs_img_height_width[0]
         self._obs_img_width = obs_img_height_width[1]
@@ -79,33 +93,63 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
             raise AttributeError(f"Unsupported imgEncoding '{imgEncoding}' requested, it can be either 'int' or 'float'")
         
         self._stackedImg = np.zeros(shape=(self._frame_stacking_size,self._obs_img_height, self._obs_img_height), dtype=np.float32)
+        self._intendedSimTime = 0.0
+        
 
-        self.action_space = gym.spaces.Box(low=np.array([0]),high=np.array([1]))
-
-        self._environmentController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
+        #print("HopperEnv: action_space = "+str(self.action_space))
+        #print("HopperEnv: action_space = "+str(self.action_space))
+        self._environmentController.setJointsToObserve([("hopper","torso_to_thigh"),
+                                                        ("hopper","thigh_to_leg"),
+                                                        ("hopper","leg_to_foot"),
+                                                        ("hopper","torso_pitch_joint")])
+        self._environmentController.setLinksToObserve([("hopper","torso"),("hopper","thigh"),("hopper","leg"),("hopper","foot")])
         self._environmentController.setCamerasToObserve(["camera"])
 
         self._environmentController.startController()
 
 
-    def submitAction(self, action : int) -> None:
-        super(CartpoleEnv, self).submitAction(action) #skip CartpoleEnv's submitAction, call its parent one
-        # print("action = ",action)
-        # print("type(action) = ",type(action))
-        if action < 0.5: #left
-            direction = -1
-        elif action >= 0.5:
-            direction = 1
+
+    def checkEpisodeEnded(self, previousState : State,
+                                state : State) -> bool:
+        robotState : RobotState = state[0]
+        prevRobotState : RobotState = previousState[0]
+        return super().checkEpisodeEnded(prevRobotState, robotState)
+
+
+
+    def computeReward(  self,
+                        previousState : State,
+                        state : State,
+                        action : Tuple[float,float,float]) -> float:
+        robotState : RobotState = state[0]
+        prevRobotState : RobotState = previousState[0]
+
+        if not self.checkEpisodeEnded(previousState, state):
+            speed = (robotState[15] - robotState[16])/self._stepLength_sec
+            # print("Speed: "+str(speed))
+            return 1 + 2*speed - 0.003*(action[0]*action[0] + action[1]*action[1] + action[2]*action[2]) # should be more or less the same as openai's hopper_v3
         else:
-            raise AttributeError("Invalid action (it's "+str(action)+")")
+            return -1
 
-        self._environmentController.setJointsEffort(jointTorques = [("cartpole_v0","foot_joint", direction * 10)])
 
-    def getObservation(self, state) -> np.ndarray:
-        obs = state[1]
-        # print(obs.shape)
-        # print(self.observation_space)
-        return obs
+    def getObservation(self, state) -> ImgObservation:
+        return state[1]
+
+
+
+    def getState(self) -> State:
+        robotState = super().getState()
+        imgObservation = self._stackedImg
+        return (robotState, imgObservation)
+
+
+
+    def buildSimulation(self, backend : str = "gazebo"):
+        if backend!="gazebo":
+            raise NotImplementedError("Backend "+backend+" not supported")        
+        super().buildSimulation(backend)
+
+
 
     def _reshapeFrame(self, frame):
         npArrImage = lr_gym.utils.utils.image_to_numpy(frame)
@@ -114,7 +158,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         # assert npArrImage.shape[1] == 426, "Next few lines assume image size is 426x240"
         og_width = npArrImage.shape[1]
         og_height = npArrImage.shape[0]
-        npArrImage = npArrImage[0:int(150.0/240*og_height), int(100/426.0*og_width):int(326/426.0*og_width)] #crop bottom 90px , left 100px, right 100px
+        npArrImage = npArrImage[0:int(220.0/240*og_height), int(100/426.0*og_width):int(326/426.0*og_width)] #crop bottom 90px , left 100px, right 100px
         # print("shape",npArrImage.shape)
         #imgHeight = npArrImage.shape[0]
         #imgWidth = npArrImage.shape[1]
@@ -131,51 +175,6 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         #print("npArrImage.shape = "+str(npArrImage.shape))
         return npArrImage
 
-    def getState(self) -> Tuple[float,float,float,float,np.ndarray]:
-        """Get an observation of the environment.
-
-        Returns
-        -------
-        NDArray[(4,), np.float32]
-            A tuple containing: (cart position in meters, carts speed in meters/second, pole angle in radiants, pole speed in rad/s)
-
-        """
-
-
-        #t0 = time.monotonic()
-        states = self._environmentController.getJointsState(requestedJoints=[("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
-        #print("states['foot_joint'] = "+str(states["foot_joint"]))
-        #print("Got joint state "+str(states))
-        #t1 = time.monotonic()
-        #rospy.loginfo("observation gathering took "+str(t1-t0)+"s")
-
-        #t1 = time.time()
-
-        #print(state)
-
-        return (  np.array([states[("cartpole_v0","foot_joint")].position[0],
-                            states[("cartpole_v0","foot_joint")].rate[0],
-                            states[("cartpole_v0","cartpole_joint")].position[0],
-                            states[("cartpole_v0","cartpole_joint")].rate[0]]),
-                  np.copy(self._stackedImg))
-
-    def checkEpisodeEnded(self, previousState : Tuple[float,float,float,float, np.ndarray], state : Tuple[float,float,float,float, np.ndarray]) -> bool:
-        if super(CartpoleEnv, self).checkEpisodeEnded(previousState, state):
-            return True
-        cartPosition = state[0][0]
-        poleAngle = state[0][2]
-
-        maxCartDist = 2
-        maxPoleAngle = 3.14159/180*45.0 #30 degrees
-
-        if cartPosition < -maxCartDist or cartPosition > maxCartDist   or   maxPoleAngle < -poleAngle or poleAngle > maxPoleAngle:
-            done = True
-        else:
-            done = False
-
-        #print(f"pole angle = {poleAngle/3.14159*180} degrees, done = {done}")
-
-        return done
 
 
     def performStep(self) -> None:
@@ -196,7 +195,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         #ggLog.info("PerformReset")
         super().performReset()
         self._environmentController.resetWorld()
-        self._intendedSimTime = 0
+        self._intendedSimTime = 0.0
         self.initializeEpisode()
         img = self._environmentController.getRenderings(["camera"])[0]
         if img is None:

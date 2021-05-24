@@ -81,6 +81,8 @@ class GymEnvWrapper(gym.Env):
         self._resetCount = 0
         self._init_time = time.monotonic()
         self._totalSteps = 0
+        self._first_step_finish_time = -1
+        self._last_step_finish_time = -1
 
 
         self._envStepDurationAverage =lr_gym.utils.utils.AverageKeeper(bufferSize = 100)
@@ -114,6 +116,8 @@ class GymEnvWrapper(gym.Env):
             wall_fps_until_done = self._framesCounter/epWallDurationUntilDone
             ratio_time_spent_stepping_until_done = self._timeSpentStepping_ep/epWallDurationUntilDone
             ratio_time_spent_stepping = self._timeSpentStepping_ep/totEpisodeWallDuration
+            wall_fps_first_to_last = self._framesCounter/(self._last_step_finish_time - self._first_step_finish_time)
+            ratio_time_spent_stepping_first_to_last = self._timeSpentStepping_ep/(self._last_step_finish_time - self._first_step_finish_time)
         else:
             avgSimTimeStepDuration = float("NaN")
             totEpisodeWallDuration = 0
@@ -122,6 +126,8 @@ class GymEnvWrapper(gym.Env):
             wall_fps_until_done = float("NaN")
             ratio_time_spent_stepping_until_done = 0
             ratio_time_spent_stepping = 0
+            wall_fps_first_to_last = float("NaN")
+            ratio_time_spent_stepping_first_to_last = 0
 
         self._info["avg_env_step_wall_duration"] = self._envStepDurationAverage.getAverage()
         self._info["avg_sim_step_wall_duration"] = self._wallStepDurationAverage.getAverage()
@@ -139,6 +145,8 @@ class GymEnvWrapper(gym.Env):
         self._info["ratio_time_spent_stepping"] = ratio_time_spent_stepping
         self._info["time_from_start"] = time.monotonic() - self._init_time
         self._info["total_steps"] = self._totalSteps
+        self._info["wall_fps_first_to_last"] = wall_fps_first_to_last
+        self._info["ratio_time_spent_stepping_first_to_last"] = ratio_time_spent_stepping_first_to_last
 
     def _logInfoCsv(self):
         #print("writing csv")
@@ -254,6 +262,11 @@ class GymEnvWrapper(gym.Env):
         stepDuration = time.monotonic() - t0
         self._envStepDurationAverage.addValue(newValue = stepDuration)
         self._timeSpentStepping_ep += stepDuration
+        if self._framesCounter==1:
+            self._first_step_finish_time = time.monotonic()
+            self._last_step_finish_time = -1
+        else:
+            self._last_step_finish_time = time.monotonic()
         #ggLog.info("stepped")
         return ret
 
@@ -290,9 +303,9 @@ class GymEnvWrapper(gym.Env):
                 ggLog.info( "ep_reward = {:.3f}".format(self._info["ep_reward"])+
                             " steps = {:d}".format(self._info["ep_frames_count"])+
                             " wall_fps = {:.3f}".format(self._info["wall_fps"])+
-                            " wall_fps_ud = {:.3f}".format(self._info["wall_fps_until_done"])+
+                            " wall_fps_ftl = {:.3f}".format(self._info["wall_fps_first_to_last"])+
                             " avg_env_step_wall_dur = {:f}".format(self._info["avg_env_step_wall_duration"])+
-                            " tstep_on_ttotud = {:.2f}".format(self._info["ratio_time_spent_stepping_until_done"])+
+                            " tstep_on_ttot_ftl = {:.2f}".format(self._info["ratio_time_spent_stepping_until_done"])+
                             " tstep_on_ttot = {:.2f}".format(self._info["ratio_time_spent_stepping"])+
                             " reset_cnt = {:d}".format(self._info["reset_count"]))
 

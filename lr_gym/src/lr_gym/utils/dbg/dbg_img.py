@@ -24,6 +24,10 @@ class DbgImg:
             self.init()
         self._publishers.pop(streamName, None)
 
+    def num_subscribers(self, streamName : str) -> int:
+        if streamName not in self._publishers:
+            self._addDbgStream(streamName)
+        return self._publishers[streamName].get_num_connections()
 
     def publishDbgImg(self, streamName : str, img : np.ndarray, encoding : str = "rgb8"):
         if not self._initialized:

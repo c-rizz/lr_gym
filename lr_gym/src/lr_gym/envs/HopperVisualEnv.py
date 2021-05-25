@@ -139,7 +139,7 @@ class HopperVisualEnv(HopperEnv):
 
     def getState(self) -> State:
         robotState = super().getState()
-        imgObservation = self._stackedImg
+        imgObservation = np.copy(self._stackedImg)
         return (robotState, imgObservation)
 
 

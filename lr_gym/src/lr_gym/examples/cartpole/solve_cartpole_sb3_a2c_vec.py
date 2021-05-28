@@ -88,5 +88,4 @@ def main() -> None:
     print("Closed.")
 
 if __name__ == "__main__":
-    with Display() as disp:
-        main()
+    main()

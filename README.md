@@ -52,11 +52,11 @@ command joint efforts
 There are various environments already implemented, you can find them in the `lr_gym/src/lr_gyn/envs` folder.
 
 
-## Setup - stable_baselines 2
+## Setup - stable_baselines 3
 These instructions assume you are on ROS noetic and Ubuntu 20.04.
 
 To set up the project you first of all need to clone the following repositories in your
-catkin workspace src folder:
+catkin workspace src folder, be careful about using the correct branch and correct folder name (the provided commands should work):
 
  * This current repository (if you didn't do it already):
    ```
@@ -78,7 +78,7 @@ catkin workspace src folder:
 You will also need to install some python3 modules, preferably in a python virtual
 environment. You can use the build_virtualenv.sh helper script in the lr_gym folder.
 However you need to have python3.7 (stable_baselines 2 requires tensorflow 1.15, which requires
-python<=3.7).
+python<=3.7). (Currently other python versions have not been tested, even if you use pytorch)
 
 You can install python 3.7 with the following:
 
@@ -89,10 +89,10 @@ sudo apt install python3.7 python3.7-venv python3.7-dev
 ```
 
 At this point you can create the virtual python environment with the following helper
-script (if you don't have a gpu you can specify sb_cpu instead of sb):
+script:
 
 ```
-src/lr_gym/lr_gym/build_virtualenv.sh sb
+src/lr_gym/lr_gym/build_virtualenv.sh sb3
 ```
 
 At this point you can enter the virtual environment with:
@@ -102,8 +102,8 @@ At this point you can enter the virtual environment with:
 ```
 
 
-You can then attempt at installing all the ros dependencies with rosdep (you may
- need to install python3-rosdep, *DO NOT* install python3-rosdep2):
+You can then install all the ros dependencies with rosdep (you may
+ need to install python3-rosdep from apt, *DO NOT* install python3-rosdep2, it would break your ROS installation):
 
 ```
 rosdep update
@@ -112,7 +112,7 @@ rosdep install --from-paths src --ignore-src -r -y
 
 
 For building the workspace I use catkin build. To have catkin build
-you can install catkin-tools which at the moment can be done with:
+you can install catkin-tools, at the moment it can be done with:
 
 ```
 sudo apt install python3-catkin-tools python3-osrf-pycommon
@@ -125,14 +125,14 @@ catkin build
 ```
 
 To use in headless setups you may want to use pyvirtualdisplay, for it to work you
-will need to install the following system dependencies:
+will need to install the following system dependencies (however you will not have GPU acceleration for rendering if you use it):
 
 ```
 sudo apt install xvfb xserver-xephyr tigervnc-standalone-server xfonts-base
 ```
 
 
-## Examples - Cartpole
+## Examples - Cartpole hardcoded
 
 The environment can be tested using a python script that executes a hard-coded policy
 through the python gym interface:
@@ -157,7 +157,7 @@ The simulation step length can be changed using the --steplength option (the def
 It is also possible to train a basic DQN policy by using the following:
 
 ```
-rosrun lr_gym solve_cartpole.py
+rosrun lr_gym solve_cartpole_sb3.py
 ```
 
 To see the simulation you can launch a gazebo client using the following:
@@ -169,7 +169,25 @@ roslaunch lr_gym gazebo_client.launch id:=0
 It should reach the maximum episode length of 500 steps in about 400 episodes.
 
 
-### Parallel Simulations Training with SAC
+### Parallel Simulations Training with A2C
+
+You can also train a SAC policy using multiple Gazebo simulations at the same time.
+
+```
+rosrun lr_gym solve_cartpole_sb3_a2c_vec.py --envsNum=4
+```
+
+This will start 4 gazebo simulations in 4 different ros masters. To view the simulations
+you can launch the following changing the id parameter:
+
+```
+roslaunch lr_gym gazebo_client.launch id:=0
+```
+
+It should reach the maximum episode length of 500 steps in about 140 episode batches (140x4 episodes)
+
+
+### Parallel Simulations Training with SAC - Only on stable_baselines 2
 
 You can also train a SAC policy using multiple Gazebo simulations at the same time.
 
@@ -189,22 +207,17 @@ It should reach the maximum episode length  of 500 steps in about 60 episode bat
 
 ## Example - Hopper
 
-You can execute a pre-trained policy with:
-```
-rosrun lr_gym solve_hopper.py --load src/lr_gym/lr_gym/trained_models/td3_hopper_20200605-175927s140000gazebo-urdf-gazeboGym.zip
-```
-
 You can train a new TD3 policy with
 
 ```
-rosrun lr_gym solve_hopper.py
+rosrun lr_gym solve_hopper_sb3.py
 ```
 
 You can specify the number of timesteps to train for with the --iterations option.
 
-You can also run the hopper environment in pybullet specifying the --pybullet option, in this mode you can also use an mjcf model (adapted from the OpenAI gym one) instead of the urdf one, using the --mjcf option. Trained models are also provided for these two modes.
+You can also run the hopper environment in pybullet specifying the --pybullet option, in this mode you can also use an mjcf model (adapted from the OpenAI gym one) instead of the urdf one, using the --mjcf option.
 
-As always the simulation can be visualized using 'roslaunch lr_gym gazebo_client.launch'
+As always the Gazebo simulation can be visualized using 'roslaunch lr_gym gazebo_client.launch'
 
 ## Examples - Panda Arm
 
@@ -222,15 +235,6 @@ A series of different environments based on the Franka-Emika Panda arm are avail
 
 Scripts that solve or test each of these evironments in different ways are available in the examples folder. PandaEffortKeepVarPose and PandaMoveiPick currently do not have a working solve script.
 
-You can try two pretrained models with the following:
- * PandaMoveitVarReachingEnv:
-   ```
-    rosrun lr_gym solve_pandaMoveitVarReaching.py --load src/lr_gym/lr_gym/trained_models/pandaMoveitPoseReachingEnv320210309-184658s200000_62400_steps.zip
-   ```
- * PandaEffortKeepPose:
-   ```
-    rosrun lr_gym solve_panda_effort_keep_pose_vec.py --load solve_panda_effort_keep_tensorboard/20201114-212527/checkpoints/sac_pandaEffortKeep_20201114-212527s15000_3000000_steps.zip
-   ```
 
 You can test the PandaMoveitPick environment with an hard-coded policy using the test_pandaMoveitPick.py example.
 * **In simulation**:
@@ -243,6 +247,19 @@ You can test the PandaMoveitPick environment with an hard-coded policy using the
   ```
 
 The `--real --robot_ip x.x.x.x` options can also be used for the PandaMoveitVarReachingEnv and PandaMoveitReachingEnv environments, no full training has been attempted.
+
+### Pretrained policies
+
+Pretrained policies are not yet available with stable_baselines3/pytorch. You can however check out the stable_baselines2 ones if you are interested.
+
+ * PandaMoveitVarReachingEnv:
+   ```
+    rosrun lr_gym solve_pandaMoveitVarReaching.py --load src/lr_gym/lr_gym/trained_models/pandaMoveitPoseReachingEnv320210309-184658s200000_62400_steps.zip
+   ```
+ * PandaEffortKeepPose:
+   ```
+    rosrun lr_gym solve_panda_effort_keep_pose_vec.py --load solve_panda_effort_keep_tensorboard/20201114-212527/checkpoints/sac_pandaEffortKeep_20201114-212527s15000_3000000_steps.zip
+   ```
 
 ## Plotting
 
@@ -259,7 +276,8 @@ Check the `rosrun lr_gym plotGymEnvLogs.py --help` for more info
 To correctly implement the OpenAI gym environment interface, it is necessary to execute
 simulation steps of precise length and to obtain renderings synchronized with these
 simulation steps. This is needed to accurately implement a Markov Decision Process, which
-is the basic abstraction of the environment used in reinforcement learning.
+is the basic abstraction of the environment used in reinforcement learning. While this requirement
+may be lifted in general it is necessary for reproducibility and useful for experimentation.
 
 
 This has been implemented by creating a C++ Gazebo plugin. The plugin is implemented as
@@ -276,7 +294,7 @@ The step service also allows to obtain observations of joint/link states and ren
 
 Controlling the simulation using these services is not realistic (the real world
 can not be stopped like the step function does), but they allow to closely approximate
-the theoretical abstraction used in reinforcement learning.
+the theoretical abstraction of an MDP.
 
 
 ## Performance

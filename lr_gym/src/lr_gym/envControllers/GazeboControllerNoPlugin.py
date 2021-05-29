@@ -201,8 +201,8 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
 
 
         totalSimTimeError = totalEpSimDuration - self._episodeSimDuration
-        if abs(totalSimTimeError)>=0.001:
-            rospy.logwarn("Estimated error in simulation time keeping = "+str(totalSimTimeError)+"s")
+        if abs(totalSimTimeError)>=0.1:
+            rospy.logwarn("Episode error in simulation time keeping = "+str(totalSimTimeError)+"s (This is just an upper bound, could actually be fine)")
 
         # totalEpRealDuration = time.time() - self._episodeRealStartTime
         # if self._episodeRealSimDuration!=0:

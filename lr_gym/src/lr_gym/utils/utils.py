@@ -1,7 +1,6 @@
 import typing
 from nptyping import NDArray
 import numpy as np
-import rospy
 import sensor_msgs
 import geometry_msgs
 import sensor_msgs.msg
@@ -15,6 +14,7 @@ import signal
 import datetime
 import inspect
 import shutil
+import tqdm
 
 import lr_gym.utils.dbg.ggLog as ggLog
 
@@ -333,3 +333,32 @@ def lr_gym_startup(main_file_path : str, currentframe, using_pytorch : bool = Tr
                         "Will continue in 10 sec...")
             time.sleep(10)
     return logFolder
+
+def evaluatePolicy(env, model, episodes : int):
+    rewards = np.empty((episodes,), dtype = np.float32)
+    steps = np.empty((episodes,), dtype = np.int32)
+    wallDurations = np.empty((episodes,), dtype = np.float32)
+    predictWallDurations = np.empty((episodes,), dtype = np.float32)
+    totDuration=0.0
+    #frames = []
+    #do an average over a bunch of episodes
+    for episode in tqdm.tqdm(range(0,episodes)):
+        frame = 0
+        episodeReward = 0
+        done = False
+        predDurations = []
+        t0 = time.monotonic()
+        obs = env.reset()
+        while not done:
+            t0_pred = time.monotonic()
+            action, _states = model.predict(obs)
+            predDurations.append(time.monotonic()-t0_pred)
+            obs, stepReward, done, info = env.step(action)
+            frame+=1
+            episodeReward += stepReward
+        rewards[episode]=episodeReward
+        steps[episode]=frame
+        wallDurations[episode]=time.monotonic() - t0
+        predictWallDurations[episode]=sum(predDurations)
+        print("Episode "+str(episode)+" lasted "+str(frame)+" frames, total reward = "+str(episodeReward))
+    return np.mean(rewards), np.std(rewards), np.mean(steps), np.std(steps), np.mean(wallDurations), np.std(wallDurations), np.mean(predictWallDurations), np.std(predictWallDurations)

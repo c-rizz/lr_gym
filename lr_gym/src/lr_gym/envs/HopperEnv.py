@@ -246,7 +246,7 @@ class HopperEnv(ControlledEnv):
     def buildSimulation(self, backend : str = "gazebo"):
         if backend == "gazebo":
             self._mmRosLauncher = lr_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("lr_gym")+"/launch/hopper_gazebo_sim.launch",
-                                                                                           cli_args=["gui:=false"])
+                                                                                           cli_args=["gui:=false","gazebo_seed:="+str(self._envSeed)])
             self._mmRosLauncher.launchAsync()
 
             if isinstance(self._environmentController, GazeboControllerNoPlugin):

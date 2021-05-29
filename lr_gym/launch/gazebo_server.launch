@@ -12,6 +12,7 @@
     <arg name="physics_engine" default="bullet"/>
     <arg name="limit_sim_speed" default="true"/>
     <arg name="world_name"/>
+    <arg name="gazebo_seed" default="20200413"/>
     
 
     <include file="$(find gazebo_ros)/launch/empty_world.launch" >
@@ -20,9 +21,9 @@
         <arg name="verbose" value="True"/>
         <arg name="physics" value="$(arg physics_engine)"/>
         <arg name="gui" value="$(arg gui)"/>
-        <arg name="extra_gazebo_args" value="--lockstep --seed 20200413  -o bullet_default" if="$(eval arg('physics_engine') == 'bullet' and arg('limit_sim_speed'))"/>
-        <arg name="extra_gazebo_args" value="--lockstep --seed 20200413  -o ode_default" if="$(eval arg('physics_engine') == 'ode')"/>
-        <arg name="extra_gazebo_args" value="--lockstep --seed 20200413  -o bullet_unlimited" if="$(eval arg('physics_engine') == 'bullet' and not arg('limit_sim_speed'))"/>
+        <arg name="extra_gazebo_args" value="--lockstep --seed $(arg gazebo_seed)  -o bullet_default" if="$(eval arg('physics_engine') == 'bullet' and arg('limit_sim_speed'))"/>
+        <arg name="extra_gazebo_args" value="--lockstep --seed $(arg gazebo_seed)  -o ode_default" if="$(eval arg('physics_engine') == 'ode')"/>
+        <arg name="extra_gazebo_args" value="--lockstep --seed $(arg gazebo_seed)  -o bullet_unlimited" if="$(eval arg('physics_engine') == 'bullet' and not arg('limit_sim_speed'))"/>
         <env name="GAZEBO_MODEL_PATH" value="$(find lr_gym)/models:$(optenv GAZEBO_MODEL_PATH)"/>
         <arg name="use_sim_time" value="true"/>        
     </include>

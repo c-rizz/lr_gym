@@ -238,7 +238,7 @@ class PandaEffortBaseEnv(ControlledEnv):
         if backend != "gazebo":
             raise NotImplementedError("Backend "+backend+" not supported")
 
-        self._mmRosLauncher = lr_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("lr_gym")+"/launch/launch_panda.launch", cli_args=["gui:=false", "load_gripper:=false"])
+        self._mmRosLauncher = lr_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("lr_gym")+"/launch/launch_panda.launch", cli_args=["gui:=false", "load_gripper:=false","gazebo_seed:="+str(self._envSeed)])
         self._mmRosLauncher.launchAsync()
 
     def _destroySimulation(self):

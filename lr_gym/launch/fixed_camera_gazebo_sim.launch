@@ -15,6 +15,7 @@
     <arg name="paused" default="true"/> <!-- must correspond with the robot name in the urdf/xacro file -->
     <arg name="physics_engine" default="bullet"/>
     <arg name="limit_sim_speed" default="true"/>
+    <arg name="gazebo_seed" default="20200413"/>
     
     <include file="$(find lr_gym)/launch/gazebo_server.launch">
       <arg name="gui" value="$(arg gui)"/>
@@ -23,6 +24,7 @@
       <arg name="limit_sim_speed" value="$(arg limit_sim_speed)"/>
       <arg name="world_name" value="$(find lr_gym)/worlds/fixed_camera_world.world" if="$(eval arg('noplugin'))"/>
       <arg name="world_name" value="$(find lr_gym)/worlds/fixed_camera_world_plugin.world" if="$(eval not arg('noplugin'))"/>
+      <arg name="gazebo_seed" value="$(arg gazebo_seed)"/>
     </include>
 
     <group unless="$(eval model_name == '')">

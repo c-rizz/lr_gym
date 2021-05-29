@@ -52,6 +52,7 @@ class BaseEnv():
         self._actionsCounter = 0
         self._maxActionsPerEpisode = maxActionsPerEpisode
         self._backend = simulationBackend
+        self._envSeed : int = 0
 
         if startSimulation:
             self.buildSimulation(backend=simulationBackend)
@@ -258,4 +259,6 @@ class BaseEnv():
         self._destroySimulation()
 
     def seed(self, seed=None):
-        return []
+        if seed is not None:
+            self._envSeed = seed
+        return [self._envSeed]

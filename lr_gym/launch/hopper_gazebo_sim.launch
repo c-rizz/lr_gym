@@ -8,13 +8,15 @@
     <arg name="gui" default="true"/>
     <arg name="noplugin" default="false"/>
     <arg name="physics_engine" default="ode"/>
-    
+    <arg name="gazebo_seed" default="20200413"/>
+        
     <include file="$(find lr_gym)/launch/gazebo_server.launch">
       <arg name="gui" default="$(arg gui)"/>
       <arg name="paused" default="true"/> <!-- must correspond with the robot name in the urdf/xacro file -->
       <arg name="physics_engine" default="$(arg physics_engine)"/>
       <arg name="limit_sim_speed" default="true"/>
       <arg name="world_name" value="$(find lr_gym)/worlds/ground_plane_world_plugin.world"/>
+      <arg name="gazebo_seed" value="$(arg gazebo_seed)"/>
     </include>
 
       <!-- publish the model URDF on the parameter server -->

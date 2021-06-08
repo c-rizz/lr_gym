@@ -15,6 +15,7 @@ import datetime
 import inspect
 import shutil
 import tqdm
+from pathlib import Path
 
 import lr_gym.utils.dbg.ggLog as ggLog
 
@@ -282,7 +283,7 @@ def createSymlink(src, dst):
         os.unlink(dst)
         os.symlink(src, dst)
 
-def setupLoggingForRun(file : str, currentframe):
+def setupLoggingForRun(file : str, currentframe, run_id_prefix : str = "", folderName : str = None):
     """Sets up a logging output folder for a training run.
         It creates the folder, saves the current main script file for reference
 
@@ -299,11 +300,18 @@ def setupLoggingForRun(file : str, currentframe):
     str
         The logging folder to be used
     """
+    if folderName is None:
+        run_id = run_id_prefix+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+        script_out_folder = os.getcwd()+"/"+os.path.basename(file)
+        folderName = script_out_folder+"/"+run_id
+        os.makedirs(folderName)
+    else:
+        try:
+            os.makedirs(folderName)
+        except FileExistsError:
+            pass
+        script_out_folder = str(Path(folderName).parent.absolute())
 
-    run_id = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-    script_out_folder = os.getcwd()+"/"+os.path.basename(file)
-    folderName = script_out_folder+"/"+run_id
-    os.makedirs(folderName)
     createSymlink(src = folderName, dst = script_out_folder+"/latest")
     shutil.copyfile(file, folderName+"/main_script")
     if currentframe is not None:
@@ -317,8 +325,8 @@ def setupLoggingForRun(file : str, currentframe):
 
 
     
-def lr_gym_startup(main_file_path : str, currentframe, using_pytorch : bool = True) -> str:
-    logFolder = setupLoggingForRun(main_file_path, currentframe)
+def lr_gym_startup(main_file_path : str, currentframe, using_pytorch : bool = True, run_id_prefix : str = "", folderName : str = None) -> str:
+    logFolder = setupLoggingForRun(main_file_path, currentframe, run_id_prefix=run_id_prefix, folderName=folderName)
     setupSigintHandler()
     if using_pytorch:
         import torch as th
@@ -361,4 +369,39 @@ def evaluatePolicy(env, model, episodes : int):
         wallDurations[episode]=time.monotonic() - t0
         predictWallDurations[episode]=sum(predDurations)
         print("Episode "+str(episode)+" lasted "+str(frame)+" frames, total reward = "+str(episodeReward))
-    return np.mean(rewards), np.std(rewards), np.mean(steps), np.std(steps), np.mean(wallDurations), np.std(wallDurations), np.mean(predictWallDurations), np.std(predictWallDurations)
+    eval_results = {"reward_mean" : np.mean(rewards),
+                    "reward_std" : np.std(rewards),
+                    "steps_mean" : np.mean(steps),
+                    "steps_std" : np.std(steps),
+                    "wall_duration_mean" : np.mean(wallDurations),
+                    "wall_duration_std" : np.std(wallDurations),
+                    "predict_wall_duration_mean" : np.mean(predictWallDurations),
+                    "predict_wall_duration_std" : np.std(predictWallDurations)}
+    return eval_results
+
+def fileGlobToList(fileGlobStr : str):
+    """Convert a file path glob (i.e. a file path ending with *) to a list of files
+
+    Parameters
+    ----------
+    fileGlobStr : str
+        a string representing a path, possibly with an asterisk at the end
+
+    Returns
+    -------
+    List
+        A list of files
+    """
+    if fileGlobStr.endswith("*"):
+        folderName = os.path.dirname(fileGlobStr)
+        fileNamePrefix = os.path.basename(fileGlobStr)[:-1]
+        files = []
+        for f in os.listdir(folderName):
+            if f.startswith(fileNamePrefix):
+                files.append(f)
+        files = sorted(files, key = lambda x: int(x.split("_")[-2]))
+        fileList = [folderName+"/"+f for f in files]
+        numEpisodes = 1
+    else:
+        fileList = [fileGlobStr]
+    return fileList

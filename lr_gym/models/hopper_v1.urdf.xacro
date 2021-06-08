@@ -1,0 +1,386 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="hopper">
+
+  <material name="red">
+    <color rgba="1 0 0 1"/>
+  </material>
+  <material name="green">
+  <color rgba="0 1 0 1"/>
+  </material>
+  <material name="blue">
+    <color rgba="0 0 1 1"/>
+  </material>
+
+  <xacro:macro name="default_inertial" params="mass">
+    <inertial>
+            <mass value="${mass}" />
+            <inertia ixx="0.01" ixy="0.0" ixz="0.0"
+                     iyy="0.01" iyz="0.0"
+                     izz="0.01" />
+    </inertial>
+  </xacro:macro>
+
+
+
+  <xacro:property name="torso_length" value="0.4" />
+  <xacro:property name="torso_radius" value="0.05" />
+
+  <xacro:property name="thigh_length" value="0.45" />
+  <xacro:property name="thigh_radius" value="0.05" />
+  <xacro:property name="thigh_position" value="0 0 -${thigh_length/2.0}" /> <!--object position relative to the torso joint -->
+  <xacro:property name="thigh_orientation" value="0 0 0" />
+
+  <xacro:property name="leg_length" value="0.50" />
+  <xacro:property name="leg_radius" value="0.04" />
+  <xacro:property name="leg_position" value="0 0 -${leg_length/2}" />
+  <xacro:property name="leg_orientation" value="0 0 0" />
+
+  <xacro:property name="foot_length" value="0.39" />
+  <xacro:property name="foot_radius" value="0.06" />
+  <xacro:property name="foot_position_x" value="${foot_length/6}" />
+  <xacro:property name="foot_position_y" value="0" />
+  <xacro:property name="foot_position_z" value="0" />
+  <xacro:property name="foot_orientation" value="0 1.570795 0" />
+
+  <xacro:property name="max_effort" value="1000" />
+
+  <xacro:property name="spawn_height" value="0.001" />
+  <xacro:property name="gear" value="200" />
+  <xacro:property name="friction_coefficient" value="1" />
+
+
+
+  <xacro:property name="density" value="1000" /> <!-- water density -->
+  <xacro:property name="foot_mass"  value="${foot_radius*foot_radius*3.14159   * foot_length  * density}" />
+  <xacro:property name="leg_mass"   value="${leg_radius*leg_radius*3.14159     * leg_length   * density}" />
+  <xacro:property name="thigh_mass" value="${thigh_radius*thigh_radius*3.14159 * thigh_length * density}" />
+  <xacro:property name="torso_mass" value="${torso_radius*torso_radius*3.14159 * torso_length * density}" />
+
+
+
+  <xacro:macro name="cylinder_z_inertia_matrix" params="mass height radius ">
+    <inertia ixx="${1/12.0 * mass * (3*radius*radius + height*height)}" ixy="0.0"  ixz="0.0"
+             iyy="${1/12.0 * mass * (3*radius*radius + height*height)}" iyz="0.0"
+             izz="${1/12.0 * mass * radius*radius}" />
+  </xacro:macro>
+
+
+
+  <link name="world"/>
+
+  <link name="torso">
+    <visual>
+      <geometry>
+        <cylinder length="${torso_length}" radius="${torso_radius}"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="${torso_length}" radius="${torso_radius}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="${torso_mass}"/>
+      <xacro:cylinder_z_inertia_matrix mass="${torso_mass}" height="${torso_length}" radius="${torso_radius}"/>
+    </inertial>
+  </link>
+  <gazebo reference="torso">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+
+
+
+
+  <!-- We contrain the hopper to stay on the xz plane -->
+  <!-- Gazebo does not support a planar joint, so we use two prismatic joints chained together -->
+  <!-- We must also allow the torso link to rotate around the y axis, we use a continuous joint -->
+  <link name="mid"> <!-- Link used to chain the two prismatic joints together -->
+    <inertial> <!-- gazebo requires inertia to be specified -->
+            <mass value="0.0001" /> <!-- gazebo requires mass to be specified -->
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0"
+                     iyy="0.0" iyz="0.0"
+                     izz="0.0" />
+    </inertial>
+  </link>
+  <link name="mid2"> <!-- link used between the second prismatic joint and the continuous joint -->
+    <inertial>
+            <mass value="0.0001" />
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0"
+                     iyy="0.0" iyz="0.0"
+                     izz="0.0" />
+    </inertial>
+  </link>
+  <joint name="torso_x_slider" type="prismatic">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <axis xyz="1 0 0" rpy="0 0 0" />
+    <parent link="world"/>
+    <child link="mid"/>
+    <limit effort="10000" lower="-1" upper="1000" velocity="10000"/>
+  </joint>
+  <joint name="torso_z_slider" type="prismatic">
+    <origin xyz="0 0 ${torso_length/2 + thigh_length + leg_length + foot_radius + spawn_height}" rpy="0 0 0" />
+    <axis xyz="0 0 1" rpy="0 0 0" />
+    <parent link="mid"/>
+    <child link="mid2"/>
+    <limit effort="10000" lower="-10" upper="1000" velocity="10000"/>
+  </joint>
+  <joint name="torso_pitch_joint" type="continuous">
+    <origin xyz="0.0 0.0 0" rpy="0 0 0" /> <!-- joint pose in the parent frame-->
+    <axis xyz="0 1 0" rpy="0 0 0" />
+    <parent link="mid2"/>
+    <child link="torso"/>
+  </joint>
+
+
+
+
+
+  <link name="thigh">
+    <visual>
+      <geometry>
+        <cylinder length="${thigh_length}" radius="${thigh_radius}"/>
+      </geometry>
+      <origin xyz="${thigh_position}" rpy="${thigh_orientation}" />
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="${thigh_length}" radius="${thigh_radius}"/>
+      </geometry>
+      <origin xyz="${thigh_position}" rpy="${thigh_orientation}" />
+    </collision>
+    <inertial>
+      <origin xyz="${thigh_position}" rpy="${thigh_orientation}" />
+      <mass value="${thigh_mass}"/>
+      <xacro:cylinder_z_inertia_matrix mass="${thigh_mass}" height="${thigh_length}" radius="${thigh_radius}"/>
+    </inertial>
+  </link>
+  <gazebo reference="thigh">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+  <joint name="torso_to_thigh" type="revolute">
+    <origin xyz="0.0 0.0 -${torso_length/2.0}" rpy="0 0 0" /> <!-- joint pose in the parent frame-->
+    <axis xyz="0 1 0" rpy="0 0 0" />
+    <parent link="torso"/>
+    <child link="thigh"/>
+    <limit effort="${max_effort}" lower="0.0" upper="2.617991667" velocity="10000"/>
+  </joint>
+  <transmission name="torso_to_thigh_tran">
+    <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->
+    <joint name="torso_to_thigh">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface> <!-- Use an effort interface to control this joint (which is controlled through the actuator specified next) -->
+    </joint>
+    <actuator name="torso_to_thigh_actuator">
+      <mechanicalReduction>${gear}</mechanicalReduction> <!-- gear reduction for the joint -->
+    </actuator>
+  </transmission>
+
+
+
+
+  <link name="leg">
+    <visual>
+      <geometry>
+        <cylinder length="${leg_length}" radius="${leg_radius}"/>
+      </geometry>
+      <origin xyz="${leg_position}" rpy="${leg_orientation}" />
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="${leg_length}" radius="${leg_radius}"/>
+      </geometry>
+      <origin xyz="${leg_position}" rpy="${leg_orientation}" />
+    </collision>
+    <inertial>
+      <origin xyz="${leg_position}" rpy="${leg_orientation}" />
+      <mass value="${leg_mass}"/>
+      <xacro:cylinder_z_inertia_matrix mass="${leg_mass}" height="${leg_length}" radius="${leg_radius}"/>
+    </inertial>
+  </link>
+  <gazebo reference="leg">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+  <joint name="thigh_to_leg" type="revolute">
+    <origin xyz="0.0 0.0 -${thigh_length}" rpy="0 0 0" />
+    <parent link="thigh"/>
+    <child link="leg"/>
+    <axis xyz="0 1 0" rpy="0 0 0" />
+    <limit effort="${max_effort}" lower="0.0" upper="2.617991667" velocity="10000"/>
+  </joint>
+  <transmission name="thigh_to_leg_tran">
+    <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->
+    <joint name="thigh_to_leg">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface> <!-- Use an effort interface to control this joint (which is controlled through the actuator specified next) -->
+    </joint>
+    <actuator name="thigh_to_leg_actuator">
+      <mechanicalReduction>${gear}</mechanicalReduction> <!-- gear reduction for the joint -->
+    </actuator>
+  </transmission>
+
+
+
+
+
+
+
+
+  <link name="foot">
+    <contact> <!-- PyBullet's way of specifying friction -->
+        <lateral_friction value="${friction_coefficient}"/>
+    </contact>
+    <visual>
+      <origin xyz="${foot_position_x} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
+      <geometry>
+        <cylinder length="${foot_length}" radius="${foot_radius}" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="${foot_position_x + foot_length/2} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
+      <geometry>
+        <sphere radius="${foot_radius}" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="${foot_position_x - foot_length/2} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
+      <geometry>
+        <sphere radius="${foot_radius}" />
+      </geometry>
+    </visual>
+
+    <collision>
+      <origin xyz="${foot_position_x} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
+      <geometry>
+        <cylinder length="${foot_length}" radius="${foot_radius}" />
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="${foot_position_x + foot_length/2} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
+      <geometry>
+        <sphere radius="${foot_radius}" />
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="${foot_position_x - foot_length/2} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
+      <geometry>
+        <sphere radius="${foot_radius}" />
+      </geometry>
+    </collision>
+
+
+    <inertial>
+      <origin xyz="${foot_position_x} ${foot_position_y} ${foot_position_z}" rpy="${foot_orientation}" />
+      <mass value="${foot_mass}"/>
+      <xacro:cylinder_z_inertia_matrix mass="${foot_mass}" height="${foot_length}" radius="${foot_radius}"/>
+    </inertial>
+  </link>
+  <gazebo reference="foot">
+    <material>Gazebo/Grey</material>
+
+    <collision name="collision">
+      <geometry>
+        <plane>
+          <normal>0 0 1</normal>
+          <size>100 100</size>
+        </plane>
+      </geometry>
+      <surface>                                                                                                                                                                             
+        <contact>                                                                                                                                                                           
+          <ode>                                                                                                                                                                             
+            <kp>2e+05</kp>                                                                                                                                                                  
+            <kd>80</kd>
+            <!-- Equivalent to CFM = 10e-2, ERP = 0.2, with step size = 10^-3,
+                See http://www.ode.org/ode-latest-userguide.html#sec_3_8_2 -->
+            <soft_cfm>0.01</soft_cfm>                           
+            <soft_erp>0.2</soft_erp>                                                                                                                                      
+          </ode>                                                                                                                                                                             
+          <bullet>                                                                                                                                                                             
+            <kp>2e+05</kp>                                                                                                                                                                  
+            <kd>80</kd>
+            <!-- Equivalent to CFM = 10e-2, ERP = 0.2, with step size = 10^-3,
+                See http://www.ode.org/ode-latest-userguide.html#sec_3_8_2 -->
+            <soft_cfm>0.01</soft_cfm>                           
+            <soft_erp>0.2</soft_erp>                                                                                                                                      
+          </bullet>                                                                                                                                                                            
+        </contact>                                                                                                                                                                          
+        <friction>
+          <!--
+          <bounce>
+            <restitution_coefficient> 0.5 </restitution_coefficient>
+            <threshold> 0.5 </threshold>
+          </bounce>
+          -->
+          <torsional>
+            <coefficient>0.5</coefficient>
+          </torsional>
+          <ode>  <!-- gazebo reads the ode tag even for bullet, see https://github.com/osrf/gazebo/blob/gazebo9/gazebo/physics/bullet/BulletSurfaceParams.cc -->
+            <!-- Some Coulomb friction coefficient examples:
+                https://web.mit.edu/8.13/8.13c/references-fall/aip/aip-handbook-section2d.pdf
+                https://engineeringlibrary.org/reference/coefficient-of-friction
+                https://www.engineeringtoolbox.com/friction-coefficients-d_778.html
+                https://www.tribonet.org/wiki/friction-coefficients-in-atmosphere-and-vacuum/
+            -->                                                                                                                                                                        
+            <mu>1</mu>                                                                                                                                                                    
+            <mu2>1</mu2>                                                                                                                                                                  
+          </ode>
+          <bullet>
+            <friction>1</friction>
+            <friction2>1</friction2>
+          </bullet>                                                                                                                                                                            
+        </friction>                                                                                                                                                                         
+      </surface>
+    </collision>
+  </gazebo>
+  <joint name="leg_to_foot" type="revolute">
+    <origin xyz="0 0 ${-leg_length}" rpy="0 0 0" />
+    <parent link="leg"/>
+    <child link="foot"/>
+    <axis xyz="0 1 0" rpy="0 0 0" />
+    <limit effort="${max_effort}" lower="-0.7853975" upper="0.7853975" velocity="100"/>
+  </joint>
+  <transmission name="leg_to_foot_tran">
+    <type>transmission_interface/SimpleTransmission</type> <!-- Use a simple reducer transmission -->
+    <joint name="leg_to_foot">
+      <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface> <!-- Use an effort interface to control this joint (which is controlled through the actuator specified next) -->
+    </joint>
+    <actuator name="leg_to_foot_actuator">
+      <mechanicalReduction>${gear}</mechanicalReduction> <!-- gear reduction for the joint -->
+    </actuator>
+  </transmission>
+
+
+  <link name="camera_link"/>
+  <joint name="camera_joint" type="fixed">
+    <origin xyz="0 -2.5 0.75" rpy="0 0 1.5707" />
+    <parent link="mid"/>
+    <child link="camera_link"/>
+  </joint>
+  <gazebo reference="camera_link">
+    <self_collide>0</self_collide>
+    <enable_wind>0</enable_wind>
+    <kinematic>0</kinematic>
+    <enable_gravity>false</enable_gravity>
+
+    <sensor name="camera" type="camera">
+        <camera name="camera">
+            <horizontal_fov>${69.4*3.14159/180}</horizontal_fov>
+            <image>
+                <width>$(arg camera_width)</width>
+                <height>$(arg camera_height)</height>
+                <format>RGB_INT8</format>
+            </image>
+            <clip>
+                <near>0.01</near>
+                <far>100</far>
+            </clip>
+        </camera>
+        <plugin name="camera/camera_controller" filename="libgazebo_ros_camera.so">
+            <cameraName>camera</cameraName>
+            <frameName>camera_optical_frame</frameName>
+            <updateRate>60</updateRate>
+        </plugin>
+        <always_on>true</always_on>
+        <update_rate>60</update_rate>
+        <visualize>0</visualize>
+    </sensor>
+</gazebo>
+
+</robot>

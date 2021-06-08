@@ -70,17 +70,18 @@ class HopperVisualEnv(HopperEnv):
 
         """
 
-        super(HopperEnv, self).__init__(maxActionsPerEpisode = maxActionsPerEpisode,
-                         stepLength_sec = stepLength_sec,
-                         environmentController = simulatorController,
-                         startSimulation = startSimulation,
-                         simulationBackend = simulationBackend)
         self._stepLength_sec = stepLength_sec
         #aspect = 426/160.0
         self._obs_img_height = obs_img_height_width[0]
         self._obs_img_width = obs_img_height_width[1]
         self._frame_stacking_size = frame_stacking_size
         self._imgEncoding = imgEncoding
+        super(HopperEnv, self).__init__(maxActionsPerEpisode = maxActionsPerEpisode,
+                         stepLength_sec = stepLength_sec,
+                         environmentController = simulatorController,
+                         startSimulation = startSimulation,
+                         simulationBackend = simulationBackend)
+
         if imgEncoding == "float":
             self.observation_space = gym.spaces.Box(low=0, high=1,
                                                     shape=(self._frame_stacking_size, self._obs_img_height, self._obs_img_width),
@@ -145,17 +146,26 @@ class HopperVisualEnv(HopperEnv):
 
 
     def buildSimulation(self, backend : str = "gazebo"):
-        if backend!="gazebo":
-            raise NotImplementedError("Backend "+backend+" not supported")        
-        super().buildSimulation(backend)
+        if backend == "gazebo":
+            simCamHeight = int(self._obs_img_height*240.0/220.0)
+            simCamWidth =  int(simCamHeight*16.0/9.0)
+            self._mmRosLauncher = lr_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("lr_gym")+"/launch/hopper_gazebo_sim.launch",
+                                                                                           cli_args=["gui:=false",
+                                                                                                     "gazebo_seed:="+str(self._envSeed),
+                                                                                                     "camera_width:="+str(simCamWidth),
+                                                                                                     "camera_height:="+str(simCamHeight)])
+            self._mmRosLauncher.launchAsync()
 
+            if isinstance(self._environmentController, GazeboControllerNoPlugin):
+                self._environmentController.setRosMasterUri(self._mmRosLauncher.getRosMasterUri())
+        else:
+            raise NotImplementedError("Backend "+backend+" not supported")
 
 
     def _reshapeFrame(self, frame):
         npArrImage = lr_gym.utils.utils.image_to_numpy(frame)
         npArrImage = cv2.cvtColor(npArrImage, cv2.COLOR_BGR2GRAY)
-        # assert npArrImage.shape[0] == 240, "Next few lines assume image size is 426x240"
-        # assert npArrImage.shape[1] == 426, "Next few lines assume image size is 426x240"
+        
         og_width = npArrImage.shape[1]
         og_height = npArrImage.shape[0]
         npArrImage = npArrImage[0:int(220.0/240*og_height), int(100/426.0*og_width):int(326/426.0*og_width)] #crop bottom 90px , left 100px, right 100px

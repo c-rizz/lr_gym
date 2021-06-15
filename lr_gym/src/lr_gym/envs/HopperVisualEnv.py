@@ -147,8 +147,10 @@ class HopperVisualEnv(HopperEnv):
 
     def buildSimulation(self, backend : str = "gazebo"):
         if backend == "gazebo":
-            simCamHeight = int(self._obs_img_height*240.0/220.0)
-            simCamWidth =  int(simCamHeight*16.0/9.0)
+            # simCamHeight = int(self._obs_img_height*240.0/220.0)
+            # simCamWidth =  int(simCamHeight*16.0/9.0)
+            simCamHeight = 240
+            simCamWidth = 426
             self._mmRosLauncher = lr_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("lr_gym")+"/launch/hopper_gazebo_sim.launch",
                                                                                            cli_args=["gui:=false",
                                                                                                      "gazebo_seed:="+str(self._envSeed),

@@ -9,23 +9,33 @@ import time
 import signal
 import os
 import pandas
+from typing import List
 
-def makePlot(csvfile : str, x_data_id : str, max_x : float, y_data_id : str, max_y : float):
-    df = pd.read_csv(csvfile)
-
-    if max_x is not None:
-        df = df.loc[df[x_data_id] < max_x]
-
-    avg_reward = df[y_data_id].rolling(20).mean()
-
+def makePlot(csvfiles : List[str], x_data_id : str, max_x : float, y_data_id : str, max_y : float):
     plt.clf()
+
     sns.set_theme(style="darkgrid")
-    #sns.set_style("dark")
-    #sns.set_context("paper")
-    sns.lineplot(data=df,x=x_data_id,y=y_data_id,color="#6699ff") #, ax = ax) #
-    p = sns.lineplot(x=df[x_data_id],y=avg_reward, color="#0066cc") #, ax = ax) #
-    #plt.legend(loc='lower right', labels=names)
-    plt.title(os.path.dirname(args["csvfile"]).split("/")[-1]+"/"+os.path.basename(csvfile))
+    palette = sns.color_palette("husl", len(csvfiles))
+    i = 0
+    for csvfile in csvfiles:
+        df = pd.read_csv(csvfile)
+        if max_x is not None:
+            df = df.loc[df[x_data_id] < max_x]
+        c = palette[i]
+        c = [(e+1)/2 for e in c]
+        sns.lineplot(data=df,x=x_data_id,y=y_data_id,color=c, alpha = 0.7) #, ax = ax) #
+        i+=1
+    i = 0
+    for csvfile in csvfiles:
+        df = pd.read_csv(csvfile)
+        if max_x is not None:
+            df = df.loc[df[x_data_id] < max_x]
+        avg_reward = df[y_data_id].rolling(20).mean()
+        c = palette[i]
+        p = sns.lineplot(x=df[x_data_id],y=avg_reward, color=c) #, ax = ax) #
+        i+=1
+        #plt.legend(loc='lower right', labels=names)
+    plt.title(os.path.dirname(csvfile).split("/")[-1]+"/"+os.path.basename(csvfile))
     if max_x is not None:
         p.set_xlim(-10,max_x)
     if max_y is not None:
@@ -42,7 +52,7 @@ def signal_handler(sig, frame):
     ctrl_c_received = True
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--csvfile", required=True, type=str, help="Csv file to read from")
+ap.add_argument("--csvfiles", nargs="+", required=True, type=str, help="Csv file(s) to read from")
 ap.add_argument("--nogui", default=False, action='store_true', help="Dont show the plot window, just save to file")
 ap.add_argument("--once", default=False, action='store_true', help="Plot only once")
 ap.add_argument("--usetimex", default=False, action='store_true', help="Use time on the x axis")
@@ -50,6 +60,7 @@ ap.add_argument("--useenvstepsx", default=False, action='store_true', help="Use 
 ap.add_argument("--maxx", required=False, default=None, type=float, help="Maximum x value to plot")
 ap.add_argument("--maxy", required=False, default=None, type=float, help="Maximum y axis value")
 ap.add_argument("--period", required=False, default=5, type=float, help="Seconds to wait between plot update")
+ap.add_argument("--out", required=False, default=None, type=str, help="Filename for the output plot")
 ap.set_defaults(feature=True)
 args = vars(ap.parse_args())
 signal.signal(signal.SIGINT, signal_handler)
@@ -75,8 +86,15 @@ else:
 while not ctrl_c_received:
     #print("Plotting")
     try:
-        makePlot(args["csvfile"], x_data_id, max_x = args["maxx"], y_data_id="ep_reward", max_y = args["maxy"], )
-        plt.savefig(os.path.dirname(args["csvfile"])+"/reward.pdf")
+        csvfiles = args["csvfiles"]
+        makePlot(csvfiles, x_data_id, max_x = args["maxx"], y_data_id="ep_reward", max_y = args["maxy"], )
+        if args["out"] is not None:
+            plt.savefig(args["out"])
+        elif len(csvfiles)==1:
+            plt.savefig(os.path.dirname(csvfiles[0])+"/reward.pdf")
+        else:
+            plt.savefig("./reward.pdf")
+
         #plt.show(block=True)
         if not args["nogui"]:
             plt.draw()

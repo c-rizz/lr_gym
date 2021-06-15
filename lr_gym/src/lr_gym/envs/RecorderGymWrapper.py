@@ -33,7 +33,7 @@ class RecorderGymWrapper(gym.Wrapper):
     def _saveLastEpisode(self):
         if self._saveAllEpisodes or (self._saveBestEpisodes and self._epReward>self._bestReward):
             if len(self._frameBuffer)>0:
-                outFile = self._outVideoFile+str(self._episodeCounter)
+                outFile = self._outVideoFile+str(self._episodeCounter).zfill(9)
                 videoWriter = cv2.VideoWriter(  outFile+".mp4",
                                                 cv2.VideoWriter_fourcc(*'MP4V'),
                                                 self._videoFps,

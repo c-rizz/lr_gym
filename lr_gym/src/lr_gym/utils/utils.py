@@ -7,7 +7,7 @@ import sensor_msgs.msg
 import time
 import cv2
 import collections
-from typing import List, Tuple
+from typing import List, Tuple, Callable, Dict, Union
 import os
 import quaternion
 import signal
@@ -16,6 +16,9 @@ import inspect
 import shutil
 import tqdm
 from pathlib import Path
+import random
+import multiprocessing
+import csv
 
 import lr_gym.utils.dbg.ggLog as ggLog
 
@@ -280,8 +283,12 @@ def createSymlink(src, dst):
     try:
         os.symlink(src, dst)
     except FileExistsError:
-        os.unlink(dst)
-        os.symlink(src, dst)
+        try:
+            os.unlink(dst)
+            time.sleep(random.random()*10) #TODO: have a better way to avoid race conditions
+            os.symlink(src, dst)
+        except:
+            pass
 
 def setupLoggingForRun(file : str, currentframe, run_id_prefix : str = "", folderName : str = None):
     """Sets up a logging output folder for a training run.
@@ -405,3 +412,39 @@ def fileGlobToList(fileGlobStr : str):
     else:
         fileList = [fileGlobStr]
     return fileList
+
+
+
+def evaluateSavedModels(files : List[str], evaluator : Callable[[str],Dict[str,Union[float,int,str]]]):
+    # file paths should be in the format ".../<__file__>/<run_id>/checkpoints/<model.zip>"
+    loaded_run_id = files[0].split("/")[-2]
+    run_id = "eval_of_"+loaded_run_id+"_at_"+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    folderName = os.getcwd()+"/"+os.path.basename(__file__)+"/eval/"+run_id
+    os.makedirs(folderName)
+    csvfilename = folderName+"/evaluation.csv"
+    with open(csvfilename,"w") as csvfile:
+        csvwriter = csv.writer(csvfile, delimiter = ",")
+        neverWroteToCsv = True
+
+        processes = int(multiprocessing.cpu_count()/2)
+        print(f"Using {processes} parallel evaluators")
+        file_groups  = [files[i:i+processes] for i in range(0, len(files), processes)]
+        for file_group in file_groups:
+
+            # Run each evaluation in a subprocess:
+            # - avoids issues with ros initialization
+            # - parallelizes
+
+
+            with multiprocessing.Pool(processes) as p:
+                eval_results_group = p.map(evaluator, file_group)
+
+            for i in range(len(file_group)):
+                eval_results_group[i]["file"] = file_group[i]
+
+            if neverWroteToCsv:
+                csvwriter.writerow(eval_results_group[0].keys())
+                neverWroteToCsv = False
+            for eval_results in eval_results_group:
+                csvwriter.writerow(eval_results.values())
+                csvfile.flush()

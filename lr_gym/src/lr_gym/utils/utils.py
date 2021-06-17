@@ -19,6 +19,7 @@ from pathlib import Path
 import random
 import multiprocessing
 import csv
+from pynvml.smi import nvidia_smi
 
 import lr_gym.utils.dbg.ggLog as ggLog
 
@@ -448,3 +449,23 @@ def evaluateSavedModels(files : List[str], evaluator : Callable[[str],Dict[str,U
             for eval_results in eval_results_group:
                 csvwriter.writerow(eval_results.values())
                 csvfile.flush()
+
+
+def getBestGpu():
+    nvsmi = nvidia_smi.getInstance()
+    query = nvsmi.DeviceQuery('memory.free, memory.total')
+    gpus_info = query["gpu"]
+    bestRatio = 0
+    bestGpu = None
+    for i in range(len(gpus_info)):
+        tot = gpus_info[i]["fb_memory_usage"]["total"]
+        free = gpus_info[i]["fb_memory_usage"]["free"]
+        ratio = free/tot
+        if ratio > bestRatio:
+            bestRatio = ratio
+            bestGpu = i
+    return bestGpu
+
+def torch_selectBestGpu():
+    import torch as th
+    th.cuda.set_device(getBestGpu())

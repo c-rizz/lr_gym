@@ -103,7 +103,7 @@ class EnvironmentController(ABC):
 
     @abstractmethod
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
-        """Get the state of the requetsed joints.
+        """Get the state of the requested joints.
 
         Parameters
         ----------

@@ -7,6 +7,7 @@
 
     <arg name="gui" default="true"/>
     <arg name="noplugin" default="false"/>
+    <arg name="wall_sim_speed" default="false"/>
 
 
     <include file="$(find lr_gym)/launch/fixed_camera_gazebo_sim.launch" >
@@ -15,6 +16,7 @@
         <arg name="model_file" value="$(find lr_gym)/models/cartpole_v0.urdf"/>
         <arg name="model_name" value="cartpole_v0"/>
         <arg name="limit_sim_speed" value="false"/>
+        <arg name="wall_sim_speed" value="$(arg wall_sim_speed)"/>
     </include>
 
 

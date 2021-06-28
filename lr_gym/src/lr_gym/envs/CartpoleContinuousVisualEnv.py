@@ -29,7 +29,9 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
                     startSimulation : bool = False,
                     obs_img_height_width : Tuple[int,int] = (64,64),
                     frame_stacking_size : int = 3,
-                    imgEncoding : str = "float"):
+                    imgEncoding : str = "float",
+                    wall_sim_speed = False,
+                    seed = 1):
         """Short summary.
 
         Parameters
@@ -56,7 +58,9 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
 
         """
 
+        self.seed(seed)
         self._stepLength_sec = stepLength_sec
+        self._wall_sim_speed = wall_sim_speed
         super(CartpoleEnv, self).__init__(  maxActionsPerEpisode = maxActionsPerEpisode,
                                             stepLength_sec = stepLength_sec,
                                             environmentController = simulatorController,

@@ -35,7 +35,8 @@ def makePlot(csvfiles : List[str], x_data_id : str, max_x : float, y_data_id : s
         p = sns.lineplot(x=df[x_data_id],y=avg_reward, color=c) #, ax = ax) #
         i+=1
         #plt.legend(loc='lower right', labels=names)
-    plt.title(os.path.dirname(csvfile).split("/")[-1]+"/"+os.path.basename(csvfile))
+    pathSplitted = os.path.dirname(csvfile).split("/")
+    plt.title(pathSplitted[-2]+"/"+pathSplitted[-1]+"/"+os.path.basename(csvfile))
     if max_x is not None:
         p.set_xlim(-10,max_x)
     if max_y is not None:
@@ -61,6 +62,7 @@ ap.add_argument("--maxx", required=False, default=None, type=float, help="Maximu
 ap.add_argument("--maxy", required=False, default=None, type=float, help="Maximum y axis value")
 ap.add_argument("--period", required=False, default=5, type=float, help="Seconds to wait between plot update")
 ap.add_argument("--out", required=False, default=None, type=str, help="Filename for the output plot")
+ap.add_argument("--ydataid", required=False, default=None, type=str, help="Data to put on the y axis")
 ap.set_defaults(feature=True)
 args = vars(ap.parse_args())
 signal.signal(signal.SIGINT, signal_handler)
@@ -75,6 +77,11 @@ if args["usetimex"] and args["useenvstepsx"]:
     print("You cannot use --usetimex and --useenvstepsx at the same time")
     exit(0)
 
+if args["ydataid"] is not None:
+    y_data_id = args["ydataid"]
+else:
+    y_data_id="ep_reward"
+
 if args["usetimex"]:
     x_data_id = 'time_from_start'
 elif args["useenvstepsx"]:
@@ -87,9 +94,13 @@ while not ctrl_c_received:
     #print("Plotting")
     try:
         csvfiles = args["csvfiles"]
-        makePlot(csvfiles, x_data_id, max_x = args["maxx"], y_data_id="ep_reward", max_y = args["maxy"], )
+        makePlot(csvfiles, x_data_id, max_x = args["maxx"], y_data_id=y_data_id, max_y = args["maxy"], )
         if args["out"] is not None:
-            plt.savefig(args["out"])
+            fname = args["out"]
+            if fname.split(".")[-1] == "png":
+                plt.savefig(fname, dpi=1200)
+            else:
+                plt.savefig(fname)
         elif len(csvfiles)==1:
             plt.savefig(os.path.dirname(csvfiles[0])+"/reward.pdf")
         else:

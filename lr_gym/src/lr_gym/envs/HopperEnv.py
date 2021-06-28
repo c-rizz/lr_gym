@@ -65,7 +65,8 @@ class HopperEnv(ControlledEnv):
                     simulatorController : EnvironmentController = None,
                     startSimulation : bool = True,
                     simulationBackend : str = "gazebo",
-                    useMjcfFile : bool = False):
+                    useMjcfFile : bool = False,
+                    seed = 1):
         """Short summary.
 
         Parameters
@@ -91,6 +92,8 @@ class HopperEnv(ControlledEnv):
             In case it gets interrupted while waiting for ROS servics
 
         """
+
+        self._envSeed = seed
         self._useMjcfFile = useMjcfFile
         super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
                          stepLength_sec = stepLength_sec,

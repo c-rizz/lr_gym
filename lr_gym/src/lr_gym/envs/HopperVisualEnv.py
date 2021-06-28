@@ -43,7 +43,8 @@ class HopperVisualEnv(HopperEnv):
                     simulationBackend : str = "gazebo",
                     obs_img_height_width : Tuple[int,int] = (64,64),
                     frame_stacking_size : int = 3,
-                    imgEncoding : str = "float"):
+                    imgEncoding : str = "float",
+                    seed = 1):
         """Short summary.
 
         Parameters
@@ -70,6 +71,7 @@ class HopperVisualEnv(HopperEnv):
 
         """
 
+        self._envSeed = seed
         self._stepLength_sec = stepLength_sec
         #aspect = 426/160.0
         self._obs_img_height = obs_img_height_width[0]

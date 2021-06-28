@@ -35,7 +35,9 @@ class CartpoleEnv(ControlledEnv):
                     render : bool = False,
                     stepLength_sec : float = 0.05,
                     simulatorController = None,
-                    startSimulation : bool = False):
+                    startSimulation : bool = False,
+                    wall_sim_speed = False,
+                    seed = 1):
         """Short summary.
 
         Parameters
@@ -57,6 +59,8 @@ class CartpoleEnv(ControlledEnv):
         """
 
 
+        self._wall_sim_speed = wall_sim_speed
+        self.seed(seed)
         super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
                          stepLength_sec = stepLength_sec,
                          environmentController = simulatorController,
@@ -153,7 +157,7 @@ class CartpoleEnv(ControlledEnv):
             raise NotImplementedError("Backend "+backend+" not supported")
 
         self._mmRosLauncher = lr_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("lr_gym")+"/launch/cartpole_gazebo_sim.launch",
-                                                                                       cli_args=["gui:=false","gazebo_seed:="+str(self._envSeed)])
+                                                                                       cli_args=["gui:=false","gazebo_seed:="+str(self._envSeed),"wall_sim_speed:="+str(self._wall_sim_speed)])
         self._mmRosLauncher.launchAsync()
 
         if isinstance(self._environmentController, GazeboControllerNoPlugin):

@@ -3,7 +3,7 @@ from typing import Dict, Tuple
 
 class JointPositionEnvController(ABC):
     @abstractmethod
-    def setJointsPosition(self, jointPositions : Dict[Tuple[str,str],float]) -> None:
+    def setJointsPositionCommand(self, jointPositions : Dict[Tuple[str,str],float]) -> None:
         """Set the position to be requested on a set of joints.
 
         The position can be an angle (in radiants) or a length (in meters), depending

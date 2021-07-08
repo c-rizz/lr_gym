@@ -126,7 +126,7 @@ class HopperEnv(ControlledEnv):
         unnormalizedAction = (  float(np.clip(action[0],-1,1))*self.MAX_TORQUE,
                                 float(np.clip(action[1],-1,1))*self.MAX_TORQUE,
                                 float(np.clip(action[2],-1,1))*self.MAX_TORQUE)
-        self._environmentController.setJointsEffort([ ("hopper","torso_to_thigh",unnormalizedAction[0]),
+        self._environmentController.setJointsEffortCommand([ ("hopper","torso_to_thigh",unnormalizedAction[0]),
                                                     ("hopper","thigh_to_leg",unnormalizedAction[1]),
                                                     ("hopper","leg_to_foot",unnormalizedAction[2])])
 
@@ -165,7 +165,7 @@ class HopperEnv(ControlledEnv):
 
 
     def initializeEpisode(self) -> None:
-        self._environmentController.setJointsEffort([  ("hopper","torso_to_thigh",0),
+        self._environmentController.setJointsEffortCommand([  ("hopper","torso_to_thigh",0),
                                                        ("hopper","thigh_to_leg",0),
                                                        ("hopper","leg_to_foot",0)])
 

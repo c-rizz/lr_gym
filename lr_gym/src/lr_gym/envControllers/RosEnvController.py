@@ -18,6 +18,12 @@ import time
 import lr_gym.utils.dbg.ggLog as ggLog
 import lr_gym.utils.utils
 
+
+class RequestFailError(Exception):
+    def __init__(self, message, partialResult):            
+        super().__init__(message)
+        self.partialResult = partialResult
+
 class RosEnvController(EnvironmentController):
     """This class allows to control the execution of a ROS-based environment.
 
@@ -184,9 +190,10 @@ class RosEnvController(EnvironmentController):
             else:
                 img = self._lastImagesReceived[c]
                 if img is not None:
-                    msgDelay = img.header.stamp.to_sec() - rospy.get_time()
+                    msgDelay = rospy.get_time() - img.header.stamp.to_sec()
                     self._cameraMsgAgeAvg.addValue(msgDelay)
             ret.append(img)
+            ggLog.info(f"Got image for '{c}' from topic, delay = {msgDelay}")
 
 
         return ret
@@ -207,27 +214,38 @@ class RosEnvController(EnvironmentController):
 
         # ggLog.info("RosEnvController.getJointsState() called")
 
+        missingJoints = []
+        noMsg = False
 
         for j in requestedJoints:
             modelName = j[0]
             jointName = j[1]
             jointStatesMsg = self._lastJointStatesReceived
             if jointStatesMsg is None:
-                err = "Requested joint state for joint '"+str(jointName)+"' of model '"+str(modelName)+"' but no joint_states message was ever received"
-                rospy.logerr(err)
-                raise RuntimeError(err)
+                noMsg = True
+                missingJoints = requestedJoints
+                break
             try:
                 jointIndex = jointStatesMsg.name.index(jointName)
             except ValueError:
-                err = "Requested joint state for joint '"+str(jointName)+"' of model '"+str(modelName)+"' but the joint_states message does not contain this link"
-                rospy.logerr(err)
-                raise RuntimeError(err)
+                missingJoints.append(j)
+                continue
+
             ret[j] = JointState([jointStatesMsg.position[jointIndex]], [jointStatesMsg.velocity[jointIndex]], [jointStatesMsg.effort[jointIndex]])
 
         msgDelay = jointStatesMsg.header.stamp.to_sec() - rospy.get_time()
         self._jointStateMsgAgeAvg.addValue(msgDelay)
 
         self._jointStatesMutex.release()
+
+
+        if len(missingJoints)>0:
+            if noMsg:                
+                err = f"Requested joints {requestedJoints} but no joint_states message was ever received"
+            else:
+                err = f"Failed to get state for joints {missingJoints}"
+            #rospy.logerr(err)
+            raise RequestFailError(message=err, partialResult=ret)
 
         return ret
 
@@ -250,20 +268,22 @@ class RosEnvController(EnvironmentController):
 
         self._linkStatesMutex.acquire()
 
+        missingLinks = []
+        noMsg = False
+
         for l in requestedLinks:
             modelName = l[0]
             linkName = l[1]
             linkStatesMsg = self._lastLinkStatesReceived
             if linkStatesMsg is None:
-                err = "Requested link state for link '"+str(linkName)+"' of model '"+str(modelName)+"' but no link_states message was ever received"
-                rospy.logerr(err)
-                raise RuntimeError(err)
+                noMsg = True
+                missingLinks = requestedLinks
+                break
             try:
                 linkIndex = linkStatesMsg.link_names.index(linkName)
             except ValueError:
-                err = "Requested link state for link '"+str(linkName)+"' of model '"+str(modelName)+"' but the link_states message does not contain this link"
-                rospy.logerr(err)
-                raise RuntimeError(err)
+                missingLinks.append(l)
+                continue
 
             msgDelay = linkStatesMsg.header.stamp.to_sec() - rospy.get_time()
             self._linkStateMsgAgeAvg.addValue(msgDelay)
@@ -275,11 +295,19 @@ class RosEnvController(EnvironmentController):
                                     orientation_xyzw = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
                                     pos_velocity_xyz = (twist.linear.x, twist.linear.y, twist.linear.z),
                                     ang_velocity_xyz = (twist.angular.x, twist.angular.y, twist.angular.z))
-            
-
             ret[l] = linkState
 
         self._linkStatesMutex.release()
+
+
+        if len(missingLinks)>0:
+            if noMsg:                
+                err = f"Requested links {requestedLinks} but no link_states message was ever received"
+            else:
+                err = f"Failed to get state for links {missingLinks}"
+            rospy.logerr(err)
+            raise RequestFailError(message=err, partialResult=ret)
+
         return ret
 
     def resetWorld(self):

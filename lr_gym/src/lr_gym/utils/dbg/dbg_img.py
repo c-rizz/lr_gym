@@ -35,7 +35,7 @@ class DbgImg:
         if streamName not in self._publishers:
             self._addDbgStream(streamName)
 
-        if encoding == "32FC1":
+        if encoding == "32FC1" or img.dtype == np.float32:
             t = np.uint8(img*255)
             pubImg = np.dstack([t,t,t])
             pubEnc = "rgb8"

@@ -63,7 +63,7 @@ class PandaMoveitPickEnv(ControlledEnv):
     observation_space = gym.spaces.Box(-observation_space_high, observation_space_high)
     metadata = {'render.modes': ['rgb_array']}
 
-    Action = NDArray[(7,), np.float32]
+    Action = NDArray[(8,), np.float32]
     State = NDArray[(16,), np.float32]
     Observation = State
 
@@ -199,7 +199,7 @@ class PandaMoveitPickEnv(ControlledEnv):
         unnorm_action = np.concatenate([absolute_xyz, absolute_quat_arr])
         #print("attempting action "+str(action))
 
-        self._environmentController.setCartesianPose(linkPoses = {("panda","panda_tcp") : unnorm_action})
+        self._environmentController.setCartesianPoseCommand(linkPoses = {("panda","panda_tcp") : unnorm_action})
 
         maxEffort = np.clip(action[7], -1, 1).item()
         maxEffort *= self._maxMaxGripperEffort
@@ -421,6 +421,7 @@ class PandaMoveitPickEnv(ControlledEnv):
             self._mmRosLauncher.launchAsync()
         else:
             raise NotImplementedError("Backend '"+backend+"' not supported")
+        #rospy.sleep(10)
 
 
     def _destroySimulation(self):

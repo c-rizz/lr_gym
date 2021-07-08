@@ -83,7 +83,7 @@ class CartpoleEnv(ControlledEnv):
         else:
             raise AttributeError("Invalid action (it's "+str(action)+")")
 
-        self._environmentController.setJointsEffort(jointTorques = [("cartpole_v0","foot_joint", direction * 20)])
+        self._environmentController.setJointsEffortCommand(jointTorques = [("cartpole_v0","foot_joint", direction * 20)])
 
 
 
@@ -109,7 +109,7 @@ class CartpoleEnv(ControlledEnv):
 
 
     def initializeEpisode(self) -> None:
-        self._environmentController.setJointsEffort([("cartpole_v0","foot_joint",0),("cartpole_v0","cartpole_joint",0)])
+        self._environmentController.setJointsEffortCommand([("cartpole_v0","foot_joint",0),("cartpole_v0","cartpole_joint",0)])
 
 
     def getUiRendering(self) -> Tuple[np.ndarray, float]:

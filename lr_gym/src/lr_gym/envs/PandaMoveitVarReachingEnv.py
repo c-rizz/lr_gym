@@ -180,7 +180,7 @@ class PandaMoveitVarReachingEnv(ControlledEnv):
         absolute_next_pose = np.concatenate([absolute_xyz, absolute_quat_arr])
 
 
-        self._environmentController.setCartesianPose(linkPoses = {("panda","panda_link8") : absolute_next_pose})
+        self._environmentController.setCartesianPoseCommand(linkPoses = {("panda","panda_link8") : absolute_next_pose})
         # ggLog.info("received action "+str(action))
         # ggLog.info("action_xyz = "+str(action_xyz)+" action_quat = "+str(action_quat))
         # ggLog.info("_currentPosition = "+str(self._currentPosition)+ " _currentQuat = "+str(self._currentQuat))

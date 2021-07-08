@@ -5,7 +5,7 @@ import numpy as np
 
 class CartesianPositionEnvController(ABC):
     @abstractmethod
-    def setCartesianPose(self, linkPoses : Dict[Tuple[str,str],NDArray[(7,), np.float32]]) -> None:
+    def setCartesianPoseCommand(self, linkPoses : Dict[Tuple[str,str],NDArray[(7,), np.float32]]) -> None:
         """Request a set of links to be placed at a specific cartesian pose.
 
         This is mainly meant as a way to perform cartesian end effector control. Meaning

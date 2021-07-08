@@ -99,7 +99,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
 
 
-    def setJointsPosition(self, jointPositions : Dict[Tuple[str,str],float]) -> None:
+    def setJointsPositionCommand(self, jointPositions : Dict[Tuple[str,str],float]) -> None:
         goal = lr_gym_utils.msg.MoveToJointPoseGoal()
         goal.pose = [jointPositions[v] for v in self._jointsOrder]
         self._moveJointClient.send_goal(goal)
@@ -119,7 +119,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
 
 
-    def setCartesianPose(self, linkPoses : Dict[Tuple[str,str],NDArray[(7,), np.float32]]) -> None:
+    def setCartesianPoseCommand(self, linkPoses : Dict[Tuple[str,str],NDArray[(7,), np.float32]]) -> None:
         """Request a set of links to be placed at a specific cartesian pose.
 
         This is mainly meant as a way to perform cartesian end effector control. Meaning
@@ -152,9 +152,11 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
 
         def waitCallback():
+            # ggLog.info("waiting cartesian....")
             r = self._moveEeClient.wait_for_result()
             if r:
                 if self._moveEeClient.get_result().succeded:
+                    # ggLog.info("waited cartesian....")
                     return
                 else:
                     raise RuntimeError("Failed to move to cartesian pose: "+str(self._moveEeClient.get_result()))
@@ -169,7 +171,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         r = self._moveJointClient.wait_for_result()
         if r:
             if self._moveJointClient.get_result().succeded:
-                ggLog.info("Successfully moved to joint pose")
+                # ggLog.info("Successfully moved to joint pose")
                 return
             else:
                 raise RuntimeError(f"Failed to move to move to joint pose: result {self._moveJointClient.get_result()}")
@@ -226,14 +228,17 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
     def resetWorld(self):
         ggLog.info("Environment controller resetting world...")
-        goal = lr_gym_utils.msg.MoveToJointPoseGoal()
-        goal.pose = [self._initialJointPose[v] for v in self._jointsOrder]
-        ggLog.info(f"Moving to joint pose {goal.pose}")
-        try:
-            self._moveToJointPose(goal)
-        except Exception:
-            ggLog.error("Reset move failed")
-            self._actionsFailsInLastStepCounter+=1
+        for i in range(5):
+            goal = lr_gym_utils.msg.MoveToJointPoseGoal()
+            goal.pose = [self._initialJointPose[v] for v in self._jointsOrder]
+            ggLog.info(f"Moving to joint pose {goal.pose}")
+            try:
+                self._moveToJointPose(goal)
+                break
+            except Exception:
+                ggLog.error("Reset move failed")
+                #self._actionsFailsInLastStepCounter+=1
+                rospy.sleep(1)
 
         if self._gripperActionTopic is not None:
             self._moveGripperSync(0,20)
@@ -258,13 +263,16 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
     def step(self) -> float:
         """Wait the step to be completed"""
+        # ggLog.info("MoveitRosController stepping...")
 
 
         if rospy.is_shutdown():
             raise RuntimeError("ROS has been shut down. Will not step.")
         
         t0 = rospy.get_time()
+        # ggLog.info("Completing movements...")
         self._actionsFailsInLastStepCounter = self.completeMovements()
+        # ggLog.info("Completed.")
 
 
         return rospy.get_time() - t0

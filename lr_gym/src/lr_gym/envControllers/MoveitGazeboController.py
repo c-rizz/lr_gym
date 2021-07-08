@@ -9,13 +9,15 @@ from typing import Dict
 from typing import Optional
 
 from lr_gym.envControllers.RosEnvController import RosEnvController
+from lr_gym.envControllers.RosEnvController import RequestFailError
 from lr_gym.envControllers.MoveitRosController import MoveitRosController
-from lr_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
+from lr_gym.envControllers.GazeboController import GazeboController
 from lr_gym.envControllers.SimulatedEnvController import SimulatedEnvController
 from lr_gym.rosControlUtils import ControllerManagementHelper
 from lr_gym.rosControlUtils import TrajectoryControllerHelper
 
 import rospy
+import sensor_msgs
 import std_msgs
 import lr_gym_utils.msg
 import lr_gym_utils.srv
@@ -51,7 +53,7 @@ class MoveitGazeboController(MoveitRosController, SimulatedEnvController):
                             gripperActionTopic = gripperActionTopic,
                             gripperInitialWidth = gripperInitialWidth)
 
-        self._gazeboController = GazeboControllerNoPlugin() #Could do with multiple inheritance but this is more readable
+        self._gazeboController = GazeboController() #Could do with multiple inheritance but this is more readable
 
     def startController(self):
         """Start the ROS listeners for receiving images, link states and joint states.
@@ -97,3 +99,37 @@ class MoveitGazeboController(MoveitRosController, SimulatedEnvController):
             Keys are in the format (model_name, link_name), the value is the link state to enforce
         """
         self._gazeboController.setLinksStateDirect(linksStates = linksStates)
+
+    
+    def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]: #TODO: change this to use cv2 images (i.e. ndarrays)
+        try:
+            r = super().getRenderings(requestedCameras=requestedCameras)
+            # ggLog.info("got image from ros")
+        except:
+            r = self._gazeboController.getRenderings(requestedCameras=requestedCameras)
+            # ggLog.info("got image from gazebo plugin")
+        return r
+
+    def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
+        try:
+            js = super().getJointsState(requestedJoints=requestedJoints)
+        except RequestFailError as e:
+            missing_jonts = [jr for jr in requestedJoints if jr not in e.partialResult]
+            js = self._gazeboController.getJointsState(requestedJoints=missing_jonts)
+            js.update(e.partialResult)
+        return js
+
+    def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],LinkState]:
+        try:
+            ls = super().getLinksState(requestedLinks=requestedLinks)
+            # ggLog.info("Got link state from ros")
+        except RequestFailError as e:
+            # This allows to get the pose of links that are not tracked by ros e.g. manipulated objects
+            missing_links = [rl for rl in requestedLinks if rl not in e.partialResult]
+            ls =  self._gazeboController.getLinksState(requestedLinks=missing_links) # WARNING! These may not be the same frames as the urdf unes!
+            # ggLog.info(f"Got link state for {ls.keys()} from gazebo plugin and link state for {e.partialResult.keys()} from ros")
+            ls.update(e.partialResult)
+        
+        # ggLog.info(f"Link state is {ls}")
+        return ls
+            

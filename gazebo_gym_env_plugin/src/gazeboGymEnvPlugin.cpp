@@ -47,6 +47,9 @@ namespace gazebo
     ros::ServiceServer stepService;
     const std::string stepServiceName = "step";
 
+    ros::ServiceServer observeService;
+    const std::string observeServiceName = "observe";
+
     ros::ServiceServer renderService;
     const std::string renderServiceName = "render";
 
@@ -113,6 +116,8 @@ namespace gazebo
       renderService = nodeHandle->advertiseService(renderServiceName, &GazeboGymEnvPlugin::renderServiceCallback,this);
       ROS_INFO_STREAM("Advertised service "<<renderServiceName);
 
+      observeService = nodeHandle->advertiseService(observeServiceName, &GazeboGymEnvPlugin::observeServiceCallback,this);
+      ROS_INFO_STREAM("Advertised service "<<observeServiceName);
 
       //world->Physics()->SetSeed(20200413);
     }
@@ -398,9 +403,7 @@ namespace gazebo
       stepCounter++;
 
       if(req.render)
-      {
         renderingHelper->renderCameras(req.cameras,res.render_result);
-      }
 
       if(req.requested_joints.size()>0)
         getJointsInfo(req.requested_joints,res.joints_info);
@@ -442,6 +445,79 @@ namespace gazebo
       return true;//Must be false only in case we cannot send a response
     }
 
+    /**
+     * Handles a call from the observe ROS service
+     * @param  req [description]
+     * @param  res [description]
+     * @return     [description]
+     */
+    bool observeServiceCallback(gazebo_gym_env_plugin::StepSimulation::Request &req, gazebo_gym_env_plugin::StepSimulation::Response &res)
+    {
+      bool wasPaused = world->IsPaused();
+      world->SetPaused(true);
+
+
+
+      res.success = false;
+      res.iterations_done = 0;
+      res.step_duration_done_secs = 0;
+      if (req.joint_effort_requests.size()!=0)
+      {
+        res.error_message = "Requested effort on observe service. joint_effort_requests must be empty";
+        res.response_time = ros::WallTime::now().toSec();
+        ROS_WARN_STREAM(res.error_message);
+        return true;//must return false only if we cannot send a response
+      }
+      if (req.iterations!=0)
+      {
+        res.error_message = "Requested iterations on observe service. iterations must be 0";
+        res.response_time = ros::WallTime::now().toSec();
+        ROS_WARN_STREAM(res.error_message);
+        return true;//must return false only if we cannot send a response
+      }
+      if (req.step_duration_secs!=0)
+      {
+        res.error_message = "Requested step_duration_secs on observe service. step_duration_secs must be 0";
+        res.response_time = ros::WallTime::now().toSec();
+        ROS_WARN_STREAM(res.error_message);
+        return true;//must return false only if we cannot send a response
+      }
+
+
+      for(const gazebo_gym_env_plugin::JointId& jid : req.requested_joints)
+      {
+        if(!doesJointExist(jid))
+        {
+          res.error_message = "Requested state for non-existing joint "+jid.model_name+"."+jid.joint_name+", aborting step";
+          res.response_time = ros::WallTime::now().toSec();
+          ROS_WARN_STREAM(res.error_message);
+          return true;//must return false only if we cannot send a response
+        }
+      }
+
+
+
+      res.success = true;
+      res.error_message = "No error";
+      res.iterations_done = 0;
+      res.step_duration_done_secs = 0.0;
+      res.response_time = ros::WallTime::now().toSec();
+
+
+      if(req.render)
+        renderingHelper->renderCameras(req.cameras,res.render_result);
+
+      if(req.requested_joints.size()>0)
+        getJointsInfo(req.requested_joints,res.joints_info);
+
+      if(req.requested_links.size()>0)
+        getLinksInfo(req.requested_links,res.links_info);
+
+
+
+      world->SetPaused(wasPaused);
+      return true;
+    }
 
   };
 

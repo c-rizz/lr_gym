@@ -95,7 +95,7 @@ class HopperVisualEnv(HopperEnv):
         else:
             raise AttributeError(f"Unsupported imgEncoding '{imgEncoding}' requested, it can be either 'int' or 'float'")
         
-        self._stackedImg = np.zeros(shape=(self._frame_stacking_size,self._obs_img_height, self._obs_img_height), dtype=np.float32)
+        self._stackedImg = np.zeros(shape=(self._frame_stacking_size,self._obs_img_height, self._obs_img_width), dtype=np.float32)
         self._intendedSimTime = 0.0
         
 

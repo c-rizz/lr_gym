@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 class JointEffortEnvController(ABC):
     @abstractmethod
-    def setJointsEffort(self, jointTorques : List[Tuple[str,str,float]]) -> None:
+    def setJointsEffortCommand(self, jointTorques : List[Tuple[str,str,float]]) -> None:
         """Set the efforts to be applied on a set of joints.
 
         Effort means either a torque or a force, depending on the type of joint.

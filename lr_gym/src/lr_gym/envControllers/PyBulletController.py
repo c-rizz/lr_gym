@@ -107,7 +107,7 @@ class PyBulletController(EnvironmentController, JointEffortEnvController):
 
 
 
-    def setJointsEffort(self, jointTorques : List[Tuple[str,str,float]]) -> None:
+    def setJointsEffortCommand(self, jointTorques : List[Tuple[str,str,float]]) -> None:
         #For each bodyId I submit a request for joint motor control
         requests = {}
         for jt in jointTorques:

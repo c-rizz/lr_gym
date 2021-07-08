@@ -6,26 +6,27 @@ namespace lr_gym_utils
 
   lr_gym_utils::LinkStates ForwardKinematicsComputer::computeLinkStates(const sensor_msgs::JointState& msg)
   {
+    ROS_DEBUG_STREAM("\n\n\n\n\n\n computeLinkStates");
     //ROS_INFO("got joints");
     std::map<std::string,FkResult> fkResults;
 
     // See: https://www.orocos.org/kdl/examples#comment-964
     for(KDL::Chain chain : chains)
     {
-      //ROS_DEBUG_STREAM("Computing FK");
+      // ROS_DEBUG_STREAM("Computing FK");
       std::string tipName = chain.segments.back().getName();
-      //ROS_DEBUG_STREAM("Computing pose for link "<<tipName);
+      // ROS_DEBUG_STREAM("Computing pose for link "<<tipName);
 
       unsigned int nrOfJoints = chain.getNrOfJoints();
       KDL::JntArray jointPositions = KDL::JntArray(nrOfJoints);
       KDL::JntArray jointVelocities = KDL::JntArray(nrOfJoints);
 
-      //ROS_DEBUG_STREAM("Getting joint positions");
+      // ROS_DEBUG_STREAM("Getting joint positions");
       unsigned int foundJoints = 0;
       for(KDL::Segment& seg : chain.segments)
       {
         std::string jointName = seg.getJoint().getName();
-        //ROS_DEBUG_STREAM("Getting position of joint "<<jointName);
+        // ROS_DEBUG_STREAM("Getting position of joint "<<jointName);
         if(seg.getJoint().getType() != KDL::Joint::None)
         {
           // None means Rigid connection, and those are not counted as joints
@@ -45,21 +46,21 @@ namespace lr_gym_utils
           }
           else
           {
-            ROS_DEBUG_STREAM("Couldn't find position of joint "<<jointName<<" in joint_state message. Will skip forward kinematics for its chain(s).");
+            // ROS_DEBUG_STREAM("Couldn't find position of joint "<<jointName<<" in joint_state message. Will skip forward kinematics for its chain(s).");
             break;
           }
         }
       }
       if(foundJoints!=nrOfJoints)
       {
-        ROS_DEBUG_STREAM("Couldn't find all joint positions, skipping chain for "<<tipName);
+        // ROS_DEBUG_STREAM("Couldn't find all joint positions, skipping chain for "<<tipName);
         continue;
       }
       KDL::JntArrayVel jointPosAndVel(jointPositions,jointVelocities);
 
 
 
-      //ROS_DEBUG_STREAM("Computing forward kinematics");
+      // ROS_DEBUG_STREAM("Computing forward kinematics");
       KDL::Frame cartesianPosition;
       KDL::ChainFkSolverPos_recursive fksolver = KDL::ChainFkSolverPos_recursive(chain);
       int ret = fksolver.JntToCart(jointPositions,cartesianPosition);
@@ -140,46 +141,40 @@ namespace lr_gym_utils
   std::vector<KDL::Chain> ForwardKinematicsComputer::treeToChains(const KDL::Tree& tree)
   {
     //Get all the root segments (the chains have to start from the second segment as they all have a parent joint)
-    std::vector<std::string> chainsRootSegmentNames;
-    for(auto it : tree.getSegments().at(tree.getRootSegment()->second.segment.getName()).children)
-      chainsRootSegmentNames.push_back(it->second.segment.getName());
+    std::string chainsRootSegmentName = tree.getRootSegment()->second.segment.getName();
+    ROS_DEBUG_STREAM("Root has name: "<<chainsRootSegmentNames);
+    
 
-    //Get all the chains that start from all the roots
-    std::vector<KDL::Chain> ret;
-    for(std::string chainsRootSegmentName : chainsRootSegmentNames)
+    KDL::SegmentMap segments = tree.getSegments();
+    std::vector<std::string> segmentNames;
+    for(auto it : segments)
     {
-      KDL::SegmentMap segments = tree.getSegments();
-      std::vector<std::string> segmentNames;
-      for(auto it : segments)
-      {
-        //if(it.second.children.empty())
-        //{
-          segmentNames.push_back(it.second.segment.getName());
-        //}
-      }
-
-
-      for(std::string leaveName : segmentNames)
-      {
-        const std::string tipName = leaveName;
-        if(tipName==chainsRootSegmentName)
-          continue;
-        KDL::Chain chain;
-        bool r = tree.getChain(chainsRootSegmentName,tipName,chain);
-        if(!r)
-        {
-          std::string err = "KDL::Tree::getChain failed";
-          ROS_ERROR_STREAM(err);
-          throw std::runtime_error(err);
-        }
-
-        ROS_DEBUG_STREAM("Built chain with segments:");
-        for(KDL::Segment& seg : chain.segments)
-          ROS_DEBUG_STREAM(" - \""<<seg.getName()<<"\" (joint = \""<<seg.getJoint().getName()<<"\" of type "<<seg.getJoint().getTypeName()<<")");
-
-        ret.push_back(chain);
-      }
+        segmentNames.push_back(it.second.segment.getName());
     }
+    
+    //Get all the chains that connect each leaf to the root
+    std::vector<KDL::Chain> ret;
+    for(std::string leaveName : segmentNames)
+    {
+      const std::string tipName = leaveName;
+      if(tipName==chainsRootSegmentName)
+        continue;
+      KDL::Chain chain;
+      bool r = tree.getChain(chainsRootSegmentName,tipName,chain);
+      if(!r)
+      {
+        std::string err = "KDL::Tree::getChain failed";
+        ROS_ERROR_STREAM(err);
+        throw std::runtime_error(err);
+      }
+
+      ROS_DEBUG_STREAM("Built chain with segments:");
+      for(KDL::Segment& seg : chain.segments)
+        ROS_DEBUG_STREAM(" - \""<<seg.getName()<<"\" (joint = \""<<seg.getJoint().getName()<<"\" of type "<<seg.getJoint().getTypeName()<<")");
+
+      ret.push_back(chain);
+    }
+    
     return ret;
   }
 

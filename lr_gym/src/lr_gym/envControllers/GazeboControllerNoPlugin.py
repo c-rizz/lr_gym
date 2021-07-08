@@ -280,7 +280,7 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
 
 
 
-    def setJointsEffort(self, jointTorques : List[Tuple[str,str,float]]) -> None:
+    def setJointsEffortCommand(self, jointTorques : List[Tuple[str,str,float]]) -> None:
         for command in jointTorques:
             jointName = command[1]
             torque = command[2]
@@ -314,7 +314,7 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
                 tries+=1
             if not gotit:
                 err = "GazeboControllerNoPlugin: Failed to get state for joint '"+str(jointName)+"' of model '"+str(modelName)+"'"
-                rospy.logerr(err)
+                ggLog.error(err)
                 raise RuntimeError(err)
             jointState = JointState(list(jointProp.position), list(jointProp.rate), None) #NOTE: effort is not returned by the gazeoo service
             ret[(modelName,jointName)] = jointState
@@ -326,8 +326,13 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
     def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],LinkState]:
         ret = {}
         for link in requestedLinks:
-            linkName = link[1]
+            linkName = link[0]+"::"+link[1]
             resp = self._getLinkStateService.call(link_name=linkName)
+
+            if not resp.success:
+                err = f"Failed to get Link state for link {linkName}: resp = {resp}"
+                ggLog.error(err)
+                raise RuntimeError(err)                
 
             linkState = LinkState(  position_xyz = (resp.link_state.pose.position.x, resp.link_state.pose.position.y, resp.link_state.pose.position.z),
                                     orientation_xyzw = (resp.link_state.pose.orientation.x, resp.link_state.pose.orientation.y, resp.link_state.pose.orientation.z, resp.link_state.pose.orientation.w),

@@ -124,7 +124,7 @@ class EffortRosControlController(RosEnvController, JointEffortEnvController):
             self._effortControllerPubs[controllerName] = rospy.Publisher(controllerInfo[0]+"/command", std_msgs.msg.Float64MultiArray, queue_size=1)
 
 
-    def setJointsEffort(self, jointTorques : List[Tuple[str,str,float]]) -> None:
+    def setJointsEffortCommand(self, jointTorques : List[Tuple[str,str,float]]) -> None:
         for controllerName in self._effortControllersInfos.keys():
             controllerInfo = self._effortControllersInfos[controllerName]
             command = []

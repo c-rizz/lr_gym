@@ -59,12 +59,12 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
 
         super().__init__(stepLength_sec=stepLength_sec, rosMasterUri = rosMasterUri)
         self._usePersistentConnections = usePersistentConnections
+        self._simulationState = GazeboController._SimState()
+        self._jointEffortsToRequest = []
 
-    def startController(self):
-        """Start up the controller. This must be called after setCamerasToObserve, setLinksToObserve and setJointsToObserve."""
-        super().startController()
-        #self._stepGazeboServiceName = "/gazebo/gym_env_interface/step"
-        #self._renderGazeboServiceName = "/gazebo/gym_env_interface/render"
+    def _makeRosConnections(self):
+        super()._makeRosConnections()
+
         serviceNames = {"step" : "/gazebo/gym_env_interface/step",
                         "render" : "/gazebo/gym_env_interface/render"}
 
@@ -83,9 +83,6 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
 
         self._stepGazeboService   = rospy.ServiceProxy(serviceNames["step"], gazebo_gym_env_plugin.srv.StepSimulation, persistent=self._usePersistentConnections)
         self._renderGazeboService   = rospy.ServiceProxy(serviceNames["render"], gazebo_gym_env_plugin.srv.RenderCameras, persistent=self._usePersistentConnections)
-
-        self._simulationState = GazeboController._SimState()
-        self._jointEffortsToRequest = []
 
 
     def step(self) -> float:
@@ -239,7 +236,7 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
             ret[rl] = linkState
         return ret
 
-    def setJointsEffort(self, jointTorques : List[Tuple[str,str,float]]) -> None:
+    def setJointsEffortCommand(self, jointTorques : List[Tuple[str,str,float]]) -> None:
         self._jointEffortsToRequest = []
         for jt in jointTorques:
             jer = gazebo_gym_env_plugin.msg.JointEffortRequest()

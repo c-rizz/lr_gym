@@ -181,7 +181,7 @@ class PandaMoveitReachingEnv(ControlledEnv):
         unnorm_action = np.concatenate([absolute_xyz, absolute_quat_arr])
         #print("attempting action "+str(action))
 
-        self._environmentController.setCartesianPose(linkPoses = {("panda","panda_link8") : unnorm_action})
+        self._environmentController.setCartesianPoseCommand(linkPoses = {("panda","panda_link8") : unnorm_action})
         #rospy.loginfo("Moving Ee of "+str(clippedAction))
 
 

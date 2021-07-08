@@ -1,8 +1,20 @@
 <sdf version="1.4">
 <world name="default">
-    <include>
-        <uri>model://sun</uri>
-    </include>
+
+    <!-- Light Source -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>0.01 0.01 -1</direction>
+    </light>
 
     <gravity>0 0 -9.80665</gravity>
 
@@ -31,10 +43,13 @@
     <physics name="ode_default" type="ode" default="true">
       <max_step_size>0.001</max_step_size>
       <real_time_update_rate>5000</real_time_update_rate> <!-- steps done in each real-time second, -1 does as many as possible-->
+      <max_contacts>50</max_contacts>
       <ode>
         <solver>
           <island_threads>4</island_threads>
         </solver>
+        <thread_position_correction>true</thread_position_correction>
+        <friction_model>cone_model</friction_model>
       </ode>
     </physics>
 

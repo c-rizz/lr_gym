@@ -175,7 +175,7 @@ class PandaEffortBaseEnv(ControlledEnv):
         clippedAction = np.clip(np.array(action, dtype=np.float32),-self._maxTorques,self._maxTorques)
         torques = [normalizedTorque*maxTorque for normalizedTorque,maxTorque in zip(clippedAction,self._maxTorques)]
         jointTorques = [("panda","panda_joint"+str(i+1),torques[i]) for i in range(7)]
-        self._environmentController.setJointsEffort(jointTorques)
+        self._environmentController.setJointsEffortCommand(jointTorques)
 
     def getObservation(self, state) -> np.ndarray:
         return state

@@ -103,7 +103,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         else:
             raise AttributeError("Invalid action (it's "+str(action)+")")
 
-        self._environmentController.setJointsEffort(jointTorques = [("cartpole_v0","foot_joint", direction * 10)])
+        self._environmentController.setJointsEffortCommand(jointTorques = [("cartpole_v0","foot_joint", direction * 10)])
 
     def getObservation(self, state) -> np.ndarray:
         obs = state[1]

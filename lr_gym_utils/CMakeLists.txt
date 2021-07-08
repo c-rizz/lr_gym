@@ -59,6 +59,8 @@ add_service_files(
 	FILES
 	GetEePose.srv
 	GetJointState.srv
+	AddCollisionBox.srv
+	ClearCollisionObjects.srv
 )
 
 ## Generate actions in the 'action' folder

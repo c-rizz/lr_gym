@@ -142,7 +142,7 @@ namespace lr_gym_utils
   {
     //Get all the root segments (the chains have to start from the second segment as they all have a parent joint)
     std::string chainsRootSegmentName = tree.getRootSegment()->second.segment.getName();
-    ROS_DEBUG_STREAM("Root has name: "<<chainsRootSegmentNames);
+    ROS_DEBUG_STREAM("Root has name: "<<chainsRootSegmentName);
     
 
     KDL::SegmentMap segments = tree.getSegments();

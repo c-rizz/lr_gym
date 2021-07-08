@@ -193,7 +193,7 @@ class RosEnvController(EnvironmentController):
                     msgDelay = rospy.get_time() - img.header.stamp.to_sec()
                     self._cameraMsgAgeAvg.addValue(msgDelay)
             ret.append(img)
-            ggLog.info(f"Got image for '{c}' from topic, delay = {msgDelay}")
+            # ggLog.info(f"Got image for '{c}' from topic, delay = {msgDelay}")
 
 
         return ret
@@ -305,7 +305,7 @@ class RosEnvController(EnvironmentController):
                 err = f"Requested links {requestedLinks} but no link_states message was ever received"
             else:
                 err = f"Failed to get state for links {missingLinks}"
-            rospy.logerr(err)
+            # rospy.logerr(err)
             raise RequestFailError(message=err, partialResult=ret)
 
         return ret

@@ -26,6 +26,8 @@ import time
 from lr_gym.utils.utils import buildPoseStamped
 import lr_gym.utils.dbg.ggLog as ggLog
 
+import geometry_msgs
+import lr_gym_utils.srv
 
 class MoveitRosController(RosEnvController, CartesianPositionEnvController):
     """This class allows to control the execution of a ROS-based environment.
@@ -62,10 +64,11 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         self._gripperActionTopic = gripperActionTopic
         self._gripperInitialWidth = gripperInitialWidth
 
-    def _connectRosService(self, serviceName : str):
+
+    def _connectRosService(self, serviceName : str, msgType):
         rospy.loginfo("Waiting for service "+serviceName+"...")
         rospy.wait_for_service(serviceName)
-        sp = rospy.ServiceProxy(serviceName, lr_gym_utils.srv.GetEePose)
+        sp = rospy.ServiceProxy(serviceName, msgType)
         rospy.loginfo(serviceName+" connected.")
         return sp
 
@@ -89,6 +92,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         super().startController()
         #self._getEePoseService = self._connectRosService("/move_helper/get_ee_pose")
         #self._getJointStateService = self._connectRosService("/move_helper/get_joint_state")
+        self._addCollisionBoxService = self._connectRosService("/move_helper/add_collision_box", lr_gym_utils.srv.AddCollisionBox)
+        self._clearCollsionBoxesService = self._connectRosService("/move_helper/clear_collision_objects", lr_gym_utils.srv.ClearCollisionObjects)
 
         self._moveEeClient = self._connectRosAction('/move_helper/move_to_ee_pose', lr_gym_utils.msg.MoveToEePoseAction)
         self._moveJointClient = self._connectRosAction('/move_helper/move_to_joint_pose', lr_gym_utils.msg.MoveToJointPoseAction)
@@ -119,7 +124,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
 
 
-    def setCartesianPoseCommand(self, linkPoses : Dict[Tuple[str,str],NDArray[(7,), np.float32]]) -> None:
+    def setCartesianPoseCommand(self, linkPoses : Dict[Tuple[str,str],NDArray[(7,), np.float32]], do_cartesian = False) -> None:
         """Request a set of links to be placed at a specific cartesian pose.
 
         This is mainly meant as a way to perform cartesian end effector control. Meaning
@@ -148,6 +153,9 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         goal = lr_gym_utils.msg.MoveToEePoseGoal()
         goal.pose = lr_gym.utils.utils.buildPoseStamped(pose[0:3],pose[3:7],self._referenceFrame) #move 10cm back
         goal.end_effector_link = self._endEffectorLink[1]
+        goal.velocity_scaling = 1.0
+        goal.acceleration_scaling = 1.0
+        goal.do_cartesian = do_cartesian
         self._moveEeClient.send_goal(goal)
 
 
@@ -276,3 +284,24 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
 
         return rospy.get_time() - t0
+
+
+    def addCollisionBox(self, pose_xyz_xyzw : Tuple[float,float,float,float,float,float,float], size_xyz : Tuple[float,float,float]):
+        req = lr_gym_utils.srv.AddCollisionBoxRequest()
+        req.pose.header.frame_id = self._referenceFrame
+        req.pose.pose.position.x = pose_xyz_xyzw[0]
+        req.pose.pose.position.y = pose_xyz_xyzw[1]
+        req.pose.pose.position.z = pose_xyz_xyzw[2]
+        req.pose.pose.orientation.x = pose_xyz_xyzw[3]
+        req.pose.pose.orientation.y = pose_xyz_xyzw[4]
+        req.pose.pose.orientation.z = pose_xyz_xyzw[5]
+        req.pose.pose.orientation.w = pose_xyz_xyzw[6]
+        req.size.x = size_xyz[0]
+        req.size.y = size_xyz[1]
+        req.size.z = size_xyz[2]
+        res = self._addCollisionBoxService(req)
+        if not res.success:
+            ggLog.error(f"Failed to add collision object with req = {req}")
+
+    def clearCollisionObjects(self):
+        self._clearCollsionBoxesService()

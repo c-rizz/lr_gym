@@ -20,11 +20,15 @@
 #include <lr_gym_utils/MoveToJointPoseAction.h>
 #include <lr_gym_utils/GetJointState.h>
 #include <lr_gym_utils/GetEePose.h>
+#include <lr_gym_utils/AddCollisionBox.h>
+#include <lr_gym_utils/ClearCollisionObjects.h>
 
 
 std::shared_ptr<actionlib::SimpleActionServer<lr_gym_utils::MoveToEePoseAction>> moveToEePoseActionServer;
 std::shared_ptr<actionlib::SimpleActionServer<lr_gym_utils::MoveToJointPoseAction>> moveToJointPoseActionServer;
 std::shared_ptr<moveit::planning_interface::MoveGroupInterface> moveGroupInt;
+std::shared_ptr<moveit::planning_interface::PlanningSceneInterface> planningSceneInt;
+std::vector<std::string> collision_objects_names;
 std::shared_ptr<tf2_ros::Buffer> tfBuffer;
 std::string defaultEeLink = "";
 const robot_state::JointModelGroup* joint_model_group;
@@ -41,7 +45,7 @@ int waitActionCompletion(moveit::planning_interface::MoveGroupInterface& move_gr
                             "Action execution failed with MoveItErrorCode "+std::to_string(move_group.getMoveGroupClient().getResult()->error_code.val));
   }
 
-  ROS_INFO_STREAM("Moved.");
+  // ROS_INFO_STREAM("Moved.");
   return 0;
 }
 
@@ -52,11 +56,11 @@ int submitMoveToJointPose(moveit::planning_interface::MoveGroupInterface& move_g
     throw std::runtime_error("Provided joint pose has wrong size. Should be "+std::to_string(move_group.getVariableCount())+" it's "+std::to_string(jointPose.size()));
   move_group.setJointValueTarget(jointPose);
 
-  ROS_INFO_STREAM("Joint pose target set.");
+  // ROS_INFO_STREAM("Joint pose target set.");
   auto r = move_group.asyncMove();
   if(r != moveit::planning_interface::MoveItErrorCode::SUCCESS)
     throw std::runtime_error("Pose-based asyncMove submission failed with MoveItErrorCode "+std::to_string(r.val));
-  ROS_INFO_STREAM("Moving...");
+  // ROS_INFO_STREAM("Moving...");
   return 0;
 }
 
@@ -79,16 +83,67 @@ int submitMoveToEePose(moveit::planning_interface::MoveGroupInterface& move_grou
 
   move_group.setPoseTarget(targetPoseBaseLink,endEffectorLink);
 
-  ROS_INFO_STREAM("Pose target set.");
+  // ROS_INFO_STREAM("Pose target set.");
   auto r = move_group.asyncMove();
   if(r != moveit::planning_interface::MoveItErrorCode::SUCCESS)
     throw std::runtime_error("Pose-based asyncMove submission failed with MoveItErrorCode "+std::to_string(r.val));
-  ROS_INFO_STREAM("Moving...");
+  // ROS_INFO_STREAM("Moving...");
   return 0;
 }
 
 
+int executeMoveToEePoseCartesian(moveit::planning_interface::MoveGroupInterface& move_group,
+                                const geometry_msgs::PoseStamped& targetPose,
+                                std::string endEffectorLink,
+                                double velocity_scaling = 0.1)
+{
+  // ROS_INFO_STREAM("Submitting Cartesian Move goal");
+  geometry_msgs::PoseStamped targetPoseBaseLink;
+  try{
+    targetPoseBaseLink = tfBuffer->transform(targetPose, "world", ros::Duration(1));
+  }
+  catch (tf2::TransformException &ex) {
+    throw std::runtime_error("Failed to transform target ee pose to world: "+std::string(ex.what()));
+  }
 
+  move_group.clearPoseTargets();
+  std::string eeLink = endEffectorLink;
+  if(eeLink=="")
+    eeLink = defaultEeLink;
+
+
+  move_group.setEndEffectorLink(eeLink);
+  move_group.setPoseReferenceFrame("world");
+
+  const double jump_threshold = 0.0; // No joint-space jump contraint (see moveit_msgs/GetCartesianPath)
+  const double eef_step = 0.005;
+
+  moveit_msgs::RobotTrajectory robotTraj;
+  std::vector<geometry_msgs::Pose> waypoints;
+  waypoints.push_back(targetPoseBaseLink.pose);
+  double fraction = moveGroupInt->computeCartesianPath(waypoints, eef_step, jump_threshold, robotTraj);
+  if(fraction < 0.99)
+    throw std::runtime_error("planning on group "+moveGroupInt->getName()+" for end effector "+eeLink+" failed with fraction "+std::to_string(fraction));
+  
+  double scaling_factor = velocity_scaling;
+  for(unsigned int i=0;i<robotTraj.joint_trajectory.points.size();i++)
+  {
+    trajectory_msgs::JointTrajectoryPoint& p = robotTraj.joint_trajectory.points.at(i);
+    p.time_from_start = ros::Duration(p.time_from_start.toSec()/scaling_factor);
+    for(unsigned int j=0;j<p.velocities.size();j++)
+    {
+      p.velocities.at(j) *= scaling_factor;
+      p.accelerations.at(j) *= scaling_factor*scaling_factor;
+    }
+  }
+
+  // ROS_INFO_STREAM("Pose target set.");
+  auto r = move_group.execute(robotTraj);
+  if(r != moveit::planning_interface::MoveItErrorCode::SUCCESS)
+    throw std::runtime_error("Pose-based asyncMove submission failed with MoveItErrorCode "+std::to_string(r.val));
+  // ROS_INFO_STREAM("Moved");
+  return 0;
+}
 
 
 
@@ -98,32 +153,51 @@ int moveToJointPose(moveit::planning_interface::MoveGroupInterface& move_group, 
 {
   int r = submitMoveToJointPose(move_group,jointPose);
   if(r<0)
-    throw std::runtime_error("Failed to submit move to joint pose, error "+r);
+    throw std::runtime_error("Failed to submit move to joint pose, error "+std::to_string(r));
 
   r = waitActionCompletion(move_group);
   if(r<0)
-    throw std::runtime_error("Failed to execute move to joint pose, error "+r);
+    throw std::runtime_error("Failed to execute move to joint pose, error "+std::to_string(r));
   return 0;
 }
 
 
-int moveToEePose(moveit::planning_interface::MoveGroupInterface& move_group, const geometry_msgs::PoseStamped& targetPose, std::string endEffectorLink)
+int moveToEePose(moveit::planning_interface::MoveGroupInterface& move_group,
+                  const geometry_msgs::PoseStamped& targetPose,
+                  std::string endEffectorLink,
+                  bool do_cartesian = false,
+                  double velocity_scaling = 0.1,
+                  double acceleration_scaling = 0.1)
 {
-  int r = submitMoveToEePose(move_group, targetPose, endEffectorLink);
-  if(r<0)
-    throw std::runtime_error("Failed to submit move to end effectore pose, error "+r);
 
-  r = waitActionCompletion(move_group);
-  if(r<0)
-    throw std::runtime_error("Failed to execute move to end effector pose, error "+r);
-  return 0;
+  moveGroupInt->setMaxAccelerationScalingFactor(acceleration_scaling);
+  moveGroupInt->setMaxVelocityScalingFactor(velocity_scaling);
+  int r;
+  if(do_cartesian)
+  {
+    r = executeMoveToEePoseCartesian(move_group, targetPose, endEffectorLink, velocity_scaling);
+    if(r<0)
+      throw std::runtime_error("Failed to execute cartesian move to end effectore pose, error "+std::to_string(r));
+    return 0;
+  }
+  else
+  {
+    r = submitMoveToEePose(move_group, targetPose, endEffectorLink);
+    if(r<0)
+      throw std::runtime_error("Failed to submit move to end effectore pose, error "+std::to_string(r));
+
+    r = waitActionCompletion(move_group);
+    if(r<0)
+      throw std::runtime_error("Failed to execute move to end effector pose, error "+std::to_string(r));
+    return 0;
+  }
 }
 
 void moveToEePoseActionCallback(const lr_gym_utils::MoveToEePoseGoalConstPtr &goal)
 {
   try
   {
-    moveToEePose(*moveGroupInt,goal->pose,goal->end_effector_link);
+    moveToEePose(*moveGroupInt,goal->pose,goal->end_effector_link, goal->do_cartesian, goal->velocity_scaling, goal->acceleration_scaling);
   }
   catch(std::runtime_error& e)
   {
@@ -171,19 +245,71 @@ void moveToJointPoseActionCallback(const lr_gym_utils::MoveToJointPoseGoalConstP
 
 bool getJointStateServiceCallback(lr_gym_utils::GetJointState::Request& req, lr_gym_utils::GetJointState::Response& res)
 {
-  ROS_INFO("Getting joint state...");
+  // ROS_INFO("Getting joint state...");
   moveGroupInt->getCurrentState(10)->copyJointGroupPositions(joint_model_group, res.joint_poses);
-  ROS_INFO("Got joint state.");
+  // ROS_INFO("Got joint state.");
   return true;
 }
 
 bool getEePoseServiceCallback(lr_gym_utils::GetEePose::Request& req, lr_gym_utils::GetEePose::Response& res)
 {
-  ROS_INFO("Getting end effector pose...");
+  // ROS_INFO("Getting end effector pose...");
   res.pose = moveGroupInt->getCurrentPose(req.end_effector_link_name);
-  ROS_INFO("Got end effector pose...");
+  // ROS_INFO("Got end effector pose...");
   return true;
 }
+
+
+bool addCollisionBoxServiceCallback(lr_gym_utils::AddCollisionBox::Request& req, lr_gym_utils::AddCollisionBox::Response& res)
+{
+  moveit_msgs::CollisionObject collision_object;
+  collision_object.header.frame_id = req.pose.header.frame_id;
+
+  collision_object.id = "box"+std::to_string(collision_objects_names.size());
+  collision_objects_names.push_back(collision_object.id);
+
+  shape_msgs::SolidPrimitive primitive;
+  primitive.type = primitive.BOX;
+  primitive.dimensions.resize(3);
+  primitive.dimensions[primitive.BOX_X] = req.size.x;
+  primitive.dimensions[primitive.BOX_Y] = req.size.y;
+  primitive.dimensions[primitive.BOX_Z] = req.size.z;
+
+  collision_object.primitives.push_back(primitive);
+  collision_object.primitive_poses.push_back(req.pose.pose);
+  collision_object.operation = collision_object.ADD;
+
+  std::vector<moveit_msgs::CollisionObject> collision_objects;
+  collision_objects.push_back(collision_object);
+  planningSceneInt->addCollisionObjects(collision_objects);
+
+  res.success = true;
+  return true;
+}
+
+
+bool clearCollisionObjectsServiceCallback(lr_gym_utils::ClearCollisionObjects::Request& req, lr_gym_utils::ClearCollisionObjects::Response& res)
+{
+  moveit_msgs::CollisionObject collision_object;
+
+  collision_object.id = "box"+std::to_string(collision_objects_names.size());
+  collision_objects_names.push_back(collision_object.id);
+
+  std::vector<moveit_msgs::CollisionObject> collision_objects;
+  for(std::string obj_id : collision_objects_names)
+  {
+    moveit_msgs::CollisionObject collision_object;
+    collision_object.id = obj_id;
+    collision_object.operation = collision_object.REMOVE;
+    collision_objects.push_back(collision_object);
+  }
+  planningSceneInt->applyCollisionObjects(collision_objects);
+
+  res.objects_count = collision_objects.size();
+  return true;
+}
+
+
 
 
 
@@ -203,6 +329,7 @@ int main(int argc, char** argv)
 
   ROS_INFO("Creating MoveGroupInterface...");
   moveGroupInt = std::make_shared<moveit::planning_interface::MoveGroupInterface>(planning_group_name,std::shared_ptr<tf2_ros::Buffer>(),ros::WallDuration(30));
+  planningSceneInt = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
   ROS_INFO("MoveGroupInterface created.");
   joint_model_group = moveGroupInt->getCurrentState()->getJointModelGroup(planning_group_name);
 
@@ -226,6 +353,8 @@ int main(int argc, char** argv)
 
   ros::ServiceServer service = node_handle.advertiseService("get_joint_state", getJointStateServiceCallback);
   ros::ServiceServer getEePoseService = node_handle.advertiseService("get_ee_pose", getEePoseServiceCallback);
+  ros::ServiceServer addCollisionBoxService = node_handle.advertiseService("add_collision_box", addCollisionBoxServiceCallback);
+  ros::ServiceServer clearCollisionObjectsService = node_handle.advertiseService("clear_collision_objects", clearCollisionObjectsServiceCallback);
 
   ROS_INFO("Action and service servers started");
   ros::waitForShutdown();

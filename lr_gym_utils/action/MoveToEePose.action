@@ -7,6 +7,11 @@ geometry_msgs/PoseStamped pose
 #You can specify here the name of the end effector to move. Leave empty to move to the default
 string end_effector_link
 
+#To follow a line in cartesian space with the end effector throughout the movement
+bool do_cartesian
+
+float64 velocity_scaling
+float64 acceleration_scaling
 ---
 #result definition
 bool succeded

@@ -235,11 +235,11 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
             return False
 
     def resetWorld(self):
-        ggLog.info("Environment controller resetting world...")
+        # ggLog.info("Environment controller resetting world...")
         for i in range(5):
             goal = lr_gym_utils.msg.MoveToJointPoseGoal()
             goal.pose = [self._initialJointPose[v] for v in self._jointsOrder]
-            ggLog.info(f"Moving to joint pose {goal.pose}")
+            # ggLog.info(f"Moving to joint pose {goal.pose}")
             try:
                 self._moveToJointPose(goal)
                 break

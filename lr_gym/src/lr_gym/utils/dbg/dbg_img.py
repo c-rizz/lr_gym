@@ -4,6 +4,7 @@ import numpy as np
 import rospy
 from cv_bridge import CvBridge
 import sensor_msgs.msg
+import lr_gym.utils.dbg.ggLog as ggLog
 
 class DbgImg:
     _publishers = {}
@@ -30,20 +31,23 @@ class DbgImg:
         return self._publishers[streamName].get_num_connections()
 
     def publishDbgImg(self, streamName : str, img : np.ndarray, encoding : str = "rgb8"):
-        if not self._initialized:
-            self.init()
-        if streamName not in self._publishers:
-            self._addDbgStream(streamName)
+        try:
+            if not self._initialized:
+                self.init()
+            if streamName not in self._publishers:
+                self._addDbgStream(streamName)
 
-        if encoding == "32FC1" or img.dtype == np.float32:
-            t = np.uint8(img*255)
-            pubImg = np.dstack([t,t,t])
-            pubEnc = "rgb8"
-        else:
-            pubImg = img
-            pubEnc = encoding
-        rosMsg = self._cv_bridge.cv2_to_imgmsg(pubImg, "passthrough")
-        rosMsg.encoding = pubEnc
-        self._publishers[streamName].publish(rosMsg)
+            if encoding == "32FC1" or img.dtype == np.float32:
+                t = np.uint8(img*255)
+                pubImg = np.dstack([t,t,t])
+                pubEnc = "rgb8"
+            else:
+                pubImg = img
+                pubEnc = encoding
+            rosMsg = self._cv_bridge.cv2_to_imgmsg(pubImg, "passthrough")
+            rosMsg.encoding = pubEnc
+            self._publishers[streamName].publish(rosMsg)
+        except Exception as e:
+            ggLog.error("Ignored exception "+str(e))
 
 helper = DbgImg()

@@ -315,7 +315,7 @@ class GymEnvWrapper(gym.Env):
         self._lastPostResetTime = time.monotonic()
 
         if self._framesCounter!=0 and self._cumulativeImagesAge!=0:
-            if abs(self._cumulativeImagesAge/float(self._framesCounter))>0.01:
+            if self._cumulativeImagesAge/float(self._framesCounter)>0.01:
                 ggLog.warn("Average delay of renderings = {:.4f}s".format(self._cumulativeImagesAge/float(self._framesCounter)))
 
         self._framesCounter = 0

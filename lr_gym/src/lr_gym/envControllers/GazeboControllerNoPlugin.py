@@ -389,6 +389,7 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
             req = gazebo_msgs.srv.SetLinkStateRequest()
             req.link_state = gazebo_msgs.msg.LinkState()
             req.link_state.link_name = modelName+"::"+linkName
+            req.link_state.reference_frame = "world"
             req.link_state.pose = linkState.pose.getPoseStamped(frame_id = "world").pose
             req.link_state.twist.linear.x = linkState.pos_velocity_xyz[0]
             req.link_state.twist.linear.y = linkState.pos_velocity_xyz[1]
@@ -403,6 +404,6 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
             
             if not resp.success:
                 ggLog.error("Failed setting link state for link "+modelName+"::"+linkName+": "+res.status_message)
-            else:
-                ggLog.info("Successfuly set Linkstate for link "+modelName+"::"+linkName)
+            # else:
+            #     ggLog.info("Successfully set Linkstate for link "+modelName+"::"+linkName)
         return ret

@@ -174,7 +174,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
         self._waitOnStepCallbacks.append(waitCallback)
 
-    def _moveToJointPose(self,goal:lr_gym_utils.msg.MoveToJointPoseGoal):
+    def moveToJointPoseSync(self,goal:lr_gym_utils.msg.MoveToJointPoseGoal):
         self._moveJointClient.send_goal(goal)
         r = self._moveJointClient.wait_for_result()
         if r:
@@ -183,6 +183,19 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
                 return
             else:
                 raise RuntimeError(f"Failed to move to move to joint pose: result {self._moveJointClient.get_result()}")
+        else:
+            raise RuntimeError(f"Failed to move to complete joint pose move action: r={r}")
+
+    
+    def moveToEePoseSync(self, goal : lr_gym_utils.msg.MoveToEePoseGoal):
+        self._moveEeClient.send_goal(goal)
+        r = self._moveEeClient.wait_for_result()
+        if r:
+            if self._moveEeClient.get_result().succeded:
+                # ggLog.info("Successfully moved to joint pose")
+                return
+            else:
+                raise RuntimeError(f"Failed to move to move to joint pose: result {self._moveEeClient.get_result()}")
         else:
             raise RuntimeError(f"Failed to move to complete joint pose move action: r={r}")
 
@@ -236,17 +249,21 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
     def resetWorld(self):
         # ggLog.info("Environment controller resetting world...")
+        moved = False
         for i in range(5):
             goal = lr_gym_utils.msg.MoveToJointPoseGoal()
             goal.pose = [self._initialJointPose[v] for v in self._jointsOrder]
             # ggLog.info(f"Moving to joint pose {goal.pose}")
             try:
-                self._moveToJointPose(goal)
+                self.moveToJointPoseSync(goal)
+                moved = True
                 break
-            except Exception:
-                ggLog.error("Reset move failed")
+            except Exception as e:
+                ggLog.error("Reset move failed. exception = "+str(e))
                 #self._actionsFailsInLastStepCounter+=1
                 rospy.sleep(1)
+        if not moved:
+            ggLog.error("Failed to move to initial joint pose.")
 
         if self._gripperActionTopic is not None:
             self._moveGripperSync(0,20)

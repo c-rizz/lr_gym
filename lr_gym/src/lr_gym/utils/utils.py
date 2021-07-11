@@ -364,14 +364,19 @@ def evaluatePolicy(env, model, episodes : int):
         done = False
         predDurations = []
         t0 = time.monotonic()
+        ggLog.info("Env resetting...")
         obs = env.reset()
+        ggLog.info("Env resetted")
         while not done:
             t0_pred = time.monotonic()
+            ggLog.info("Predicting")
             action, _states = model.predict(obs)
             predDurations.append(time.monotonic()-t0_pred)
+            ggLog.info("Stepping")
             obs, stepReward, done, info = env.step(action)
             frame+=1
             episodeReward += stepReward
+            ggLog.info(f"Step reward = {stepReward}")
         rewards[episode]=episodeReward
         steps[episode]=frame
         wallDurations[episode]=time.monotonic() - t0

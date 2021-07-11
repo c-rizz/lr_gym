@@ -116,7 +116,7 @@ namespace lr_gym_utils
       return;
     }
 
-    for(std::size_t i = 0; i < list.size(); ++i)
+    for(int i = 0; i < list.size(); ++i)
     {
       XmlRpc::XmlRpcValue& elem = list[i];
 

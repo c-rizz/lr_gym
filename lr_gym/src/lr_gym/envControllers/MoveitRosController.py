@@ -59,8 +59,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         self._waitOnStepCallbacks = []
         self._actionsFailsInLastStepCounter = 0
 
-        if gripperInitialWidth == -1 and gripperActionTopic is not None:
-            raise RuntimeError("gripperActionTopic is set but gripperInitialWidth is not. You should set gripperInitialWidth")
+        # if gripperInitialWidth == -1 and gripperActionTopic is not None:
+        #     raise RuntimeError("gripperActionTopic is set but gripperInitialWidth is not. You should set gripperInitialWidth")
         self._gripperActionTopic = gripperActionTopic
         self._gripperInitialWidth = gripperInitialWidth
 
@@ -265,7 +265,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         if not moved:
             ggLog.error("Failed to move to initial joint pose.")
 
-        if self._gripperActionTopic is not None:
+        if self._gripperActionTopic is not None and self._gripperInitialWidth >= 0:
             self._moveGripperSync(0,20)
             self._moveGripperSync(self._gripperInitialWidth,20)
 

@@ -11,7 +11,7 @@ import os
 import pandas
 from typing import List
 
-def makePlot(csvfiles : List[str], x_data_id : str, max_x : float, y_data_id : str, max_y : float):
+def makePlot(csvfiles : List[str], x_data_id : str, max_x : float, y_data_id : str, max_y : float, min_y : float):
     plt.clf()
 
     sns.set_theme(style="darkgrid")
@@ -39,9 +39,12 @@ def makePlot(csvfiles : List[str], x_data_id : str, max_x : float, y_data_id : s
     plt.title(pathSplitted[-2]+"/"+pathSplitted[-1]+"/"+os.path.basename(csvfile))
     if max_x is not None:
         p.set_xlim(-10,max_x)
-    if max_y is not None:
-        miny = df[y_data_id].min()
-        p.set_ylim(miny,max_y)
+    if max_y is not None or min_y is not None:
+        if min_y is None:
+            min_y = df[y_data_id].min()
+        if max_y is None:
+            max_y = df[y_data_id].max()
+        p.set_ylim(min_y,max_y)
     plt.tight_layout()
 
 
@@ -60,6 +63,7 @@ ap.add_argument("--usetimex", default=False, action='store_true', help="Use time
 ap.add_argument("--useenvstepsx", default=False, action='store_true', help="Use environment steps on the x axis")
 ap.add_argument("--maxx", required=False, default=None, type=float, help="Maximum x value to plot")
 ap.add_argument("--maxy", required=False, default=None, type=float, help="Maximum y axis value")
+ap.add_argument("--miny", required=False, default=None, type=float, help="Minimum y axis value")
 ap.add_argument("--period", required=False, default=5, type=float, help="Seconds to wait between plot update")
 ap.add_argument("--out", required=False, default=None, type=str, help="Filename for the output plot")
 ap.add_argument("--ydataid", required=False, default=None, type=str, help="Data to put on the y axis")
@@ -94,7 +98,7 @@ while not ctrl_c_received:
     #print("Plotting")
     try:
         csvfiles = args["csvfiles"]
-        makePlot(csvfiles, x_data_id, max_x = args["maxx"], y_data_id=y_data_id, max_y = args["maxy"], )
+        makePlot(csvfiles, x_data_id, max_x = args["maxx"], y_data_id=y_data_id, max_y = args["maxy"], min_y= args["miny"] )
         if args["out"] is not None:
             fname = args["out"]
             if fname.split(".")[-1] == "png":

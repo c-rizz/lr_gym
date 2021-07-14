@@ -11,15 +11,18 @@ class RecorderGymWrapper(gym.Wrapper):
     .. note::
         Don't forget to call ``super().__init__(env)`` if the subclass overrides :meth:`__init__`.
     """
-    def __init__(self, env : gym.Env, fps : float, outFile : str, saveBestEpisodes : bool = True):
+    def __init__(self, env : gym.Env, fps : float, outFile : str,
+                        saveBestEpisodes = False, 
+                        saveFrequency_ep = 1,
+                        saveFrequency_step = -1):
         super().__init__(env)
-        self._saveAllEpisodes = False
         self._videoFps = fps
         self._frameBuffer = []
         self._episodeCounter = 0
         self._outVideoFile = outFile
-        self._disableAfterEp = False
         self._saveBestEpisodes = saveBestEpisodes
+        self._saveFrequency_ep = saveFrequency_ep
+        self._saveFrequency_step = saveFrequency_step
         self._bestReward = float("-inf")
         self._epReward = 0
         os.makedirs(os.path.dirname(outFile))
@@ -30,25 +33,29 @@ class RecorderGymWrapper(gym.Wrapper):
         self._epReward += stepRet[1]
         return stepRet
 
-    def _saveLastEpisode(self):
-        if self._saveAllEpisodes or (self._saveBestEpisodes and self._epReward>self._bestReward):
-            if len(self._frameBuffer)>0:
-                outFile = self._outVideoFile+str(self._episodeCounter).zfill(9)
-                videoWriter = cv2.VideoWriter(  outFile+".mp4",
-                                                cv2.VideoWriter_fourcc(*'MP4V'),
-                                                self._videoFps,
-                                                (self._frameBuffer[0].shape[1], self._frameBuffer[0].shape[0]))
-                for img in self._frameBuffer:             
-                    videoWriter.write(img)
-                videoWriter.release()
-                # print(f"Saved video image format = {self._frameBuffer[0].shape}\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
-                # time.sleep(10)
-        if self._disableAfterEp:
-            self._saveAllEpisodes = False
+    def _saveLastEpisode(self, filename : str):
+        if len(self._frameBuffer)>0:
+            if not filename.endswith(".mp4"):
+                filename = filename+".mp4"
+            videoWriter = cv2.VideoWriter(  filename,
+                                            cv2.VideoWriter_fourcc(*'MP4V'),
+                                            self._videoFps,
+                                            (self._frameBuffer[0].shape[1], self._frameBuffer[0].shape[0]))
+            for img in self._frameBuffer:             
+                videoWriter.write(img)
+            videoWriter.release()
+            # print(f"Saved video image format = {self._frameBuffer[0].shape}\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+            # time.sleep(10)
 
     def reset(self, **kwargs):
-
-        self._saveLastEpisode()
+        if self._epReward > self._bestReward:
+            self._bestReward = self._epReward
+            if self._saveBestEpisodes:
+                self._saveLastEpisode(self._outVideoFile+f"best_ep_{self._episodeCounter}".zfill(6)+f"_{self._epReward}.mp4")            
+        if self._saveFrequency_ep>0 and self._episodeCounter % self._saveFrequency_ep == 0:
+            self._saveLastEpisode(self._outVideoFile+f"ep_{self._episodeCounter}".zfill(6)+f"_{self._epReward}.mp4")
+        elif self._saveFrequency_step>0 and self.num_timesteps % self._saveFrequency_step == 0:
+            self._saveLastEpisode(self._outVideoFile+f"ep_{self._episodeCounter}".zfill(6)+f"_{self._epReward}.mp4")
 
         obs = self.env.reset(**kwargs)
         if self._epReward>self._bestReward:

@@ -51,6 +51,7 @@ catkin_python_setup()
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
+  LinkState.msg
   LinkStates.msg
 )
 
@@ -134,13 +135,6 @@ add_executable(move_helper src/move_helper.cpp)
 add_dependencies(move_helper ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(move_helper ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
-add_executable(link_state_publisher src/link_state_publisher.cpp src/ForwardKinematicsComputer.cpp)
-add_dependencies(link_state_publisher ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(link_state_publisher ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES})
-
-add_executable(link_pose_publisher src/link_pose_publisher.cpp src/ForwardKinematicsComputer.cpp)
-add_dependencies(link_pose_publisher ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(link_pose_publisher ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES})
 
 
 

@@ -3,6 +3,7 @@
 #include <pluginlib/class_list_macros.hpp>
 
 #include "../include/LinkStatePublisherController.hpp"
+#include <lr_gym_utils/LinkState.h>
 #include <lr_gym_utils/LinkStates.h>
 
 
@@ -52,9 +53,7 @@ namespace lr_gym_utils
     // Allocate link state message for real-time publisher
     for (unsigned i=0; i<forwardKinematicsComputer->getLinksNumber(); i++)
     {
-      realtime_pub_->msg_.link_names.push_back("");
-      realtime_pub_->msg_.link_poses.push_back(geometry_msgs::PoseStamped());
-      realtime_pub_->msg_.link_twists.push_back(geometry_msgs::Twist());
+      realtime_pub_->msg_.link_states.push_back(lr_gym_utils::LinkState());
     }
 
     ROS_INFO("Initializion of LinkStatePublisherController finished.");

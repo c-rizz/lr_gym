@@ -149,8 +149,13 @@ int executeMoveToEePoseCartesian(moveit::planning_interface::MoveGroupInterface&
 
 
 
-int moveToJointPose(moveit::planning_interface::MoveGroupInterface& move_group, std::vector<double> jointPose)
+int moveToJointPose(moveit::planning_interface::MoveGroupInterface& move_group,
+                    std::vector<double> jointPose,
+                    double velocity_scaling = 0.1,
+                    double acceleration_scaling = 0.1)
 {
+  moveGroupInt->setMaxAccelerationScalingFactor(acceleration_scaling);
+  moveGroupInt->setMaxVelocityScalingFactor(velocity_scaling);
   int r = submitMoveToJointPose(move_group,jointPose);
   if(r<0)
     throw std::runtime_error("Failed to submit move to joint pose, error "+std::to_string(r));
@@ -210,7 +215,7 @@ void moveToEePoseActionCallback(const lr_gym_utils::MoveToEePoseGoalConstPtr &go
     return;
   }
 
-  lr_gym_utils::MoveToEePoseResult result;
+  lr_gym_utils::MoveToEePoseResult result; 
   result.succeded = true;
   result.error_message = "No error";
   moveToEePoseActionServer->setSucceeded(result);
@@ -222,7 +227,7 @@ void moveToJointPoseActionCallback(const lr_gym_utils::MoveToJointPoseGoalConstP
 {
   try
   {
-    moveToJointPose(*moveGroupInt,goal->pose);
+    moveToJointPose(*moveGroupInt,goal->pose, goal->velocity_scaling, goal->acceleration_scaling);
   }
   catch(std::runtime_error& e)
   {

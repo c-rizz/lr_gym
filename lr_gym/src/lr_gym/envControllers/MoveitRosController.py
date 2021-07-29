@@ -44,7 +44,9 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
                  referenceFrame : str,
                  initialJointPose : Optional[Dict[Tuple[str,str],float]],
                  gripperActionTopic : str = None,
-                 gripperInitialWidth : float = -1):
+                 gripperInitialWidth : float = -1,
+                 default_velocity_scaling = 0.1,
+                 default_acceleration_scaling = 0.1):
         """Initialize the environment controller.
 
         """
@@ -64,6 +66,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         self._gripperActionTopic = gripperActionTopic
         self._gripperInitialWidth = gripperInitialWidth
 
+        self._default_velocity_scaling = default_velocity_scaling
+        self._default_acceleration_scaling = default_acceleration_scaling
 
     def _connectRosService(self, serviceName : str, msgType):
         rospy.loginfo("Waiting for service "+serviceName+"...")
@@ -107,6 +111,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
     def setJointsPositionCommand(self, jointPositions : Dict[Tuple[str,str],float]) -> None:
         goal = lr_gym_utils.msg.MoveToJointPoseGoal()
         goal.pose = [jointPositions[v] for v in self._jointsOrder]
+        goal.velocity_scaling = self._default_velocity_scaling
+        goal.acceleration_scaling = self._default_acceleration_scaling
         self._moveJointClient.send_goal(goal)
 
         def waitCallback():
@@ -153,8 +159,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         goal = lr_gym_utils.msg.MoveToEePoseGoal()
         goal.pose = lr_gym.utils.utils.buildPoseStamped(pose[0:3],pose[3:7],self._referenceFrame) #move 10cm back
         goal.end_effector_link = self._endEffectorLink[1]
-        goal.velocity_scaling = 1.0
-        goal.acceleration_scaling = 1.0
+        goal.velocity_scaling = self._default_velocity_scaling
+        goal.acceleration_scaling = self._default_acceleration_scaling
         goal.do_cartesian = do_cartesian
         self._moveEeClient.send_goal(goal)
 
@@ -231,7 +237,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
         self._waitOnStepCallbacks.append(waitCallback)
 
-    def _moveGripperSync(self, width : float, effort : float):
+    def moveGripperSync(self, width : float, effort : float):
         goal = control_msgs.msg.GripperCommandGoal()
         goal.command.position = width/2
         goal.command.max_effort = effort
@@ -253,6 +259,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         for i in range(5):
             goal = lr_gym_utils.msg.MoveToJointPoseGoal()
             goal.pose = [self._initialJointPose[v] for v in self._jointsOrder]
+            goal.velocity_scaling = 1.0
+            goal.acceleration_scaling = 1.0
             # ggLog.info(f"Moving to joint pose {goal.pose}")
             try:
                 self.moveToJointPoseSync(goal)
@@ -266,8 +274,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
             ggLog.error("Failed to move to initial joint pose.")
 
         if self._gripperActionTopic is not None and self._gripperInitialWidth >= 0:
-            self._moveGripperSync(0,20)
-            self._moveGripperSync(self._gripperInitialWidth,20)
+            self.moveGripperSync(0,20)
+            self.moveGripperSync(self._gripperInitialWidth,20)
 
     def actionsFailsInLastStep(self):
         return self._actionsFailsInLastStepCounter

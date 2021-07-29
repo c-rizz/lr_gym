@@ -7,6 +7,7 @@
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainfksolvervel_recursive.hpp>
 #include <kdl_conversions/kdl_msg.h>
+#include <lr_gym_utils/LinkState.h>
 #include <lr_gym_utils/LinkStates.h>
 #include <geometry_msgs/PoseArray.h>
 
@@ -17,6 +18,7 @@ namespace lr_gym_utils
   private:
     std::vector<KDL::Chain> chains;
     std::string rootLinkName;
+    std::string modelName;
 
     struct FkResult
     {

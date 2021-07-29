@@ -119,9 +119,13 @@ namespace lr_gym_utils
       geometry_msgs::Twist linkTwist;
       tf::twistKDLToMsg(fkResult.second.twist,linkTwist);
 
-      linkStates.link_names.push_back(fkResult.first);
-      linkStates.link_poses.push_back(linkPose);
-      linkStates.link_twists.push_back(linkTwist);
+      lr_gym_utils::LinkState ls;
+      ls.header.stamp = msg.header.stamp;
+      ls.link_name = fkResult.first;
+      ls.model_name = this->modelName;
+      ls.pose = linkPose;
+      ls.twist = linkTwist;
+      linkStates.link_states.push_back(ls);
     }
     linkStates.header.stamp = msg.header.stamp;
 
@@ -133,8 +137,8 @@ namespace lr_gym_utils
     geometry_msgs::PoseArray poseArray;
     poseArray.header.frame_id = rootLinkName;
     poseArray.header.stamp = linkStates.header.stamp;
-    for(geometry_msgs::PoseStamped linkPose : linkStates.link_poses)
-      poseArray.poses.push_back(linkPose.pose);
+    for(lr_gym_utils::LinkState ls : linkStates.link_states)
+      poseArray.poses.push_back(ls.pose.pose);
     return poseArray;
   }
 
@@ -191,6 +195,7 @@ namespace lr_gym_utils
     urdf::Model model;
     if (!model.initParam("robot_description"))
       throw std::runtime_error("Failed to get robot_description");
+    this->modelName = model.name_;
 
     KDL::Tree tree;
     if (!kdl_parser::treeFromUrdfModel(model, tree))

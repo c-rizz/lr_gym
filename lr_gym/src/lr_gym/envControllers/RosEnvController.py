@@ -287,7 +287,7 @@ class RosEnvController(EnvironmentController):
                     raise RuntimeError("Received link pose is not in world frame! This is not supported!")
                 pose = lsMsg.pose.pose
                 twist = lsMsg.twist
-                ret[l] = LinkState( position_xyz     = (pose.position.x, pose.position.y, pose.position.z),
+                ret[lnm] = LinkState( position_xyz     = (pose.position.x, pose.position.y, pose.position.z),
                                     orientation_xyzw = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
                                     pos_velocity_xyz = (twist.linear.x, twist.linear.y, twist.linear.z),
                                     ang_velocity_xyz = (twist.angular.x, twist.angular.y, twist.angular.z))

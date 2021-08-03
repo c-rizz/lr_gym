@@ -29,6 +29,12 @@ import lr_gym.utils.dbg.ggLog as ggLog
 import geometry_msgs
 import lr_gym_utils.srv
 
+
+
+class MoveFailError(Exception):
+    def __init__(self, message):            
+        super().__init__(message)
+
 class MoveitRosController(RosEnvController, CartesianPositionEnvController):
     """This class allows to control the execution of a ROS-based environment.
 
@@ -46,7 +52,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
                  gripperActionTopic : str = None,
                  gripperInitialWidth : float = -1,
                  default_velocity_scaling = 0.1,
-                 default_acceleration_scaling = 0.1):
+                 default_acceleration_scaling = 0.1,
+                 default_collision_objs = List[Tuple[List[float],List[float]]]):
         """Initialize the environment controller.
 
         """
@@ -68,6 +75,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
         self._default_velocity_scaling = default_velocity_scaling
         self._default_acceleration_scaling = default_acceleration_scaling
+        self._defaultCollision_boxes = default_collision_objs
 
     def _connectRosService(self, serviceName : str, msgType):
         rospy.loginfo("Waiting for service "+serviceName+"...")
@@ -108,11 +116,24 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
 
 
-    def setJointsPositionCommand(self, jointPositions : Dict[Tuple[str,str],float]) -> None:
+
+
+
+
+
+
+    # --------------------------------------------------------------------------------------------------------------------------------------
+    #         Joint control
+    # --------------------------------------------------------------------------------------------------------------------------------------
+
+    def _controlJointPosition(self, jointPositions : Dict[Tuple[str,str],float],
+                                    synchronous : bool,
+                                    velocity_scaling : float = None,
+                                    acceleration_scaling : float = None) -> None:
         goal = lr_gym_utils.msg.MoveToJointPoseGoal()
         goal.pose = [jointPositions[v] for v in self._jointsOrder]
-        goal.velocity_scaling = self._default_velocity_scaling
-        goal.acceleration_scaling = self._default_acceleration_scaling
+        goal.velocity_scaling = self._default_velocity_scaling if velocity_scaling is None else velocity_scaling
+        goal.acceleration_scaling = self._default_acceleration_scaling if acceleration_scaling is None else acceleration_scaling
         self._moveJointClient.send_goal(goal)
 
         def waitCallback():
@@ -121,16 +142,81 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
                 if self._moveJointClient.get_result().succeded:
                     return
                 else:
-                    raise RuntimeError("Failed to move to joint pose: "+str(self._moveJointClient.get_result()))
+                    raise MoveFailError("Failed to move to joint pose: "+str(self._moveJointClient.get_result()))
             else:
-                raise RuntimeError("Failed to move to joint pose: action timed out")
+                self._moveJointClient.cancel_goal()
+                self._moveJointClient.cancel_all_goals()
+                r = self._moveJointClient.wait_for_result(timeout = rospy.Duration(10.0))
+                if r:
+                    raise MoveFailError(f"Failed to move to joint pose: action timed out. Action canceled. Goal={goal}.  Result = {self._moveJointClient.get_result()}")
+                else:
+                    raise MoveFailError(f"Failed to move to joint pose: action timed out. Action failed to cancel. Goal={goal}")
 
-        self._waitOnStepCallbacks.append(waitCallback)
+        if synchronous:
+            waitCallback()
+        else:
+            self._waitOnStepCallbacks.append(waitCallback)
+
+    def setJointsPositionCommand(self, jointPositions : Dict[Tuple[str,str],float], velocity_scaling : float = None, acceleration_scaling : float = None) -> None:
+        self._controlJointPosition(jointPositions = jointPositions, synchronous=False, velocity_scaling=velocity_scaling, acceleration_scaling=acceleration_scaling)
+
+    def moveToJointPoseSync(self, jointPositions : Dict[Tuple[str,str],float], velocity_scaling : float = None, acceleration_scaling : float = None) -> None:
+        self._controlJointPosition(jointPositions = jointPositions, synchronous=True, velocity_scaling=velocity_scaling, acceleration_scaling=acceleration_scaling)
 
 
 
 
-    def setCartesianPoseCommand(self, linkPoses : Dict[Tuple[str,str],NDArray[(7,), np.float32]], do_cartesian = False) -> None:
+
+
+
+
+
+
+    # --------------------------------------------------------------------------------------------------------------------------------------
+    #         EE control
+    # --------------------------------------------------------------------------------------------------------------------------------------
+
+    def _controlEEPose(self, eePose_xyz_xyzw : NDArray[(7,), np.float32],
+                             synchronous : bool, 
+                             do_cartesian = False, velocity_scaling : float = None, acceleration_scaling : float = None,
+                             ee_link : str = None, reference_frame : str = None) -> None:
+
+        goal = lr_gym_utils.msg.MoveToEePoseGoal()
+        goal.pose = lr_gym.utils.utils.buildPoseStamped(eePose_xyz_xyzw[0:3],eePose_xyz_xyzw[3:7],
+                                                        self._referenceFrame if reference_frame is None else reference_frame)
+        goal.end_effector_link = self._endEffectorLink[1] if ee_link is None else ee_link
+        goal.velocity_scaling = self._default_velocity_scaling if velocity_scaling is None else velocity_scaling
+        goal.acceleration_scaling = self._default_acceleration_scaling if acceleration_scaling is None else acceleration_scaling
+        goal.do_cartesian = do_cartesian
+        self._moveEeClient.send_goal(goal)
+
+
+        def waitCallback():
+            # ggLog.info("waiting cartesian....")
+            r = self._moveEeClient.wait_for_result()
+            if r:
+                if self._moveEeClient.get_result().succeded:
+                    # ggLog.info("waited cartesian....")
+                    return
+                else:
+                    raise MoveFailError("Failed to move to cartesian pose: "+str(self._moveEeClient.get_result()))
+            else:
+                self._moveEeClient.cancel_goal()
+                self._moveEeClient.cancel_all_goals()
+                r = self._moveEeClient.wait_for_result(timeout = rospy.Duration(10.0))
+                if r:
+                    raise MoveFailError(f"Failed to move to cartesian pose: action timed out. Action canceled. Goal={goal}. Result = {self._moveEeClient.get_result()}")
+                else:
+                    raise MoveFailError(f"Failed to move to cartesian pose: action timed out. Action failed to cancel. Goal={goal}")
+
+        if synchronous:
+            waitCallback()
+        else:
+            self._waitOnStepCallbacks.append(waitCallback)
+    
+
+
+    def setCartesianPoseCommand(self, linkPoses : Dict[Tuple[str,str],NDArray[(7,), np.float32]], do_cartesian = False, velocity_scaling : float = None, acceleration_scaling : float = None) -> None:
         """Request a set of links to be placed at a specific cartesian pose.
 
         This is mainly meant as a way to perform cartesian end effector control. Meaning
@@ -152,58 +238,64 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         if len(linkPoses)!=1:
             raise AttributeError("Only 1 link is supported in the cartesian pose request. (I received "+str(len(linkPoses))+")")
         if self._endEffectorLink not in linkPoses:
-            raise AttributeError("You can only specify the end effector link in the linkPoses request. But linkPoses does not contain it. linkPoses = "+str(linkPoses))
+            raise AttributeError(f"You can only specify the end effector link (={self._endEffectorLink})in the linkPoses request. But linkPoses does not contain it. linkPoses = "+str(linkPoses))
 
-        pose = linkPoses[self._endEffectorLink]
-
-        goal = lr_gym_utils.msg.MoveToEePoseGoal()
-        goal.pose = lr_gym.utils.utils.buildPoseStamped(pose[0:3],pose[3:7],self._referenceFrame) #move 10cm back
-        goal.end_effector_link = self._endEffectorLink[1]
-        goal.velocity_scaling = self._default_velocity_scaling
-        goal.acceleration_scaling = self._default_acceleration_scaling
-        goal.do_cartesian = do_cartesian
-        self._moveEeClient.send_goal(goal)
-
-
-        def waitCallback():
-            # ggLog.info("waiting cartesian....")
-            r = self._moveEeClient.wait_for_result()
-            if r:
-                if self._moveEeClient.get_result().succeded:
-                    # ggLog.info("waited cartesian....")
-                    return
-                else:
-                    raise RuntimeError("Failed to move to cartesian pose: "+str(self._moveEeClient.get_result()))
-            else:
-                raise RuntimeError("Failed to move to cartesian pose: action timed out")
-
-
-        self._waitOnStepCallbacks.append(waitCallback)
-
-    def moveToJointPoseSync(self,goal:lr_gym_utils.msg.MoveToJointPoseGoal):
-        self._moveJointClient.send_goal(goal)
-        r = self._moveJointClient.wait_for_result()
-        if r:
-            if self._moveJointClient.get_result().succeded:
-                # ggLog.info("Successfully moved to joint pose")
-                return
-            else:
-                raise RuntimeError(f"Failed to move to move to joint pose: result {self._moveJointClient.get_result()}")
-        else:
-            raise RuntimeError(f"Failed to move to complete joint pose move action: r={r}")
+        self._controlEEPose(eePose_xyz_xyzw = linkPoses[self._endEffectorLink],
+                            synchronous = True,
+                            do_cartesian = do_cartesian, velocity_scaling = velocity_scaling, acceleration_scaling = acceleration_scaling)
 
     
-    def moveToEePoseSync(self, goal : lr_gym_utils.msg.MoveToEePoseGoal):
-        self._moveEeClient.send_goal(goal)
-        r = self._moveEeClient.wait_for_result()
-        if r:
-            if self._moveEeClient.get_result().succeded:
-                # ggLog.info("Successfully moved to joint pose")
-                return
+    def moveToEePoseSync(self,  pose : List[float], do_cartesian = False, velocity_scaling : float = None, acceleration_scaling : float = None,
+                                ee_link : str = None, reference_frame : str = None):
+        self._controlEEPose(eePose_xyz_xyzw = pose,
+                            synchronous = True,
+                            do_cartesian = do_cartesian, velocity_scaling = velocity_scaling, acceleration_scaling = acceleration_scaling,
+                            ee_link = ee_link, reference_frame = reference_frame)
+                            
+
+
+
+
+
+
+
+
+
+
+    # --------------------------------------------------------------------------------------------------------------------------------------
+    #         Gripper control
+    # --------------------------------------------------------------------------------------------------------------------------------------
+
+    def _controlGripper(self, width : float, max_effort : float, synchronous : bool):
+        if self._gripperActionTopic is None:
+            raise RuntimeError("Called setGripperAction, but gripperActionTopic is not set. Should have been set in the constructor.")
+
+        # ggLog.info(f"Setting gripper action: width = {width}, max_effort = {max_effort}")
+        goal = control_msgs.msg.GripperCommandGoal()
+        goal.command.position = width/2
+        goal.command.max_effort = max_effort
+        self._gripperActionClient.send_goal(goal)
+
+        def waitCallback():
+            r = self._gripperActionClient.wait_for_result(timeout = rospy.Duration(10.0))
+            if r:
+                if self._gripperActionClient.get_result().reached_goal:
+                    return
+                else:
+                    raise MoveFailError("Gripper failed to reach goal: "+str(self._gripperActionClient.get_result()))
             else:
-                raise RuntimeError(f"Failed to move to move to joint pose: result {self._moveEeClient.get_result()}")
+                self._gripperActionClient.cancel_goal()
+                self._gripperActionClient.cancel_all_goals()
+                r = self._gripperActionClient.wait_for_result(timeout = rospy.Duration(10.0))
+                if r:
+                    raise MoveFailError(f"Failed to perform gripper move: action timed out. Action canceled. Result = {self._gripperActionClient.get_result()}")
+                else:
+                    raise MoveFailError("Failed to perform gripper move: action timed out. Action failed to cancel.")
+
+        if synchronous:
+            waitCallback()
         else:
-            raise RuntimeError(f"Failed to move to complete joint pose move action: r={r}")
+            self._waitOnStepCallbacks.append(waitCallback)
 
     def setGripperAction(self, width : float, max_effort : float):
         """Control ,the gripper via the moveit control_msgs/GripperCommand action interface
@@ -215,55 +307,32 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         max_effort : float
             Max force that is applied by the fingers.
         """
-        if self._gripperActionTopic is None:
-            raise RuntimeError("Called setGripperAction, but gripperActionTopic is not set. Should have been set in the constructor.")
+        self._controlGripper(width, max_effort, False)
 
-        # ggLog.info(f"Setting gripper action: width = {width}, max_effort = {max_effort}")
-        goal = control_msgs.msg.GripperCommandGoal()
-        goal.command.position = width/2
-        goal.command.max_effort = max_effort
-        self._gripperActionClient.send_goal(goal)
-
-        def waitCallback():
-            r = self._gripperActionClient.wait_for_result()
-            if r:
-                if self._gripperActionClient.get_result().reached_goal:
-                    return
-                else:
-                    raise RuntimeError("Gripper failed to reach goal: "+str(self._gripperActionClient.get_result()))
-            else:
-                raise RuntimeError("Failed to perform gripper action: action timed out")
+    def moveGripperSync(self, width : float, max_effort : float):
+        self._controlGripper(width, max_effort, True)
 
 
-        self._waitOnStepCallbacks.append(waitCallback)
 
-    def moveGripperSync(self, width : float, effort : float):
-        goal = control_msgs.msg.GripperCommandGoal()
-        goal.command.position = width/2
-        goal.command.max_effort = effort
-        self._gripperActionClient.send_goal(goal)
-        r = self._gripperActionClient.wait_for_result()
-        if r:
-            if self._gripperActionClient.get_result().reached_goal:
-                return True
-            else:
-                ggLog.error("Gripper failed to reach goal: "+str(self._gripperActionClient.get_result()))
-                return False
-        else:
-            ggLog.error("Failed to perform gripper move: action timed out")
-            return False
+
+
+
+
+
+
+
+
+
 
     def resetWorld(self):
         # ggLog.info("Environment controller resetting world...")
+        self.clearCollisionObjects()
+        for cb in self._defaultCollision_boxes:
+            self.addCollisionBox(pose_xyz_xyzw=cb[0],size_xyz=cb[1])
         moved = False
         for i in range(5):
-            goal = lr_gym_utils.msg.MoveToJointPoseGoal()
-            goal.pose = [self._initialJointPose[v] for v in self._jointsOrder]
-            goal.velocity_scaling = 1.0
-            goal.acceleration_scaling = 1.0
-            # ggLog.info(f"Moving to joint pose {goal.pose}")
             try:
-                self.moveToJointPoseSync(goal)
+                self.moveToJointPoseSync(jointPositions=self._initialJointPose, velocity_scaling=0.9, acceleration_scaling=0.9)
                 moved = True
                 break
             except Exception as e:
@@ -281,7 +350,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         return self._actionsFailsInLastStepCounter
 
     
-    def completeMovements(self) -> int:
+    def completeAllMovements(self) -> int:
         actionFailed = 0
         for callback in self._waitOnStepCallbacks:
             try:
@@ -304,16 +373,16 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         
         t0 = rospy.get_time()
         # ggLog.info("Completing movements...")
-        self._actionsFailsInLastStepCounter = self.completeMovements()
+        self._actionsFailsInLastStepCounter = self.completeAllMovements()
         # ggLog.info("Completed.")
 
 
         return rospy.get_time() - t0
 
 
-    def addCollisionBox(self, pose_xyz_xyzw : Tuple[float,float,float,float,float,float,float], size_xyz : Tuple[float,float,float]):
+    def addCollisionBox(self, pose_xyz_xyzw : Tuple[float,float,float,float,float,float,float], size_xyz : Tuple[float,float,float], attach_link : str = None, reference_frame : str = None, attach_ignored_links : List[str] = None):
         req = lr_gym_utils.srv.AddCollisionBoxRequest()
-        req.pose.header.frame_id = self._referenceFrame
+        req.pose.header.frame_id = self._referenceFrame if reference_frame is None else reference_frame
         req.pose.pose.position.x = pose_xyz_xyzw[0]
         req.pose.pose.position.y = pose_xyz_xyzw[1]
         req.pose.pose.position.z = pose_xyz_xyzw[2]
@@ -324,6 +393,13 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         req.size.x = size_xyz[0]
         req.size.y = size_xyz[1]
         req.size.z = size_xyz[2]
+        if attach_link is not None:
+            req.attach = True
+            req.attach_link = attach_link
+            req.attach_ignored_links = attach_ignored_links if attach_ignored_links is not None else []
+        else:
+            req.attach = False
+            req.attach_link = ""
         res = self._addCollisionBoxService(req)
         if not res.success:
             ggLog.error(f"Failed to add collision object with req = {req}")

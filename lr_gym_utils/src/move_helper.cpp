@@ -335,7 +335,7 @@ bool clearCollisionObjectsServiceCallback(lr_gym_utils::ClearCollisionObjects::R
   res.objects_count += collision_objects.size();
 
   //Also, just guess a few of them, as some objects sometimes still persist (Especially attached ones)
-  for(int i=0; i<1000; i++)
+  for(int i=0; i<100; i++)
   {
     std::string obj_id = "box"+std::to_string(i);
     moveGroupInt->detachObject(obj_id);

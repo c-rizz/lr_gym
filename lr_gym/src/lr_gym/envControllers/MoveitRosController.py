@@ -142,7 +142,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
                 if self._moveJointClient.get_result().succeded:
                     return
                 else:
-                    raise MoveFailError("Failed to move to joint pose: "+str(self._moveJointClient.get_result()))
+                    raise MoveFailError("Failed to move to joint pose. Goal={goal}. result = "+str(self._moveJointClient.get_result()))
             else:
                 self._moveJointClient.cancel_goal()
                 self._moveJointClient.cancel_all_goals()
@@ -199,7 +199,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
                     # ggLog.info("waited cartesian....")
                     return
                 else:
-                    raise MoveFailError("Failed to move to cartesian pose: "+str(self._moveEeClient.get_result()))
+                    raise MoveFailError("Failed to move to cartesian pose. Goal={goal}. result = "+str(self._moveEeClient.get_result()))
             else:
                 self._moveEeClient.cancel_goal()
                 self._moveEeClient.cancel_all_goals()
@@ -241,7 +241,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
             raise AttributeError(f"You can only specify the end effector link (={self._endEffectorLink})in the linkPoses request. But linkPoses does not contain it. linkPoses = "+str(linkPoses))
 
         self._controlEEPose(eePose_xyz_xyzw = linkPoses[self._endEffectorLink],
-                            synchronous = True,
+                            synchronous = False,
                             do_cartesian = do_cartesian, velocity_scaling = velocity_scaling, acceleration_scaling = acceleration_scaling)
 
     
@@ -277,20 +277,23 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         self._gripperActionClient.send_goal(goal)
 
         def waitCallback():
-            r = self._gripperActionClient.wait_for_result(timeout = rospy.Duration(10.0))
+            r = self._gripperActionClient.wait_for_result(timeout = rospy.Duration(3.0))
             if r:
                 if self._gripperActionClient.get_result().reached_goal:
                     return
                 else:
-                    raise MoveFailError("Gripper failed to reach goal: "+str(self._gripperActionClient.get_result()))
+                    raise MoveFailError("Gripper failed to reach goal. Goal={goal}. result = "+str(self._gripperActionClient.get_result()))
             else:
                 self._gripperActionClient.cancel_goal()
                 self._gripperActionClient.cancel_all_goals()
-                r = self._gripperActionClient.wait_for_result(timeout = rospy.Duration(10.0))
+                r = self._gripperActionClient.wait_for_result(timeout = rospy.Duration(5.0))
                 if r:
-                    raise MoveFailError(f"Failed to perform gripper move: action timed out. Action canceled. Result = {self._gripperActionClient.get_result()}")
+                    if not self._gripperActionClient.get_result().reached_goal:
+                        raise MoveFailError(f"Failed to perform gripper move: action timed out. Action canceled.\n Result = {self._gripperActionClient.get_result()}\n"+
+                                            f"goal = {goal}")
                 else:
-                    raise MoveFailError("Failed to perform gripper move: action timed out. Action failed to cancel.")
+                    raise MoveFailError("Failed to perform gripper move: action timed out. Action failed to cancel.\n"+
+                                        f"goal = {goal}")
 
         if synchronous:
             waitCallback()

@@ -51,11 +51,11 @@ class RecorderGymWrapper(gym.Wrapper):
         if self._epReward > self._bestReward:
             self._bestReward = self._epReward
             if self._saveBestEpisodes:
-                self._saveLastEpisode(self._outVideoFile+f"best_ep_{self._episodeCounter}".zfill(6)+f"_{self._epReward}.mp4")            
+                self._saveLastEpisode(self._outVideoFile+"/best/ep_"+(f"{self._episodeCounter}").zfill(6)+f"_{self._epReward}.mp4")            
         if self._saveFrequency_ep>0 and self._episodeCounter % self._saveFrequency_ep == 0:
-            self._saveLastEpisode(self._outVideoFile+f"ep_{self._episodeCounter}".zfill(6)+f"_{self._epReward}.mp4")
+            self._saveLastEpisode(self._outVideoFile+"ep_"+(f"{self._episodeCounter}").zfill(6)+f"_{self._epReward}.mp4")
         elif self._saveFrequency_step>0 and self.num_timesteps % self._saveFrequency_step == 0:
-            self._saveLastEpisode(self._outVideoFile+f"ep_{self._episodeCounter}".zfill(6)+f"_{self._epReward}.mp4")
+            self._saveLastEpisode(self._outVideoFile+"ep_"+(f"{self._episodeCounter}").zfill(6)+f"_{self._epReward}.mp4")
 
         obs = self.env.reset(**kwargs)
         if self._epReward>self._bestReward:
@@ -67,7 +67,7 @@ class RecorderGymWrapper(gym.Wrapper):
         return obs
 
     def close(self):
-        self._saveLastEpisode()
+        self._saveLastEpisode(self._outVideoFile+(f"ep_{self._episodeCounter}").zfill(6)+f"_{self._epReward}.mp4")
         return self.env.close()
 
     def setSaveAllEpisodes(self, enable : bool, disable_after_one_episode : bool = False):

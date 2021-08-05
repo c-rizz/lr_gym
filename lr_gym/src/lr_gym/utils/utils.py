@@ -339,7 +339,7 @@ def lr_gym_startup(main_file_path : str, currentframe, using_pytorch : bool = Tr
     if using_pytorch:
         import torch as th
         pyTorch_makeDeterministic()
-        th.autograd.set_detect_anomaly(True) # Detect NaNs
+        # th.autograd.set_detect_anomaly(True) # Detect NaNs
         if th.cuda.is_available():
             ggLog.info(f"CUDA AVAILABLE: device = {th.cuda.get_device_name()}")
         else:
@@ -356,6 +356,7 @@ def evaluatePolicy(env, model, episodes : int):
     wallDurations = np.empty((episodes,), dtype = np.float32)
     predictWallDurations = np.empty((episodes,), dtype = np.float32)
     totDuration=0.0
+    successes = 0.0
     #frames = []
     #do an average over a bunch of episodes
     for episode in tqdm.tqdm(range(0,episodes)):
@@ -364,28 +365,33 @@ def evaluatePolicy(env, model, episodes : int):
         done = False
         predDurations = []
         t0 = time.monotonic()
-        ggLog.info("Env resetting...")
+        # ggLog.info("Env resetting...")
         obs = env.reset()
-        ggLog.info("Env resetted")
+        # ggLog.info("Env resetted")
         while not done:
             t0_pred = time.monotonic()
-            ggLog.info("Predicting")
+            # ggLog.info("Predicting")
             action, _states = model.predict(obs)
             predDurations.append(time.monotonic()-t0_pred)
-            ggLog.info("Stepping")
+            # ggLog.info("Stepping")
             obs, stepReward, done, info = env.step(action)
             frame+=1
             episodeReward += stepReward
-            ggLog.info(f"Step reward = {stepReward}")
+            # ggLog.info(f"Step reward = {stepReward}")
         rewards[episode]=episodeReward
+        if "success" in info.keys():
+            if info["success"]:
+                ggLog.info(f"Success {successes} ratio = {successes/(episode+1)}")
+                successes += 1
         steps[episode]=frame
         wallDurations[episode]=time.monotonic() - t0
         predictWallDurations[episode]=sum(predDurations)
-        print("Episode "+str(episode)+" lasted "+str(frame)+" frames, total reward = "+str(episodeReward))
+        ggLog.debug("Episode "+str(episode)+" lasted "+str(frame)+" frames, total reward = "+str(episodeReward))
     eval_results = {"reward_mean" : np.mean(rewards),
                     "reward_std" : np.std(rewards),
                     "steps_mean" : np.mean(steps),
                     "steps_std" : np.std(steps),
+                    "success_ratio" : successes/episodes,
                     "wall_duration_mean" : np.mean(wallDurations),
                     "wall_duration_std" : np.std(wallDurations),
                     "predict_wall_duration_mean" : np.mean(predictWallDurations),

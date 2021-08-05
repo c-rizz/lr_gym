@@ -92,6 +92,7 @@ class GymEnvWrapper(gym.Env):
         self._lastStepEndSimTimeFromStart = 0
         self._lastValidStepWallTime = -1
         self._timeSpentStepping_ep = 0
+        self._successRatio = -1
         self._info = {}
         self._setInfo()
 
@@ -147,6 +148,7 @@ class GymEnvWrapper(gym.Env):
         self._info["total_steps"] = self._totalSteps
         self._info["wall_fps_first_to_last"] = wall_fps_first_to_last
         self._info["ratio_time_spent_stepping_first_to_last"] = ratio_time_spent_stepping_first_to_last
+        self._info["success_ratio"] = self._successRatio
 
     def _logInfoCsv(self):
         #print("writing csv")
@@ -226,8 +228,13 @@ class GymEnvWrapper(gym.Env):
         info = {"gz_gym_base_env_reached_state" : state,
                 "gz_gym_base_env_previous_state" : previousState,
                 "gz_gym_base_env_action" : action}
-        info.update(self._ggEnv.getInfo())
+        ggInfo = self._ggEnv.getInfo()
+        if done:
+            if "success_ratio" in ggInfo:
+                self._successRatio = ggInfo["success_ratio"]
+        info.update(ggInfo)
         info.update(self._info)
+                
         # ggLog.debug(" s="+str(previousState)+"\n a="+str(action)+"\n s'="+str(state) +"\n r="+str(reward))
         self._totalEpisodeReward += reward
 
@@ -300,14 +307,17 @@ class GymEnvWrapper(gym.Env):
                 for k,v in self._info.items():
                     ggLog.info(k," = ",v)
             elif not self._quiet:
-                ggLog.info( "ep_reward = {:.3f}".format(self._info["ep_reward"])+
-                            " steps = {:d}".format(self._info["ep_frames_count"])+
-                            " wall_fps = {:.3f}".format(self._info["wall_fps"])+
-                            " wall_fps_ftl = {:.3f}".format(self._info["wall_fps_first_to_last"])+
-                            " avg_env_step_wall_dur = {:f}".format(self._info["avg_env_step_wall_duration"])+
-                            " tstep_on_ttot_ftl = {:.2f}".format(self._info["ratio_time_spent_stepping_until_done"])+
-                            " tstep_on_ttot = {:.2f}".format(self._info["ratio_time_spent_stepping"])+
-                            " reset_cnt = {:d}".format(self._info["reset_count"]))
+                msg =  (f"ep_reward = {self._info['ep_reward']:.3f}"+
+                        " steps = {:d}".format(self._info["ep_frames_count"])+
+                        " wall_fps = {:.3f}".format(self._info["wall_fps"])+
+                        " wall_fps_ftl = {:.3f}".format(self._info["wall_fps_first_to_last"])+
+                        " avg_env_step_wall_dur = {:f}".format(self._info["avg_env_step_wall_duration"])+
+                        " tstep_on_ttot_ftl = {:.2f}".format(self._info["ratio_time_spent_stepping_until_done"])+
+                        " tstep_on_ttot = {:.2f}".format(self._info["ratio_time_spent_stepping"])+
+                        " reset_cnt = {:d}".format(self._info["reset_count"]))
+                if "success_ratio" in self._info.keys():
+                        msg += f" succ_ratio = {self._info['success_ratio']:.2f}"
+                ggLog.info(msg)
 
         self._lastPreResetTime = time.monotonic()
         #reset simulation state

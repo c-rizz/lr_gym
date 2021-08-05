@@ -100,7 +100,7 @@ class PandaMoveitRosController(MoveitRosController):
         self._checkArmErrorAndRecover()
         done = False
         tries = 0
-        max_tries = 20
+        max_tries = 50
         while not done:
             try:
                 function()
@@ -109,7 +109,6 @@ class PandaMoveitRosController(MoveitRosController):
                 ggLog.warn(f"{functionName} failed. exception = {e}\n"+
                             f"Trying to recover (retries = {tries}).")
                 rospy.sleep(1.0)
-                tries += 1
                 self._checkArmErrorAndRecover()
                 tries += 1
                 if tries > max_tries:
@@ -117,6 +116,13 @@ class PandaMoveitRosController(MoveitRosController):
                     ggLog.error("Panda arm failed to recover automatically. Please try to put it back into a working pose manually and press Enter.")
                     input("Press Enter when done.")
                     tries=0
+                    a = ""
+                    while a!='y' and a!='n':
+                        a = input("Retry last movement? If not, the movement will be skipped (y/n)")
+                    if a=="n":
+                        ggLog.error("Skipping movement")
+                    else:
+                        ggLog.error("retrying movement")
 
 
     def moveToJointPoseSync(self, jointPositions : Dict[Tuple[str,str],float], velocity_scaling : float = None, acceleration_scaling : float = None) -> None:

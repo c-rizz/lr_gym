@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(lr_gym_utils)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11 -Wall)
+add_compile_options(-std=c++11 -Wall )
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -51,6 +51,7 @@ catkin_python_setup()
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
+  LinkState.msg
   LinkStates.msg
 )
 
@@ -134,13 +135,6 @@ add_executable(move_helper src/move_helper.cpp)
 add_dependencies(move_helper ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(move_helper ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
-add_executable(link_state_publisher src/link_state_publisher.cpp src/ForwardKinematicsComputer.cpp)
-add_dependencies(link_state_publisher ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(link_state_publisher ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES})
-
-add_executable(link_pose_publisher src/link_pose_publisher.cpp src/ForwardKinematicsComputer.cpp)
-add_dependencies(link_pose_publisher ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(link_pose_publisher ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES})
 
 
 

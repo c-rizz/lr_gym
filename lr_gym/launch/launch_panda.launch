@@ -41,9 +41,7 @@
       <arg name="robot_ip" value="$(arg robot_ip)"/>      
     </include>
 
-    <!-- publish the links states
-    <node name="link_state_publisher" pkg="lr_gym_utils" type="link_state_publisher" />
--->
+    
     <!-- load the gravity-compensated effort controller -->
     <rosparam file="$(find lr_gym_utils)/config/ros_controllers.yaml" command="load" />
     <node name="controller_spawner_compensated" pkg="controller_manager" type="spawner" respawn="false" output="screen"

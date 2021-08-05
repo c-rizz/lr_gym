@@ -42,7 +42,9 @@ class MoveitGazeboController(MoveitRosController, SimulatedEnvController):
                  referenceFrame : str,
                  initialJointPose : Optional[Dict[Tuple[str,str],float]],
                  gripperActionTopic : str = None,
-                 gripperInitialWidth : float = -1):
+                 gripperInitialWidth : float = -1,
+                 default_velocity_scaling = 0.1,
+                 default_acceleration_scaling = 0.1):
         """Initialize the environment controller.
 
         """
@@ -51,7 +53,9 @@ class MoveitGazeboController(MoveitRosController, SimulatedEnvController):
                             referenceFrame = referenceFrame,
                             initialJointPose= initialJointPose,
                             gripperActionTopic = gripperActionTopic,
-                            gripperInitialWidth = gripperInitialWidth)
+                            gripperInitialWidth = gripperInitialWidth,
+                            default_velocity_scaling = default_velocity_scaling,
+                            default_acceleration_scaling = default_acceleration_scaling)
 
         self._gazeboController = GazeboController() #Could do with multiple inheritance but this is more readable
 

@@ -6,6 +6,7 @@
 #include <memory>
 #include <realtime_tools/realtime_publisher.h>
 #include <sensor_msgs/JointState.h>
+#include <lr_gym_utils/LinkState.h>
 #include <lr_gym_utils/LinkStates.h>
 
 #include "../include/ForwardKinematicsComputer.hpp"

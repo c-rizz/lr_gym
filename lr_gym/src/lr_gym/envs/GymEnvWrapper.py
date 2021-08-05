@@ -353,6 +353,7 @@ class GymEnvWrapper(gym.Env):
         observation = self._ggEnv.getObservation(self._getStateCached())
         # print("observation space = "+str(self.observation_space)+" high = "+str(self.observation_space.high)+" low = "+str(self.observation_space.low))
         # print("observation = "+str(observation))
+        ggLog.info("GymEnvWrapper.reset() done")
         return observation
 
 

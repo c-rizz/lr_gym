@@ -28,9 +28,7 @@
       <arg name="load_gripper" value="$(arg load_gripper)"/>
     </include>
 
-    <!-- publish the links states
-    <node name="link_state_publisher" pkg="lr_gym_utils" type="link_state_publisher" />
--->
+    
     <!-- load the cartesian position controller -->
     <rosparam file="$(find lr_gym_utils)/config/ros_controllers.yaml" command="load" />
     <node name="controller_spawner_cartesian" pkg="controller_manager" type="spawner" respawn="false" output="screen"

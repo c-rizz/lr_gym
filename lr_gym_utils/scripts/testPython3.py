@@ -65,6 +65,8 @@ time.sleep(3)
 
 
 goal = lr_gym_utils.msg.MoveToJointPoseGoal()
+goal.velocity_scaling = 0.1
+goal.acceleration_scaling = 0.1
 goal.pose = [0, 0, 0, -1, 0, 1, 0]
 moveJointsClient.send_goal(goal)
 print("Moving joints...")

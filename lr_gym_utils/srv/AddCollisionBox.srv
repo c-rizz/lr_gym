@@ -1,4 +1,7 @@
 geometry_msgs/PoseStamped pose
 geometry_msgs/Point size
+bool attach
+string attach_link
+string[] attach_ignored_links
 ---
 bool success

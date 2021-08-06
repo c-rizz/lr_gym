@@ -303,7 +303,7 @@ bool addCollisionBoxServiceCallback(lr_gym_utils::AddCollisionBox::Request& req,
 
 bool clearCollisionObjectsServiceCallback(lr_gym_utils::ClearCollisionObjects::Request& req, lr_gym_utils::ClearCollisionObjects::Response& res)
 {
-  ROS_WARN_STREAM("clearCollisionObjectsServiceCallback");
+  // ROS_WARN_STREAM("clearCollisionObjectsServiceCallback");
   for(std::string obj_id : attached_objects_ids)
     moveGroupInt->detachObject(obj_id);
 

@@ -237,8 +237,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         """
         if len(linkPoses)!=1:
             raise AttributeError("Only 1 link is supported in the cartesian pose request. (I received "+str(len(linkPoses))+")")
-        if self._endEffectorLink not in linkPoses:
-            raise AttributeError(f"You can only specify the end effector link (={self._endEffectorLink})in the linkPoses request. But linkPoses does not contain it. linkPoses = "+str(linkPoses))
+        if self._endEffectorLink not in linkPoses.keys():
+            raise AttributeError(f"You can only specify the end effector link (={self._endEffectorLink}) in the linkPoses request. But linkPoses does not contain it. linkPoses = "+str(linkPoses))
 
         self._controlEEPose(eePose_xyz_xyzw = linkPoses[self._endEffectorLink],
                             synchronous = False,

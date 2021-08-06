@@ -121,6 +121,7 @@ class PandaMoveitRosController(MoveitRosController):
                         a = input("Retry last movement? If not, the movement will be skipped (y/n)")
                     if a=="n":
                         ggLog.error("Skipping movement")
+                        break
                     else:
                         ggLog.error("retrying movement")
 

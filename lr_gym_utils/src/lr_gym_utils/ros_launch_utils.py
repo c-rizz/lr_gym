@@ -81,7 +81,11 @@ class MultiMasterRosLauncher:
         os.environ["ROS_MASTER_URI"] = "http://"+self._ros_master_ip+":"+str(self._rosMasterPort)
         os.environ["GAZEBO_MASTER_URI"] = "http://127.0.0.1:"+str(self._gazeboPort)
 
-        time.sleep(self._rosMasterPort-self._baseRosPort) #Very ugly way to avoid potential race conditions
+        
+        delay = self._rosMasterPort-self._baseRosPort #Very ugly way to avoid potential race conditions
+        for i in range(delay):
+            ggLog.info(f"Launching in {i+1}")
+            time.sleep(1.0)
 
         ggLog.info("#######################################################################\n"+
               "  MultiMasterRosLauncher launching with ports "+str(self._rosMasterPort)+" and "+str(self._gazeboPort)+"\n"+

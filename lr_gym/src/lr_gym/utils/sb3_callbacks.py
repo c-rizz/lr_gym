@@ -44,7 +44,7 @@ class CheckpointCallbackRB(BaseCallback):
             if self.verbose > 1:
                 print(f"Saved model checkpoint to {path}")
         if self.n_calls % self.replay_buffer_save_freq == 0:
-            path = os.path.join(self.save_path, f"{self.name_prefix}_replay_buffer_{self.num_timesteps}_steps")
+            path = os.path.join(self.save_path, f"{self.name_prefix}_replay_buffer_{self.num_timesteps}_steps")+".pkl"
             t0 = time.monotonic()
             self.model.save_replay_buffer(path)
             filesize_mb = os.path.getsize(path)/1024/1024

@@ -98,6 +98,9 @@ int executeMoveToEePoseCartesian(moveit::planning_interface::MoveGroupInterface&
                                 std::string endEffectorLink,
                                 double velocity_scaling = 0.1)
 {
+
+  if(velocity_scaling<=0 || velocity_scaling>1)
+    throw std::runtime_error("executeMoveToEePoseCartesian(): Invalid velocity scaling = "+std::to_string(velocity_scaling))
   // ROS_INFO_STREAM("Submitting Cartesian Move goal");
   geometry_msgs::PoseStamped targetPoseBaseLink;
   try{
@@ -335,17 +338,17 @@ bool clearCollisionObjectsServiceCallback(lr_gym_utils::ClearCollisionObjects::R
   res.objects_count += collision_objects.size();
 
   //Also, just guess a few of them, as some objects sometimes still persist (Especially attached ones)
-  for(int i=0; i<100; i++)
-  {
-    std::string obj_id = "box"+std::to_string(i);
-    moveGroupInt->detachObject(obj_id);
-    moveit_msgs::CollisionObject collision_object;
-    collision_object.id = obj_id;
-    collision_object.operation = collision_object.REMOVE;
-    collision_objects.push_back(collision_object);
-  }
-  planningSceneInt->applyCollisionObjects(collision_objects);
-  res.objects_count += collision_objects.size();
+  // for(int i=0; i<100; i++)
+  // {
+  //   std::string obj_id = "box"+std::to_string(i);
+  //   moveGroupInt->detachObject(obj_id);
+  //   moveit_msgs::CollisionObject collision_object;
+  //   collision_object.id = obj_id;
+  //   collision_object.operation = collision_object.REMOVE;
+  //   collision_objects.push_back(collision_object);
+  // }
+  // planningSceneInt->applyCollisionObjects(collision_objects);
+  // res.objects_count += collision_objects.size();
 
 
   return true;

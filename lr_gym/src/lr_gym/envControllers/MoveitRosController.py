@@ -53,7 +53,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
                  gripperInitialWidth : float = -1,
                  default_velocity_scaling = 0.1,
                  default_acceleration_scaling = 0.1,
-                 default_collision_objs = List[Tuple[List[float],List[float]]]):
+                 default_collision_objs : List[Tuple[List[float],List[float]]] = []):
         """Initialize the environment controller.
 
         """

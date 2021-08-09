@@ -84,7 +84,7 @@ class MultiMasterRosLauncher:
         
         delay = self._rosMasterPort-self._baseRosPort #Very ugly way to avoid potential race conditions
         for i in range(delay):
-            ggLog.info(f"Launching in {i+1}")
+            ggLog.info(f"Launching in {delay-i}")
             time.sleep(1.0)
 
         ggLog.info("#######################################################################\n"+

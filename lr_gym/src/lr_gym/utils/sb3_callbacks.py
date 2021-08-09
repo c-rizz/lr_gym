@@ -43,14 +43,15 @@ class CheckpointCallbackRB(BaseCallback):
             self.model.save(path)
             if self.verbose > 1:
                 print(f"Saved model checkpoint to {path}")
-        if self.n_calls % self.replay_buffer_save_freq == 0:
-            path = os.path.join(self.save_path, f"{self.name_prefix}_replay_buffer_{self.num_timesteps}_steps")+".pkl"
-            t0 = time.monotonic()
-            self.model.save_replay_buffer(path)
-            filesize_mb = os.path.getsize(path)/1024/1024
-            if self._last_saved_replay_buffer_path is not None:
-                os.remove(self._last_saved_replay_buffer_path) 
-            t1 = time.monotonic()
-            self._last_saved_replay_buffer_path = path
-            ggLog.debug(f"Saved replay buffer checkpoint to {path}, size = {filesize_mb}MB, took {t1-t0}s")
+        if self.replay_buffer_save_freq is not None:
+            if self.n_calls % self.replay_buffer_save_freq == 0:
+                path = os.path.join(self.save_path, f"{self.name_prefix}_replay_buffer_{self.num_timesteps}_steps")+".pkl"
+                t0 = time.monotonic()
+                self.model.save_replay_buffer(path)
+                filesize_mb = os.path.getsize(path)/1024/1024
+                if self._last_saved_replay_buffer_path is not None:
+                    os.remove(self._last_saved_replay_buffer_path) 
+                t1 = time.monotonic()
+                self._last_saved_replay_buffer_path = path
+                ggLog.debug(f"Saved replay buffer checkpoint to {path}, size = {filesize_mb}MB, took {t1-t0}s")
         return True

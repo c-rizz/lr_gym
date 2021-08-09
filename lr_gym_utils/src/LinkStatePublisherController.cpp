@@ -68,30 +68,38 @@ namespace lr_gym_utils
 
   void LinkStatePublisherController::update(const ros::Time& time, const ros::Duration& /*period*/)
   {
-    //ROS_INFO("LinkStatePublisherController update");
-    // limit rate of publishing
-    if (publish_rate_ > 0.0 && last_publish_time_ + ros::Duration(1.0/publish_rate_) < time){
+    try
+    {
+      //ROS_INFO("LinkStatePublisherController update");
+      // limit rate of publishing
+      if (publish_rate_ > 0.0 && last_publish_time_ + ros::Duration(1.0/publish_rate_) < time){
 
-      //ROS_INFO("LinkStatePublisherController update inner");
-      // try to publish
-      if (realtime_pub_->trylock()){
-        // we're actually publishing, so increment time
-        last_publish_time_ = last_publish_time_ + ros::Duration(1.0/publish_rate_);
+        //ROS_INFO("LinkStatePublisherController update inner");
+        // try to publish
+        if (realtime_pub_->trylock()){
+          // we're actually publishing, so increment time
+          last_publish_time_ = last_publish_time_ + ros::Duration(1.0/publish_rate_);
 
-        // populate joint state message:
-        // - fill only joints that are present in the JointStateInterface, i.e. indices [0, num_hw_joints_)
-        // - leave unchanged extra joints, which have static values, i.e. indices from num_hw_joints_ onwards
-        joint_state_msg.header.stamp = time;
-        for (unsigned i=0; i<num_hw_joints_; i++){
-          joint_state_msg.position[i] = joint_state_[i].getPosition();
-          joint_state_msg.velocity[i] = joint_state_[i].getVelocity();
-          joint_state_msg.effort[i] = joint_state_[i].getEffort();
+          // populate joint state message:
+          // - fill only joints that are present in the JointStateInterface, i.e. indices [0, num_hw_joints_)
+          // - leave unchanged extra joints, which have static values, i.e. indices from num_hw_joints_ onwards
+          joint_state_msg.header.stamp = time;
+          for (unsigned i=0; i<num_hw_joints_; i++){
+            joint_state_msg.position[i] = joint_state_[i].getPosition();
+            joint_state_msg.velocity[i] = joint_state_[i].getVelocity();
+            joint_state_msg.effort[i] = joint_state_[i].getEffort();
+          }
+
+          realtime_pub_->msg_ = forwardKinematicsComputer->computeLinkStates(joint_state_msg);
+          realtime_pub_->unlockAndPublish();
+          //ROS_INFO("Published link state");
         }
-
-        realtime_pub_->msg_ = forwardKinematicsComputer->computeLinkStates(joint_state_msg);
-        realtime_pub_->unlockAndPublish();
-        //ROS_INFO("Published link state");
       }
+    }
+    catch(std::exception& e)
+    {
+      ROS_ERROR_STREAM("Exception in LinkStatePublisherController update: "<<e.what());
+      throw;
     }
   }
 

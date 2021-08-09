@@ -100,7 +100,7 @@ int executeMoveToEePoseCartesian(moveit::planning_interface::MoveGroupInterface&
 {
 
   if(velocity_scaling<=0 || velocity_scaling>1)
-    throw std::runtime_error("executeMoveToEePoseCartesian(): Invalid velocity scaling = "+std::to_string(velocity_scaling))
+    throw std::runtime_error("executeMoveToEePoseCartesian(): Invalid velocity scaling = "+std::to_string(velocity_scaling));
   // ROS_INFO_STREAM("Submitting Cartesian Move goal");
   geometry_msgs::PoseStamped targetPoseBaseLink;
   try{

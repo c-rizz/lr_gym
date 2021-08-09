@@ -63,7 +63,7 @@ def makePlot(csvfiles : List[str], x_data_id : str, max_x : float, min_x : float
         for adx in additional_xdataids:
             ax2 = p.twiny()
             x2 = df[adx]
-            sns.lineplot(x=x2, y=np.arange(len(x2)), visible=False)
+            p2 = sns.lineplot(x=x2, y=np.arange(len(x2)), visible=False)
             # Move twinned axis ticks and label from top to bottom
             ax2.xaxis.set_ticks_position("bottom")
             ax2.xaxis.set_label_position("bottom")

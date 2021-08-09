@@ -3,7 +3,7 @@ import os
 from stable_baselines3.common.callbacks import BaseCallback
 import time
 import lr_gym.utils.dbg.ggLog as ggLog
-
+import numpy as np
 
 class CheckpointCallbackRB(BaseCallback):
     """
@@ -32,25 +32,35 @@ class CheckpointCallbackRB(BaseCallback):
                 raise AttributeError("replay_buffer_save_freq is not a multiple of save_freq, you probably don't want to do this.")
         self._last_saved_replay_buffer_path = None
 
+        self._step_last_model_checkpoint = -1
+        self._step_last_replay_buffer_checkpoint = -1
+
     def _init_callback(self) -> None:
         # Create folder if needed
         if self.save_path is not None:
             os.makedirs(self.save_path, exist_ok=True)
 
     def _on_step(self) -> bool:
-        if self.n_calls % self.save_freq == 0:
+
+        done_array = np.array(self.locals.get("done") if self.locals.get("done") is not None else self.locals.get("dones"))
+        if len(done_array)>1:
+            raise RuntimeError("Only non-vectorized envs are supported.")
+        done = done_array.item()
+
+        if done and int(self.n_calls / self.save_freq) != int(self._step_last_model_checkpoint / self.save_freq):
             path = os.path.join(self.save_path, f"{self.name_prefix}_{self.num_timesteps}_steps")
             self.model.save(path)
             if self.verbose > 1:
                 print(f"Saved model checkpoint to {path}")
-        if self.n_calls % self.replay_buffer_save_freq == 0:
-            path = os.path.join(self.save_path, f"{self.name_prefix}_replay_buffer_{self.num_timesteps}_steps")+".pkl"
-            t0 = time.monotonic()
-            self.model.save_replay_buffer(path)
-            filesize_mb = os.path.getsize(path)/1024/1024
-            if self._last_saved_replay_buffer_path is not None:
-                os.remove(self._last_saved_replay_buffer_path) 
-            t1 = time.monotonic()
-            self._last_saved_replay_buffer_path = path
-            ggLog.debug(f"Saved replay buffer checkpoint to {path}, size = {filesize_mb}MB, took {t1-t0}s")
+        if self.replay_buffer_save_freq is not None:
+            if done and int(self.n_calls / self.replay_buffer_save_freq) != int(self._step_last_replay_buffer_checkpoint / self.replay_buffer_save_freq):
+                path = os.path.join(self.save_path, f"{self.name_prefix}_replay_buffer_{self.num_timesteps}_steps")+".pkl"
+                t0 = time.monotonic()
+                self.model.save_replay_buffer(path)
+                filesize_mb = os.path.getsize(path)/1024/1024
+                if self._last_saved_replay_buffer_path is not None:
+                    os.remove(self._last_saved_replay_buffer_path) 
+                t1 = time.monotonic()
+                self._last_saved_replay_buffer_path = path
+                ggLog.debug(f"Saved replay buffer checkpoint to {path}, size = {filesize_mb}MB, took {t1-t0}s")
         return True

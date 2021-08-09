@@ -142,7 +142,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
                 if self._moveJointClient.get_result().succeded:
                     return
                 else:
-                    raise MoveFailError("Failed to move to joint pose. Goal={goal}. result = "+str(self._moveJointClient.get_result()))
+                    raise MoveFailError(f"Failed to move to joint pose. Goal={goal}. result = "+str(self._moveJointClient.get_result()))
             else:
                 self._moveJointClient.cancel_goal()
                 self._moveJointClient.cancel_all_goals()
@@ -199,7 +199,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
                     # ggLog.info("waited cartesian....")
                     return
                 else:
-                    raise MoveFailError("Failed to move to cartesian pose. Goal={goal}. result = "+str(self._moveEeClient.get_result()))
+                    raise MoveFailError(f"Failed to move to cartesian pose. Goal={goal}. result = "+str(self._moveEeClient.get_result()))
             else:
                 self._moveEeClient.cancel_goal()
                 self._moveEeClient.cancel_all_goals()
@@ -237,8 +237,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         """
         if len(linkPoses)!=1:
             raise AttributeError("Only 1 link is supported in the cartesian pose request. (I received "+str(len(linkPoses))+")")
-        if self._endEffectorLink not in linkPoses:
-            raise AttributeError(f"You can only specify the end effector link (={self._endEffectorLink})in the linkPoses request. But linkPoses does not contain it. linkPoses = "+str(linkPoses))
+        if self._endEffectorLink not in linkPoses.keys():
+            raise AttributeError(f"You can only specify the end effector link (={self._endEffectorLink}) in the linkPoses request. But linkPoses does not contain it. linkPoses = "+str(linkPoses))
 
         self._controlEEPose(eePose_xyz_xyzw = linkPoses[self._endEffectorLink],
                             synchronous = False,
@@ -282,7 +282,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
                 if self._gripperActionClient.get_result().reached_goal:
                     return
                 else:
-                    raise MoveFailError("Gripper failed to reach goal. Goal={goal}. result = "+str(self._gripperActionClient.get_result()))
+                    raise MoveFailError(f"Gripper failed to reach goal. Goal={goal}. result = "+str(self._gripperActionClient.get_result()))
             else:
                 self._gripperActionClient.cancel_goal()
                 self._gripperActionClient.cancel_all_goals()

@@ -101,7 +101,7 @@ class MultiMasterRosLauncher:
                 else:
                     ggLog.info("Roslaunch exited.")
                 return
-        thread = threading.Thread(target=run_in_thread)
+        thread = threading.Thread(target=run_in_thread, daemon=True) #Daemon=True makes it so that the thread is terminated (ungracefully) if the main thread crashes
         thread.start()
         # time.sleep(10) #TODO: Ugly, need a better way to ensure the roslaunch has launched everyting
 

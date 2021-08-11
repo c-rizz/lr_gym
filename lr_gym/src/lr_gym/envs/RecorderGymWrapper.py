@@ -65,7 +65,9 @@ class RecorderGymWrapper(gym.Wrapper):
         self._epReward = 0
         self._episodeCounter +=1
         self._frameBuffer = []
-        self._frameBuffer.append(self.render(mode = "rgb_array"))
+        img = self.render(mode = "rgb_array")
+        if img is not None:
+            self._frameBuffer.append(img)
         return obs
 
     def close(self):

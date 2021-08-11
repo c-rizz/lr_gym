@@ -32,8 +32,8 @@ class CheckpointCallbackRB(BaseCallback):
                 raise AttributeError("replay_buffer_save_freq is not a multiple of save_freq, you probably don't want to do this.")
         self._last_saved_replay_buffer_path = None
 
-        self._step_last_model_checkpoint = -1
-        self._step_last_replay_buffer_checkpoint = -1
+        self._step_last_model_checkpoint = 0
+        self._step_last_replay_buffer_checkpoint = 0
 
     def _init_callback(self) -> None:
         # Create folder if needed

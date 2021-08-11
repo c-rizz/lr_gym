@@ -50,6 +50,7 @@ class CheckpointCallbackRB(BaseCallback):
         if done and int(self.n_calls / self.save_freq) != int(self._step_last_model_checkpoint / self.save_freq):
             path = os.path.join(self.save_path, f"{self.name_prefix}_{self.num_timesteps}_steps")
             self.model.save(path)
+            self._step_last_model_checkpoint = self.n_calls
             if self.verbose > 1:
                 print(f"Saved model checkpoint to {path}")
         if self.replay_buffer_save_freq is not None:
@@ -62,5 +63,6 @@ class CheckpointCallbackRB(BaseCallback):
                     os.remove(self._last_saved_replay_buffer_path) 
                 t1 = time.monotonic()
                 self._last_saved_replay_buffer_path = path
+                self._step_last_replay_buffer_checkpoint = self.n_calls
                 ggLog.debug(f"Saved replay buffer checkpoint to {path}, size = {filesize_mb}MB, took {t1-t0}s")
         return True

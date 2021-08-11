@@ -119,8 +119,8 @@ int executeMoveToEePoseCartesian(moveit::planning_interface::MoveGroupInterface&
   move_group.setEndEffectorLink(eeLink);
   move_group.setPoseReferenceFrame("world");
 
-  const double jump_threshold = 0.0; // No joint-space jump contraint (see moveit_msgs/GetCartesianPath)
-  const double eef_step = 0.005;
+  const double jump_threshold = 1.5; // No joint-space jump contraint (see moveit_msgs/GetCartesianPath)
+  const double eef_step = 0.001;
 
   moveit_msgs::RobotTrajectory robotTraj;
   std::vector<geometry_msgs::Pose> waypoints;

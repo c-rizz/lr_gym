@@ -11,7 +11,9 @@ from threading import Lock
 import lr_gym.utils.dbg.ggLog as ggLog
 from typing import Dict, List, Tuple
 import lr_gym_utils
+import lr_gym
 from lr_gym.envControllers.MoveitRosController import MoveFailError
+import lr_gym.utils.beep
 
 class PandaMoveitRosController(MoveitRosController):
     """This class allows to control the execution of a ROS-based environment.
@@ -77,7 +79,7 @@ class PandaMoveitRosController(MoveitRosController):
             rospy.sleep(1.0)
             tries += 1
             if tries > max_tries:
-                print("\a")
+                lr_gym.utils.beep.boop()
                 ggLog.error("Panda arm failed to recover automatically. Please try to put it back into a working pose manually and press Enter.")
                 input("Press Enter when done.")
                 tries=0
@@ -112,7 +114,7 @@ class PandaMoveitRosController(MoveitRosController):
                 self._checkArmErrorAndRecover()
                 tries += 1
                 if tries > max_tries:
-                    print("\a")
+                    lr_gym.utils.beep.boop()
                     ggLog.error("Panda arm failed to recover automatically. Please try to put it back into a working pose manually and press Enter.")
                     input("Press Enter when done.")
                     tries=0

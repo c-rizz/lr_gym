@@ -16,3 +16,5 @@ empy==3.3.4
 numba==0.53.0
 PyVirtualDisplay==2.1
 pynvml==11.0.0
+playsound
+quaternionic==0.4.1

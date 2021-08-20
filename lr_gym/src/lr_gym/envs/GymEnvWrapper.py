@@ -93,6 +93,7 @@ class GymEnvWrapper(gym.Env):
         self._lastValidStepWallTime = -1
         self._timeSpentStepping_ep = 0
         self._successRatio = -1
+        self._last_ep_succeded = False
         self._info = {}
         self._setInfo()
 
@@ -149,6 +150,7 @@ class GymEnvWrapper(gym.Env):
         self._info["wall_fps_first_to_last"] = wall_fps_first_to_last
         self._info["ratio_time_spent_stepping_first_to_last"] = ratio_time_spent_stepping_first_to_last
         self._info["success_ratio"] = self._successRatio
+        self._info["success"] = self._last_ep_succeded
 
     def _logInfoCsv(self):
         #print("writing csv")
@@ -232,6 +234,8 @@ class GymEnvWrapper(gym.Env):
         if done:
             if "success_ratio" in ggInfo:
                 self._successRatio = ggInfo["success_ratio"]
+            if "success" in ggInfo:
+                self._last_ep_succeded = ggInfo["success"]
         info.update(ggInfo)
         info.update(self._info)
                 

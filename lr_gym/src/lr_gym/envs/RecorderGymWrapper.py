@@ -32,7 +32,9 @@ class RecorderGymWrapper(gym.Wrapper):
 
     def step(self, action):
         stepRet =  self.env.step(action)
-        self._frameBuffer.append(self.render(mode = "rgb_array"))
+        img = self.render(mode = "rgb_array")
+        if img is not None:
+            self._frameBuffer.append(img)
         self._epReward += stepRet[1]
         return stepRet
 
@@ -74,7 +76,9 @@ class RecorderGymWrapper(gym.Wrapper):
         self._epReward = 0
         self._episodeCounter +=1
         self._frameBuffer = []
-        self._frameBuffer.append(self.render(mode = "rgb_array"))
+        img = self.render(mode = "rgb_array")
+        if img is not None:
+            self._frameBuffer.append(img)
         return obs
 
     def close(self):

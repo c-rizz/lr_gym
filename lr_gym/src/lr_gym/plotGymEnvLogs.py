@@ -12,7 +12,7 @@ import pandas
 import numpy as np
 from typing import List
 
-def makePlot(csvfiles : List[str], x_data_id : str, max_x : float, min_x : float, y_data_id : str, max_y : float, min_y : float, doAvg : bool = False, title : str = ""):
+def makePlot(csvfiles : List[str], x_data_id : str, max_x : float, min_x : float, y_data_id : str, max_y : float, min_y : float, doAvg : bool = False, title : str = "", rollingSum_len : int  = 10):
     plt.clf()
 
     multiaxes = x_data_id is None

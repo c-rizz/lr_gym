@@ -41,21 +41,25 @@ class CheckpointCallbackRB(BaseCallback):
             os.makedirs(self.save_path, exist_ok=True)
 
     def _on_step(self) -> bool:
+        return True
 
-        done_array = np.array(self.locals.get("done") if self.locals.get("done") is not None else self.locals.get("dones"))
-        if len(done_array)>1:
-            raise RuntimeError("Only non-vectorized envs are supported.")
-        done = done_array.item()
+    def _on_rollout_end(self) -> bool:
 
-        if done and int(self.n_calls / self.save_freq) != int(self._step_last_model_checkpoint / self.save_freq):
-            path = os.path.join(self.save_path, f"{self.name_prefix}_{self.num_timesteps}_steps")
+        # done_array = np.array(self.locals.get("done") if self.locals.get("done") is not None else self.locals.get("dones"))
+        # if len(done_array)>1:
+        #     raise RuntimeError("Only non-vectorized envs are supported.")
+        # done = done_array.item()
+        envsteps = self.model.num_timesteps
+    
+        if int(envsteps / self.save_freq) != int(self._step_last_model_checkpoint / self.save_freq):
+            path = os.path.join(self.save_path, f"{self.name_prefix}_{self.model.num_timesteps}_steps")
             self.model.save(path)
-            self._step_last_model_checkpoint = self.n_calls
+            self._step_last_model_checkpoint = envsteps
             if self.verbose > 1:
                 print(f"Saved model checkpoint to {path}")
         if self.replay_buffer_save_freq is not None:
-            if done and int(self.n_calls / self.replay_buffer_save_freq) != int(self._step_last_replay_buffer_checkpoint / self.replay_buffer_save_freq):
-                path = os.path.join(self.save_path, f"{self.name_prefix}_replay_buffer_{self.num_timesteps}_steps")+".pkl"
+            if int(envsteps / self.replay_buffer_save_freq) != int(self._step_last_replay_buffer_checkpoint / self.replay_buffer_save_freq):
+                path = os.path.join(self.save_path, f"{self.name_prefix}_replay_buffer_{self.model.num_timesteps}_steps")+".pkl"
                 t0 = time.monotonic()
                 self.model.save_replay_buffer(path)
                 filesize_mb = os.path.getsize(path)/1024/1024
@@ -63,6 +67,6 @@ class CheckpointCallbackRB(BaseCallback):
                     os.remove(self._last_saved_replay_buffer_path) 
                 t1 = time.monotonic()
                 self._last_saved_replay_buffer_path = path
-                self._step_last_replay_buffer_checkpoint = self.n_calls
-                ggLog.debug(f"Saved replay buffer checkpoint to {path}, size = {filesize_mb}MB, took {t1-t0}s")
+                self._step_last_replay_buffer_checkpoint = envsteps
+                ggLog.debug(f"Saved replay buffer checkpoint to {path}, size = {filesize_mb}MB, transitions = {self.model.replay_buffer.size()}, took {t1-t0}s")
         return True

@@ -322,3 +322,7 @@ class RosEnvController(EnvironmentController):
         t = rospy.get_time() - self._simTimeStart
         #rospy.loginfo("t = "+str(t)+" ("+str(rospy.get_time())+"-"+str(self._simTimeStart)+")")
         return t
+
+
+    def freerun(self, duration_sec : float):
+        rospy.sleep(duration_sec)

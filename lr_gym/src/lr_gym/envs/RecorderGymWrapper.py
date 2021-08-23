@@ -49,7 +49,7 @@ class RecorderGymWrapper(gym.Wrapper):
                                             shape)
             i = 0
             for img in self._frameBuffer:
-                ggLog.info(f"img {i} has shape {img.shape}")
+                # ggLog.info(f"img {i} has shape {img.shape}")
                 videoWriter.write(img)
                 if img.shape != self._frameBuffer[0].shape:
                     ggLog.warn(f"RecorderGymEnvWrapper: frame {i} has shape {img.shape}, but frame 0 had shape {self._frameBuffer[0].shape}")

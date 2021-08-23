@@ -10,7 +10,7 @@ import rospy.client
 
 import gym
 import numpy as np
-from typing import Tuple
+from typing import Tuple, Dict, Any
 from nptyping import NDArray
 
 import lr_gym_utils.ros_launch_utils
@@ -112,6 +112,7 @@ class HopperEnv(ControlledEnv):
 
         self._stepLength_sec = stepLength_sec
         self._renderingEnabled = render
+        self._success = False
         if self._renderingEnabled:
             self._environmentController.setCamerasToObserve(["camera"])
 
@@ -149,6 +150,7 @@ class HopperEnv(ControlledEnv):
         else:
             done = True
         #rospy.loginfo("height = {:1.4f}".format(torso_z_displacement)+"\t pitch = {:1.4f}".format(torso_pitch)+"\t done = "+str(done))
+        self._success = state[self.AVG_X_POS] > 5
         return done
 
 
@@ -264,3 +266,9 @@ class HopperEnv(ControlledEnv):
 
     def _destroySimulation(self):
         self._mmRosLauncher.stop()
+
+    def getInfo(self) -> Dict[Any,Any]:
+        i = super().getInfo()
+        i["success"] = self._success
+        # ggLog.info(f"Setting success_ratio to {i['success_ratio']}")
+        return i

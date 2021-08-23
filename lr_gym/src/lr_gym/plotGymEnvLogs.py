@@ -12,7 +12,16 @@ import pandas
 import numpy as np
 from typing import List
 
-def makePlot(csvfiles : List[str], x_data_id : str, max_x : float, min_x : float, y_data_id : str, max_y : float, min_y : float, doAvg : bool = False, title : str = "", rollingSum_len : int  = 10):
+def makePlot(csvfiles : List[str],
+             x_data_id : str,
+             max_x : float,
+             min_x : float,
+             y_data_id : str,
+             max_y : float,
+             min_y : float,
+             doAvg : bool = False,
+             title : str = "",
+             avglen : int  = 20):
     plt.clf()
 
     multiaxes = x_data_id is None
@@ -24,6 +33,7 @@ def makePlot(csvfiles : List[str], x_data_id : str, max_x : float, min_x : float
     i = 0
     for csvfile in csvfiles:
         df = pd.read_csv(csvfile)
+        df["success"] = df["success"].astype(int) # boolean to 0-1
         if max_x is not None:
             df = df.loc[df[x_data_id] < max_x]
         c = palette[i]
@@ -35,9 +45,10 @@ def makePlot(csvfiles : List[str], x_data_id : str, max_x : float, min_x : float
     if doAvg:                
         for csvfile in csvfiles:
             df = pd.read_csv(csvfile)
+            df["success"] = df["success"].astype(int) # boolean to 0-1
             if max_x is not None:
                 df = df.loc[df[x_data_id] < max_x]
-            avg_reward = df[y_data_id].rolling(20).mean()
+            avg_reward = df[y_data_id].rolling(avglen, center=True).mean()
             c = palette[i]
             p = sns.lineplot(x=df[x_data_id],y=avg_reward, color=c) #, ax = ax) #
             i+=1
@@ -101,6 +112,8 @@ ap.add_argument("--period", required=False, default=5, type=float, help="Seconds
 ap.add_argument("--out", required=False, default=None, type=str, help="Filename for the output plot")
 ap.add_argument("--ydataid", required=False, default=None, type=str, help="Data to put on the y axis")
 ap.add_argument("--xdataid", required=False, default=None, type=str, help="Data to put on the x axis")
+ap.add_argument("--avglen", required=False, default=20, type=int, help="Window size of running average")
+
 ap.set_defaults(feature=True)
 args = vars(ap.parse_args())
 signal.signal(signal.SIGINT, signal_handler)
@@ -125,7 +138,16 @@ while not ctrl_c_received:
         csvfiles = args["csvfiles"]
         commonPath = os.path.commonpath([os.path.dirname(cf) for cf in csvfiles])
         title = commonPath.split("/")[-1]
-        makePlot(csvfiles, x_data_id, max_x = args["maxx"], min_x = args["minx"], y_data_id=y_data_id, max_y = args["maxy"], min_y= args["miny"], doAvg = not args["noavg"], title = title)
+        makePlot(csvfiles,
+                 x_data_id,
+                 max_x = args["maxx"],
+                 min_x = args["minx"],
+                 y_data_id=y_data_id,
+                 max_y = args["maxy"],
+                 min_y= args["miny"],
+                 doAvg = not args["noavg"],
+                 title = title,
+                 avglen=args["avglen"])
         if args["out"] is not None:
             fname = args["out"]
             if fname.split(".")[-1] == "png":

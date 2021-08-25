@@ -22,6 +22,8 @@ from lr_gym.envControllers.GazeboController import GazeboController
 from lr_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
 #import tf2_py
 import lr_gym.utils
+import lr_gym.utils.dbg.ggLog as ggLog
+
 
 class HopperEnv(ControlledEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
@@ -113,6 +115,10 @@ class HopperEnv(ControlledEnv):
         self._stepLength_sec = stepLength_sec
         self._renderingEnabled = render
         self._success = False
+        self._success_ratio_avglen = 50
+        self._successes = [1]*self._success_ratio_avglen
+        self._tot_episodes = 0
+        self._success_ratio = 0
         if self._renderingEnabled:
             self._environmentController.setCamerasToObserve(["camera"])
 
@@ -134,23 +140,19 @@ class HopperEnv(ControlledEnv):
 
     def checkEpisodeEnded(self, previousState : Tuple[float,float,float,float,float,float,float,float,float,float],
                          state : Tuple[float,float,float,float,float,float,float,float,float,float]) -> bool:
-
+        done = False
         if super().checkEpisodeEnded(previousState, state):
-            return True
+            ggLog.info("Episode terminated: superclass reasons")
+            done |= True
 
-        if state[self.AVG_X_POS]<-0.5: #Too far back
-            return True
-
-        torso_z_displacement = state[self.POS_Z_OBS]
-        torso_pitch = state[self.TORSO_PITCH_OBS]
-        #rospy.loginfo("height = "+str(mid_torso_height))
-
-        if torso_z_displacement > -0.45 and abs(torso_pitch) < 1.0 :
-            done = False
-        else:
-            done = True
+        if state[self.AVG_X_POS]<-0.5 or state[self.POS_Z_OBS] <= -0.45 or abs(state[self.TORSO_PITCH_OBS]) >= 1.0 :
+            ggLog.info("Episode terminated: terminal hopper state")
+            done |= True
         #rospy.loginfo("height = {:1.4f}".format(torso_z_displacement)+"\t pitch = {:1.4f}".format(torso_pitch)+"\t done = "+str(done))
-        self._success = state[self.AVG_X_POS] > 5
+        if done:
+            self._success = state[self.AVG_X_POS] > 5
+            self._successes[self._tot_episodes % self._success_ratio_avglen] = self._success
+            self._success_ratio = sum(self._successes)/len(self._successes)
         return done
 
 
@@ -270,5 +272,13 @@ class HopperEnv(ControlledEnv):
     def getInfo(self) -> Dict[Any,Any]:
         i = super().getInfo()
         i["success"] = self._success
+        i["success_ratio"] = self._success_ratio
         # ggLog.info(f"Setting success_ratio to {i['success_ratio']}")
         return i
+
+
+
+    def performReset(self):
+        super().performReset()
+        self._tot_episodes += 1
+        self._success = False

@@ -152,3 +152,8 @@ class EnvironmentController(ABC):
     def getEnvSimTimeFromStart(self) -> float:
         """Get the current time within the simulation."""
         raise NotImplementedError()
+
+    @abstractmethod
+    def freerun(self, duration_sec : float):
+        """Run the environment for the specified duration"""
+        raise NotImplementedError()

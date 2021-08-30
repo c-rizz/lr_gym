@@ -475,6 +475,7 @@ def getBestGpu():
         if ratio > bestRatio:
             bestRatio = ratio
             bestGpu = i
+    ggLog.info(f"Choosing GPU {bestGpu} with {bestRatio*100}% free memory")
     return bestGpu
 
 def torch_selectBestGpu():

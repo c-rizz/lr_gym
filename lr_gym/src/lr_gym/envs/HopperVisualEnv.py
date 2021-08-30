@@ -23,6 +23,8 @@ from lr_gym.envControllers.GazeboController import GazeboController
 from lr_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
 #import tf2_py
 import lr_gym.utils
+import lr_gym.utils.dbg.ggLog as ggLog
+
 
 class HopperVisualEnv(HopperEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup.
@@ -78,6 +80,11 @@ class HopperVisualEnv(HopperEnv):
         self._obs_img_width = obs_img_height_width[1]
         self._frame_stacking_size = frame_stacking_size
         self._imgEncoding = imgEncoding
+        self._success = False
+        self._success_ratio_avglen = 50
+        self._successes = [1]*self._success_ratio_avglen
+        self._tot_episodes = 0
+        self._success_ratio = 0
         super(HopperEnv, self).__init__(maxActionsPerEpisode = maxActionsPerEpisode,
                          stepLength_sec = stepLength_sec,
                          environmentController = simulatorController,

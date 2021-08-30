@@ -129,10 +129,10 @@ class RosEnvController(EnvironmentController):
             try:
                 useSimTime = rospy.get_param("/use_sim_time")
             except KeyError:
-                print("Could not get /use_sim_time. Will retry")
+                ggLog.warn("Could not get /use_sim_time. Will retry")
                 time.sleep(1)
             except ConnectionRefusedError:
-                print("No connection to ROS parameter server. Will retry")
+                ggLog.error("No connection to ROS parameter server. Will retry")
                 time.sleep(1)
 
         rospy.init_node('ros_env_controller', anonymous=True)
@@ -322,3 +322,7 @@ class RosEnvController(EnvironmentController):
         t = rospy.get_time() - self._simTimeStart
         #rospy.loginfo("t = "+str(t)+" ("+str(rospy.get_time())+"-"+str(self._simTimeStart)+")")
         return t
+
+
+    def freerun(self, duration_sec : float):
+        rospy.sleep(duration_sec)

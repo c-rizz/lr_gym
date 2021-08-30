@@ -125,7 +125,19 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
         request.joint_effort_requests = self._jointEffortsToRequest
         #print("Step request = "+str(request))
 
-        response = self._stepGazeboService.call(request)
+        servicecalltries = 0
+        while True:
+            try:
+                response = self._stepGazeboService.call(request)
+                break
+            except rospy.service.ServiceException as e:
+                if servicecalltries > 60:
+                    ggLog.error("Gazebo step service failed too many times.")
+                    raise e
+                else:
+                    ggLog.error("Gazebo step service call failed with exception:\n"+str(e)+"\n retrying")
+                    time.sleep(1)
+            servicecalltries += 1
         self._stepsTaken +=1
 
         #print("Step response = "+str(response))

@@ -76,6 +76,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         self._default_velocity_scaling = default_velocity_scaling
         self._default_acceleration_scaling = default_acceleration_scaling
         self._defaultCollision_boxes = default_collision_objs
+        self._step_count = 0
 
     def _connectRosService(self, serviceName : str, msgType):
         rospy.loginfo("Waiting for service "+serviceName+"...")
@@ -342,12 +343,14 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
                 ggLog.error("Reset move failed. exception = "+str(e))
                 #self._actionsFailsInLastStepCounter+=1
                 rospy.sleep(1)
+                ggLog.error("retrying reset move.")
         if not moved:
             ggLog.error("Failed to move to initial joint pose.")
 
         if self._gripperActionTopic is not None and self._gripperInitialWidth >= 0:
             self.moveGripperSync(0,20)
             self.moveGripperSync(self._gripperInitialWidth,20)
+        self._step_count = 0
 
     def actionsFailsInLastStep(self):
         return self._actionsFailsInLastStepCounter
@@ -359,7 +362,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
             try:
                 callback()
             except Exception as e:
-                ggLog.info("Moveit action failed to complete (this is not necessarily a bad thing) exception = "+str(e))
+                ggLog.info(f"Moveit action failed to complete (this is not necessarily a bad thing). step_count ={self._step_count} exception = "+str(e))
                 actionFailed+=1
                 #time.sleep(5)
         self._waitOnStepCallbacks.clear()
@@ -370,7 +373,6 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         """Wait the step to be completed"""
         # ggLog.info("MoveitRosController stepping...")
 
-
         if rospy.is_shutdown():
             raise RuntimeError("ROS has been shut down. Will not step.")
         
@@ -378,7 +380,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         # ggLog.info("Completing movements...")
         self._actionsFailsInLastStepCounter = self.completeAllMovements()
         # ggLog.info("Completed.")
-
+        self._step_count += 1
 
         return rospy.get_time() - t0
 

@@ -75,6 +75,7 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
                         "getLinkState" : "/gazebo/get_link_state",
                         "pause" : "/gazebo/pause_physics",
                         "unpause" : "/gazebo/unpause_physics",
+                        "get_physics_properties" : "/gazebo/get_physics_properties",
                         "reset" : "/gazebo/reset_simulation",
                         "setLinkState" : "/gazebo/set_link_state"}
 
@@ -97,6 +98,7 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
         self._getLinkStateService       = rospy.ServiceProxy(serviceNames["getLinkState"], gazebo_msgs.srv.GetLinkState, persistent=self._usePersistentConnections)
         self._pauseGazeboService        = rospy.ServiceProxy(serviceNames["pause"], Empty, persistent=self._usePersistentConnections)
         self._unpauseGazeboService      = rospy.ServiceProxy(serviceNames["unpause"], Empty, persistent=self._usePersistentConnections)
+        self._getPhysicsProperties      = rospy.ServiceProxy(serviceNames["get_physics_properties"], gazebo_msgs.srv.GetPhysicsProperties, persistent=self._usePersistentConnections)
         self._resetGazeboService        = rospy.ServiceProxy(serviceNames["reset"], Empty, persistent=self._usePersistentConnections)
         self._setLinkStateService       = rospy.ServiceProxy(serviceNames["setLinkState"], gazebo_msgs.srv.SetLinkState, persistent=self._usePersistentConnections)
 
@@ -149,7 +151,7 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
                     rospy.logerr("Service "+serviceProxy.resolved_name+", call failed to serialize: "+traceback.format_exc(e))
                 counter += 1
             else:
-                rospy.logerr("Failed to pause gazebo simulation")
+                rospy.logerr("Failed to call service")
                 break
         return done
 
@@ -183,6 +185,9 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
         #rospy.loginfo("unpaused sim")
         return ret
 
+    def isPaused(self):
+        return self._getPhysicsProperties.call().pause
+    
     def resetWorld(self) -> bool:
         """Reset the world to its initial state.
 
@@ -407,3 +412,11 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
             # else:
             #     ggLog.info("Successfully set Linkstate for link "+modelName+"::"+linkName)
         return ret
+
+    def freerun(self, duration_sec : float):
+        wasPaused = self.isPaused()
+        if wasPaused:
+            self.unpauseSimulation()
+        rospy.sleep(duration_sec)
+        if wasPaused:
+            self.pauseSimulation()

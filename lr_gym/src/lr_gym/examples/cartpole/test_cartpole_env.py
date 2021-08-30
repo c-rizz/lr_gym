@@ -127,11 +127,11 @@ if __name__ == "__main__":
     args = vars(ap.parse_args())
 
 
-    with Display() as disp:
-        if args["pybullet"]:
-            PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/cartpole_v0.urdf")
-            simulatorController = PyBulletController(stepLength_sec = args["steplength"])
-        else:
-            simulatorController = GazeboController(stepLength_sec = args["steplength"])
+    
+    if args["pybullet"]:
+        PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/cartpole_v0.urdf")
+        simulatorController = PyBulletController(stepLength_sec = args["steplength"])
+    else:
+        simulatorController = GazeboController(stepLength_sec = args["steplength"])
 
-        main(simulatorController, doRender = args["render"], noPlugin=args["noplugin"], saveFrames=args["saveframes"], stepLength_sec=args["steplength"], sleepLength = args["sleeplength"])
+    main(simulatorController, doRender = args["render"], noPlugin=args["noplugin"], saveFrames=args["saveframes"], stepLength_sec=args["steplength"], sleepLength = args["sleeplength"])

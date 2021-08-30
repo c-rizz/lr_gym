@@ -91,7 +91,12 @@ class MoveitGazeboController(MoveitRosController, SimulatedEnvController):
         jointStates : Dict[Tuple[str,str],JointState]
             Keys are in the format (model_name, joint_name), the value is the joint state to enforce
         """
+        wasPaused = self._gazeboController.isPaused()
+        if wasPaused:
+            self._gazeboController.unpauseSimulation()
         self._gazeboController.setJointsStateDirect(jointStates = jointStates)
+        if wasPaused:
+            self._gazeboController.pauseSimulation()
     
 
     def setLinksStateDirect(self, linksStates : Dict[Tuple[str,str],LinkState]):
@@ -102,7 +107,12 @@ class MoveitGazeboController(MoveitRosController, SimulatedEnvController):
         linksStates : Dict[Tuple[str,str],LinkState]
             Keys are in the format (model_name, link_name), the value is the link state to enforce
         """
+        wasPaused = self._gazeboController.isPaused()
+        if wasPaused:
+            self._gazeboController.unpauseSimulation()
         self._gazeboController.setLinksStateDirect(linksStates = linksStates)
+        if wasPaused:
+            self._gazeboController.pauseSimulation()
 
     
     def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]: #TODO: change this to use cv2 images (i.e. ndarrays)
@@ -137,3 +147,49 @@ class MoveitGazeboController(MoveitRosController, SimulatedEnvController):
         # ggLog.info(f"Link state is {ls}")
         return ls
             
+    def step(self):
+        if rospy.is_shutdown():
+            raise RuntimeError("ROS has been shut down. Will not step.")
+        self._gazeboController.unpauseSimulation()
+        r = super().step()
+        self._gazeboController.pauseSimulation()
+        return r
+
+    def resetWorld(self):
+        if rospy.is_shutdown():
+            raise RuntimeError("ROS has been shut down. Will not reset.")
+        self._gazeboController.unpauseSimulation()
+        r = super().resetWorld()
+        self._gazeboController.pauseSimulation()
+        return r
+
+    
+    def moveGripperSync(self, width : float, max_effort : float):
+        wasPaused = self._gazeboController.isPaused()
+        if wasPaused:
+            self._gazeboController.unpauseSimulation()
+        super().moveGripperSync(width, max_effort)
+        if wasPaused:
+            self._gazeboController.pauseSimulation()
+
+    def moveToEePoseSync(self,  pose : List[float], do_cartesian = False, velocity_scaling : float = None, acceleration_scaling : float = None,
+                                ee_link : str = None, reference_frame : str = None):
+        wasPaused = self._gazeboController.isPaused()
+        if wasPaused:
+            self._gazeboController.unpauseSimulation()
+        super().moveToEePoseSync(pose = pose, do_cartesian = do_cartesian, velocity_scaling = velocity_scaling, acceleration_scaling = acceleration_scaling,
+                                ee_link = ee_link, reference_frame = reference_frame)
+        if wasPaused:
+            self._gazeboController.pauseSimulation()
+    
+    def moveToJointPoseSync(self, jointPositions : Dict[Tuple[str,str],float], velocity_scaling : float = None, acceleration_scaling : float = None) -> None:
+        wasPaused = self._gazeboController.isPaused()
+        if wasPaused:
+            self._gazeboController.unpauseSimulation()
+        super().moveToJointPoseSync(jointPositions = jointPositions, velocity_scaling=velocity_scaling, acceleration_scaling=acceleration_scaling)
+        if wasPaused:
+            self._gazeboController.pauseSimulation()
+
+    
+    def freerun(self, duration_sec : float):
+        self._gazeboController.freerun(duration_sec)

@@ -23,7 +23,10 @@ def makePlot(csvfiles : List[str],
              avglen : int  = 20,
              avgFiles : bool = False,
              xscaling : float = None,
-             xlabel : str = None):
+             xlabel : str = None,
+             ylabel : str = None,
+             noRaw : bool = False):
+
     plt.clf()
     multiaxes = x_data_id is None
     if multiaxes:
@@ -52,16 +55,17 @@ def makePlot(csvfiles : List[str],
     sns.set_theme(style="darkgrid")
     palette = sns.color_palette("husl", len(csvfiles))
     i = 0
-    for df in dfs:
-        if max_x is not None:
-            df = df.loc[df[x_data_id] < max_x]
-        c = palette[i]
-        if doAvg:
-            c = [(e+1)/2 for e in c]
-        p = sns.lineplot(data=df,x=x_data_id,y=y_data_id,color=c, alpha = 0.7) #, ax = ax) #
-        i+=1
+    if not noRaw:
+        for df in dfs:
+            if max_x is not None:
+                df = df.loc[df[x_data_id] < max_x]
+            c = palette[i]
+            if doAvg:
+                c = [(e+1)/2 for e in c]
+            p = sns.lineplot(data=df,x=x_data_id,y=y_data_id,color=c, alpha = 0.7) #, ax = ax) #
+            i+=1
     i = 0
-    if doAvg:                
+    if doAvg:                                
         for df in dfs:
             if max_x is not None:
                 df = df.loc[df[x_data_id] < max_x]
@@ -107,6 +111,8 @@ def makePlot(csvfiles : List[str],
 
     if xlabel is not None:
         p.set_xlabel(xlabel)
+    if ylabel is not None:
+        p.set_ylabel(ylabel)
 
     plt.title(title)
     plt.tight_layout()
@@ -125,6 +131,7 @@ ap.add_argument("--nogui", default=False, action='store_true', help="Dont show t
 ap.add_argument("--once", default=False, action='store_true', help="Plot only once")
 ap.add_argument("--noavg", default=False, action='store_true', help="Do not plot curve average")
 ap.add_argument("--avgfiles", default=False, action='store_true', help="Make an average pof the provided files instead of displaying all of them")
+ap.add_argument("--noraw", default=False, action='store_true', help="Do not plot raw data")
 ap.add_argument("--maxx", required=False, default=None, type=float, help="Maximum x value to plot")
 ap.add_argument("--minx", required=False, default=None, type=float, help="Minimum x value to plot")
 ap.add_argument("--maxy", required=False, default=None, type=float, help="Maximum y axis value")
@@ -136,7 +143,8 @@ ap.add_argument("--xdataid", required=False, default=None, type=str, help="Data 
 ap.add_argument("--avglen", required=False, default=20, type=int, help="Window size of running average")
 ap.add_argument("--xscaling", required=False, default=1, type=float, help="Scale the x values by this factor")
 ap.add_argument("--xlabel", required=False, default=None, type=str, help="label to put on x axis")
-
+ap.add_argument("--ylabel", required=False, default=None, type=str, help="label to put on y axis")
+ap.add_argument("--format", required=False, default="pdf", type=str, help="format of the output file")
 
 ap.set_defaults(feature=True)
 args = vars(ap.parse_args())
@@ -174,7 +182,9 @@ while not ctrl_c_received:
                  avglen=args["avglen"],
                  avgFiles=args["avgfiles"],
                  xscaling = args["xscaling"],
-                 xlabel = args["xlabel"])
+                 xlabel = args["xlabel"],
+                 ylabel = args["ylabel"],
+                 noRaw = args["noraw"])
         if args["out"] is not None:
             fname = args["out"]
             if fname.split(".")[-1] == "png":
@@ -182,7 +192,10 @@ while not ctrl_c_received:
             else:
                 plt.savefig(fname)
         else:
-            plt.savefig(commonPath+"/"+y_data_id+".pdf")
+            if args["format"] == "png":
+                plt.savefig(commonPath+"/"+y_data_id+"."+args["format"], dpi=1200)
+            else:
+                plt.savefig(commonPath+"/"+y_data_id+"."+args["format"])
 
         #plt.show(block=True)
         if not args["nogui"]:

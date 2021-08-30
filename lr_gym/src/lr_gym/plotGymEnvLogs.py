@@ -8,7 +8,6 @@ import argparse
 import time
 import signal
 import os
-import pandas
 import numpy as np
 from typing import List
 
@@ -21,19 +20,39 @@ def makePlot(csvfiles : List[str],
              min_y : float,
              doAvg : bool = False,
              title : str = "",
-             avglen : int  = 20):
+             avglen : int  = 20,
+             avgFiles : bool = False,
+             xscaling : float = None,
+             xlabel : str = None):
     plt.clf()
-
     multiaxes = x_data_id is None
     if multiaxes:
         x_data_id = "reset_count"
 
+    dfs = [pd.read_csv(csvfile) for csvfile in csvfiles]
+    for df in dfs:
+        if "success" in df:
+            df["success"] = df["success"].astype(int) # boolean to 0-1
+        if xscaling is not None:
+            df[x_data_id] = df[x_data_id] * xscaling
+    if avgFiles:
+        if max_x is None:
+            max_x = float("+inf")
+            for df in dfs:
+                mx = df[x_data_id].max()
+                if mx < max_x:
+                    max_x = mx
+        concatdf = pd.concat(dfs)
+        meandf = concatdf.groupby("reset_count", as_index=False).mean()
+        concatdf = None
+        dfs = [meandf]
+
+
+
     sns.set_theme(style="darkgrid")
     palette = sns.color_palette("husl", len(csvfiles))
     i = 0
-    for csvfile in csvfiles:
-        df = pd.read_csv(csvfile)
-        df["success"] = df["success"].astype(int) # boolean to 0-1
+    for df in dfs:
         if max_x is not None:
             df = df.loc[df[x_data_id] < max_x]
         c = palette[i]
@@ -43,9 +62,7 @@ def makePlot(csvfiles : List[str],
         i+=1
     i = 0
     if doAvg:                
-        for csvfile in csvfiles:
-            df = pd.read_csv(csvfile)
-            df["success"] = df["success"].astype(int) # boolean to 0-1
+        for df in dfs:
             if max_x is not None:
                 df = df.loc[df[x_data_id] < max_x]
             avg_reward = df[y_data_id].rolling(avglen, center=True).mean()
@@ -88,6 +105,9 @@ def makePlot(csvfiles : List[str],
 
         p.set_xlabel(x_label, labelpad = 10 * len(additional_xdataids))
 
+    if xlabel is not None:
+        p.set_xlabel(xlabel)
+
     plt.title(title)
     plt.tight_layout()
 
@@ -104,6 +124,7 @@ ap.add_argument("--csvfiles", nargs="+", required=True, type=str, help="Csv file
 ap.add_argument("--nogui", default=False, action='store_true', help="Dont show the plot window, just save to file")
 ap.add_argument("--once", default=False, action='store_true', help="Plot only once")
 ap.add_argument("--noavg", default=False, action='store_true', help="Do not plot curve average")
+ap.add_argument("--avgfiles", default=False, action='store_true', help="Make an average pof the provided files instead of displaying all of them")
 ap.add_argument("--maxx", required=False, default=None, type=float, help="Maximum x value to plot")
 ap.add_argument("--minx", required=False, default=None, type=float, help="Minimum x value to plot")
 ap.add_argument("--maxy", required=False, default=None, type=float, help="Maximum y axis value")
@@ -113,6 +134,9 @@ ap.add_argument("--out", required=False, default=None, type=str, help="Filename 
 ap.add_argument("--ydataid", required=False, default=None, type=str, help="Data to put on the y axis")
 ap.add_argument("--xdataid", required=False, default=None, type=str, help="Data to put on the x axis")
 ap.add_argument("--avglen", required=False, default=20, type=int, help="Window size of running average")
+ap.add_argument("--xscaling", required=False, default=1, type=float, help="Scale the x values by this factor")
+ap.add_argument("--xlabel", required=False, default=None, type=str, help="label to put on x axis")
+
 
 ap.set_defaults(feature=True)
 args = vars(ap.parse_args())
@@ -147,7 +171,10 @@ while not ctrl_c_received:
                  min_y= args["miny"],
                  doAvg = not args["noavg"],
                  title = title,
-                 avglen=args["avglen"])
+                 avglen=args["avglen"],
+                 avgFiles=args["avgfiles"],
+                 xscaling = args["xscaling"],
+                 xlabel = args["xlabel"])
         if args["out"] is not None:
             fname = args["out"]
             if fname.split(".")[-1] == "png":
@@ -164,7 +191,7 @@ while not ctrl_c_received:
             if args["once"]:
                 plt.show(block=True)
                 break
-    except pandas.errors.EmptyDataError:
+    except pd.errors.EmptyDataError:
         print("No data...")
     except FileNotFoundError:
         print("File not present...")

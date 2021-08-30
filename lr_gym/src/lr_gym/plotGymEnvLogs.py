@@ -12,6 +12,33 @@ import pandas
 import numpy as np
 from typing import List
 
+class TickFormatter:
+    def __init__(self,data,base_xdataid,additional_xdataids):
+        self.data = data
+        self.base_xdataid = base_xdataid
+        self.additional_xdataids = additional_xdataids
+
+    def update_ticks(self,x, pos):
+        # print(type(x))
+        # print(type(self.base_xdataid))
+        # print(f"x = {x}")
+        # print(f"self.base_xdataid = {self.base_xdataid}")
+        lines = self.data[self.data[self.base_xdataid] == x]
+        # print(f"lines.shape[0] = {lines.shape[0]}")
+        # print(f"lines = {lines}")
+        if lines.shape[0] == 0:
+            return x
+        # line = lines.iloc(0)
+        ret = str(x)
+        for adx in self.additional_xdataids:
+            v = lines[adx].values[0]
+            # print(f"v = {v}")
+            # print(f"type(v) = {type(v)}")
+            ret += f"\n {v:.0f}"
+        # print(f"##### ret = '{ret}'")
+        # print("#####")
+        return ret
+
 def makePlot(csvfiles : List[str], x_data_id : str, max_x : float, min_x : float, y_data_id : str, max_y : float, min_y : float, doAvg : bool = False, title : str = ""):
     plt.clf()
 

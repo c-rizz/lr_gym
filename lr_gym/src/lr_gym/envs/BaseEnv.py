@@ -196,7 +196,7 @@ class BaseEnv():
 
         raise NotImplementedError()
 
-    def getInfo(self) -> Dict[Any,Any]:
+    def getInfo(self,state=None) -> Dict[Any,Any]:
         """To be implemented in subclass.
 
         This method is called by the step method. The values returned by it will be appended in the info variable returned bby step

@@ -52,7 +52,7 @@ def worker(child_connection, env_fn_wrapper):
             elif cmd == "getUiRendering":
                 child_connection.send(env.getUiRendering())
             elif cmd == "getInfo":
-                child_connection.send(env.getInfo())
+                child_connection.send(env.getInfo(*data))
             elif cmd == "getMaxStepsPerEpisode":
                 child_connection.send(env.getMaxStepsPerEpisode())
             elif cmd == "setGoalInState":
@@ -155,8 +155,8 @@ class SubProcGazeboEnvWrapper(lr_gym.envs.BaseEnv.BaseEnv):
         self._parentConnection.send(('getUiRendering', None))
         return self._parentConnection.recv()
 
-    def getInfo(self) -> Dict[Any,Any]:
-        self._parentConnection.send(('getInfo', None))
+    def getInfo(self,state=None) -> Dict[Any,Any]:
+        self._parentConnection.send(('getInfo', (state,)))
         return self._parentConnection.recv()
 
     def getMaxStepsPerEpisode(self):

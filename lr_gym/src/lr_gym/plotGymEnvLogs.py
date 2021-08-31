@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 from posixpath import abspath
+
+from numpy.lib.shape_base import split
+from pandas.core.reshape.concat import concat
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -17,36 +20,54 @@ def prepData(csvfiles : List[str],
              avgFiles : bool = False,
              xscaling : float = None,
              max_x : float = None,
-             deparallelize : bool = False):
+             deparallelize : bool = False,
+             avglen : int  = 20):
     multiaxes = x_data_id is None
     if multiaxes:
         x_data_id = "reset_count"
 
-    dfs = [pd.read_csv(csvfile) for csvfile in csvfiles]
-    for df in dfs:
+    in_dfs = [pd.read_csv(csvfile) for csvfile in csvfiles]
+    parallel_runs = len(in_dfs)
+    out_dfs = []
+    for df in in_dfs:
         if "success" in df:
             df["success"] = df["success"].astype(int) # boolean to 0-1
         if xscaling is not None:
             df[x_data_id] = df[x_data_id] * xscaling
         if max_x is not None:
             df = df.loc[df[x_data_id] < max_x]
-    if avgFiles:
+    if not avgFiles:
+        for df in in_dfs:
+            rdf = pd.DataFrame()
+            rdf["mean"] = df[y_data_id].rolling(avglen).mean()
+            rdf["std"] = df[y_data_id].rolling(avglen).std()
+            rdf["x"] = df[x_data_id]
+            out_dfs.append(rdf)
+    else:
         if max_x is None:
             max_x = float("+inf")
-            for df in dfs:
+            for df in in_dfs:
                 mx = df[x_data_id].max()
                 if mx < max_x:
                     max_x = mx
         if deparallelize:
             i = 0
-            for df in dfs:
-                df["reset_count"] = df["reset_count"]*len(dfs) + i
-                i +=1
-        concatdf = pd.concat(dfs)
-        meandf = concatdf.groupby("reset_count", as_index=False).mean()
-        concatdf = None
-        dfs = [meandf]
-    return dfs
+            for df in in_dfs:
+                if x_data_id == "reset_count":
+                    df[x_data_id] = df[x_data_id]*parallel_runs + i
+                    i +=1
+                else:
+                    df[x_data_id] = df[x_data_id]*parallel_runs
+            parallel_runs = 1
+
+        concatdf = pd.concat(in_dfs)
+        concatdf = concatdf.sort_values(x_data_id)
+        rdf = pd.DataFrame()
+        rdf["mean"] = concatdf[y_data_id].rolling(parallel_runs*avglen).mean()
+        rdf["std"] = concatdf[y_data_id].rolling(parallel_runs*avglen).std()
+        rdf["x"] = concatdf[x_data_id]
+        out_dfs.append(rdf)
+    return out_dfs
 
 
 def makePlot(dfs : List[pd.DataFrame],
@@ -57,17 +78,21 @@ def makePlot(dfs : List[pd.DataFrame],
              max_y : float,
              min_y : float,
              doAvg : bool = False,
-             title : str = "",
-             avglen : int  = 20,
+             title : str = None,
              xlabel : str = None,
              ylabel : str = None,
-             noRaw : bool = False):
+             noRaw : bool = False,
+             dfLabels : List[str] = None):
 
     multiaxes = x_data_id is None
     if multiaxes:
         x_data_id = "reset_count"
     plt.clf()
 
+    showLegend = True
+    if dfLabels is None:
+        dfLabels = [None]*len(dfs)
+        showLegend = False
 
 
     sns.set_theme(style="darkgrid")
@@ -83,13 +108,11 @@ def makePlot(dfs : List[pd.DataFrame],
     i = 0
     if doAvg:                                
         for df in dfs:
-            avg_y = df[y_data_id].rolling(avglen, center=True).mean()
-            std_y = df[y_data_id].rolling(avglen, center=True).std()
             c = palette[i]
-            p = sns.lineplot(x=df[x_data_id],y=avg_y, color=c) #, ax = ax) #
-            cis = (avg_y - std_y, avg_y + std_y)
+            p = sns.lineplot(data=df,x="x",y="mean", color=c, label=dfLabels[i]) #, ax = ax) #
+            cis = (df["mean"] - df["std"], df["mean"] + df["std"])
             c = [(e+1)/2 for e in c]
-            p.fill_between(df[x_data_id],cis[0],cis[1], color=c, alpha = 0.5)
+            p.fill_between(df["x"],cis[0],cis[1], color=c, alpha = 0.5)
             i+=1
     #plt.legend(loc='lower right', labels=names)
     # pathSplitted = os.path.dirname(csvfile).split("/")
@@ -127,7 +150,11 @@ def makePlot(dfs : List[pd.DataFrame],
     if ylabel is not None:
         p.set_ylabel(ylabel)
 
-    plt.title(title)
+    if showLegend:
+        p.legend()
+
+    if title is not None:
+        plt.title(title)
     plt.tight_layout()
 
 
@@ -160,8 +187,11 @@ ap.add_argument("--ylabel", required=False, default=None, type=str, help="label 
 ap.add_argument("--title", required=False, default=None, type=str, help="plot title")
 ap.add_argument("--format", required=False, default="pdf", type=str, help="format of the output file")
 ap.add_argument("--savedfs", default=False, action='store_true', help="Save prepped dataframes as csv")
+ap.add_argument("--dontplot", default=False, action='store_true', help="Do not plot")
 ap.add_argument("--loadprepped", default=False, action='store_true', help="load already prepared csv files")
 ap.add_argument("--deparallelize", default=False, action='store_true', help="Transform data collected in parallel in sequential data")
+ap.add_argument("--legend", nargs="+", required=False, default=None, type=str, help="List of the labels to put in the legend")
+
 
 ap.set_defaults(feature=True)
 args = vars(ap.parse_args())
@@ -189,60 +219,82 @@ while not ctrl_c_received:
         title = args["title"]
         if title is None:
             title = commonPath.split("/")[-1]
+        if title.lower() == "none":
+            title = None
         if not args["loadprepped"]:
             dfs = prepData(csvfiles=csvfiles,
                             x_data_id=args["xdataid"],
                             avgFiles=args["avgfiles"],
                             xscaling=args["xscaling"],
                             max_x = args["maxx"],
-                            deparallelize = args["deparallelize"])
+                            deparallelize = args["deparallelize"],
+                            avglen=args["avglen"])
         else:
             dfs = [pd.read_csv(csvfile) for csvfile in csvfiles]
         if args["savedfs"]:
             i = 0
             for df in dfs:
-                p = commonPath+"/preppedDf_"+str(i)+".csv"
-                df.to_csv(p)
-                print("Saved to "+p)
+                path = commonPath+"/preppedDf_"+str(i)+".csv"
+                df.to_csv(path)
+                print("Saved to "+path)
                 i+=1
-        makePlot(dfs,
-                 x_data_id,
-                 max_x = args["maxx"],
-                 min_x = args["minx"],
-                 y_data_id=y_data_id,
-                 max_y = args["maxy"],
-                 min_y= args["miny"],
-                 doAvg = not args["noavg"],
-                 title = title,
-                 avglen=args["avglen"],
-                 xlabel = args["xlabel"],
-                 ylabel = args["ylabel"],
-                 noRaw = args["noraw"])
-        if args["out"] is not None:
-            fname = args["out"]
-            if fname.split(".")[-1] == "png":
-                plt.savefig(fname, dpi=1200)
+        if not args["dontplot"]:
+            if args["legend"] is not None:
+                dfLabels = args["legend"]
+            elif args["avgfiles"]:
+                dfLabels = None
             else:
-                plt.savefig(fname)
-        else:
-            p = commonPath+"/"+y_data_id+"."+args["format"]
-            if args["format"] == "png":
-                plt.savefig(p, dpi=1200)
-            else:
-                plt.savefig(p)
-            print("Saved to "+p)
+                dfLabels = [None]*len(dfs)
+                i = 0
+                for csvfile in csvfiles:
+                    for f in csvfile.split("/"):
+                        if f.startswith("seed_"):
+                            dfLabels[i] = f[5:]
+                    if dfLabels[i] is None:
+                        dfLabels[i] = chr(65+i)
+                    i+=1
 
-        #plt.show(block=True)
-        if not args["nogui"]:
-            plt.draw()
-            plt.pause(0.01)
-            if args["once"]:
-                plt.show(block=True)
-                break
+            makePlot(dfs,
+                    x_data_id,
+                    max_x = args["maxx"],
+                    min_x = args["minx"],
+                    y_data_id=y_data_id,
+                    max_y = args["maxy"],
+                    min_y= args["miny"],
+                    doAvg = not args["noavg"],
+                    title = title,
+                    xlabel = args["xlabel"],
+                    ylabel = args["ylabel"],
+                    noRaw = args["noraw"],
+                    dfLabels=dfLabels)
+            if args["out"] is not None:
+                fname = args["out"]
+                if fname.split(".")[-1] == "png":
+                    plt.savefig(fname, dpi=1200)
+                else:
+                    plt.savefig(fname)
+            else:
+                fname = y_data_id
+                if args["avgfiles"]:
+                    fname+="_avg"
+                path = commonPath+"/"+fname+"."+args["format"]
+                if args["format"] == "png":
+                    plt.savefig(path, dpi=1200)
+                else:
+                    plt.savefig(path)
+                print("Saved to "+path)
+
+            #plt.show(block=True)
+            if not args["nogui"]:
+                plt.draw()
+                plt.pause(0.01)
+                if args["once"]:
+                    plt.show(block=True)
+                    break
     except pd.errors.EmptyDataError:
         print("No data...")
-    except FileNotFoundError:
-        print("File not present...")
+    except FileNotFoundError as e:
+        print("File not present... e="+str(e))
     if args["once"]:
         break
     plt.pause(args["period"])

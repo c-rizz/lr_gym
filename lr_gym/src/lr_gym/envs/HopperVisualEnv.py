@@ -10,7 +10,7 @@ import rospy.client
 
 import gym
 import numpy as np
-from typing import Tuple, Any
+from typing import Tuple, Any, Dict
 from nptyping import NDArray
 import cv2
 
@@ -225,3 +225,6 @@ class HopperVisualEnv(HopperEnv):
         img = self._reshapeFrame(img)
         for i in range(self._frame_stacking_size):
             self._stackedImg[i] = img
+
+    def getInfo(self,state=None) -> Dict[Any,Any]:
+        return super().getInfo(state=state[0])

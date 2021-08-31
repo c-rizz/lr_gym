@@ -22,9 +22,6 @@ def prepData(csvfiles : List[str],
              max_x : float = None,
              deparallelize : bool = False,
              avglen : int  = 20):
-    multiaxes = x_data_id is None
-    if multiaxes:
-        x_data_id = "reset_count"
 
     in_dfs = [pd.read_csv(csvfile) for csvfile in csvfiles]
     parallel_runs = len(in_dfs)
@@ -39,9 +36,10 @@ def prepData(csvfiles : List[str],
     if not avgFiles:
         for df in in_dfs:
             rdf = pd.DataFrame()
+            rdf[y_data_id] = df[y_data_id]
             rdf["mean"] = df[y_data_id].rolling(avglen).mean()
             rdf["std"] = df[y_data_id].rolling(avglen).std()
-            rdf["x"] = df[x_data_id]
+            rdf[x_data_id] = df[x_data_id]
             out_dfs.append(rdf)
     else:
         if max_x is None:
@@ -63,9 +61,10 @@ def prepData(csvfiles : List[str],
         concatdf = pd.concat(in_dfs)
         concatdf = concatdf.sort_values(x_data_id)
         rdf = pd.DataFrame()
+        rdf[y_data_id] = concatdf[y_data_id]
         rdf["mean"] = concatdf[y_data_id].rolling(parallel_runs*avglen).mean()
         rdf["std"] = concatdf[y_data_id].rolling(parallel_runs*avglen).std()
-        rdf["x"] = concatdf[x_data_id]
+        rdf[x_data_id] = concatdf[x_data_id]
         out_dfs.append(rdf)
     return out_dfs
 
@@ -84,9 +83,6 @@ def makePlot(dfs : List[pd.DataFrame],
              noRaw : bool = False,
              dfLabels : List[str] = None):
 
-    multiaxes = x_data_id is None
-    if multiaxes:
-        x_data_id = "reset_count"
     plt.clf()
 
     showLegend = True
@@ -100,6 +96,7 @@ def makePlot(dfs : List[pd.DataFrame],
     i = 0
     if not noRaw:
         for df in dfs:
+            print("cols = "+str(df.columns))
             c = palette[i]
             if doAvg:
                 c = [(e+1)/2 for e in c]
@@ -109,10 +106,10 @@ def makePlot(dfs : List[pd.DataFrame],
     if doAvg:                                
         for df in dfs:
             c = palette[i]
-            p = sns.lineplot(data=df,x="x",y="mean", color=c, label=dfLabels[i]) #, ax = ax) #
+            p = sns.lineplot(data=df,x=x_data_id,y="mean", color=c, label=dfLabels[i]) #, ax = ax) #
             cis = (df["mean"] - df["std"], df["mean"] + df["std"])
             c = [(e+1)/2 for e in c]
-            p.fill_between(df["x"],cis[0],cis[1], color=c, alpha = 0.5)
+            p.fill_between(df[x_data_id],cis[0],cis[1], color=c, alpha = 0.5)
             i+=1
     #plt.legend(loc='lower right', labels=names)
     # pathSplitted = os.path.dirname(csvfile).split("/")
@@ -124,26 +121,6 @@ def makePlot(dfs : List[pd.DataFrame],
     if max_y is not None or min_y is not None:
         p.set_ylim(min_y,max_y)
 
-    if multiaxes:
-        additional_xdataids = ["total_steps", "time_from_start"]
-        x_label = x_data_id
-        i = 1
-        for adx in additional_xdataids:
-            ax2 = p.twiny()
-            x2 = df[adx]
-            p2 = sns.lineplot(x=x2, y=np.arange(len(x2)), visible=False)
-            # Move twinned axis ticks and label from top to bottom
-            ax2.xaxis.set_ticks_position("bottom")
-            ax2.xaxis.set_label_position("bottom")
-            ax2.spines['bottom'].set_position(('outward', 10 * i))
-            ax2.spines['bottom'].set_visible(False)
-            plt.tick_params(which='both', bottom=False)
-            ax2.set_xlabel("")
-            ax2.grid(False)
-            i+=1
-            x_label = x_label + ", "+adx
-
-        p.set_xlabel(x_label, labelpad = 10 * len(additional_xdataids))
 
     if xlabel is not None:
         p.set_xlabel(xlabel)
@@ -171,7 +148,7 @@ ap.add_argument("--nogui", default=False, action='store_true', help="Dont show t
 ap.add_argument("--once", default=False, action='store_true', help="Plot only once")
 ap.add_argument("--noavg", default=False, action='store_true', help="Do not plot curve average")
 ap.add_argument("--avgfiles", default=False, action='store_true', help="Make an average pof the provided files instead of displaying all of them")
-ap.add_argument("--noraw", default=False, action='store_true', help="Do not plot raw data")
+ap.add_argument("--noraw", default=True, action='store_true', help="Do not plot raw data")
 ap.add_argument("--maxx", required=False, default=None, type=float, help="Maximum x value to plot")
 ap.add_argument("--minx", required=False, default=None, type=float, help="Minimum x value to plot")
 ap.add_argument("--maxy", required=False, default=None, type=float, help="Maximum y axis value")
@@ -179,7 +156,7 @@ ap.add_argument("--miny", required=False, default=None, type=float, help="Minimu
 ap.add_argument("--period", required=False, default=5, type=float, help="Seconds to wait between plot update")
 ap.add_argument("--out", required=False, default=None, type=str, help="Filename for the output plot")
 ap.add_argument("--ydataid", required=False, default=None, type=str, help="Data to put on the y axis")
-ap.add_argument("--xdataid", required=False, default=None, type=str, help="Data to put on the x axis")
+ap.add_argument("--xdataid", required=False, default="reset_count", type=str, help="Data to put on the x axis")
 ap.add_argument("--avglen", required=False, default=20, type=int, help="Window size of running average")
 ap.add_argument("--xscaling", required=False, default=1, type=float, help="Scale the x values by this factor")
 ap.add_argument("--xlabel", required=False, default=None, type=str, help="label to put on x axis")
@@ -208,7 +185,6 @@ if args["ydataid"] is not None:
 else:
     y_data_id="ep_reward"
 
-x_data_id = args["xdataid"]
 
 #fig, ax = plt.subplots(figsize=(11, 8.5))
 while not ctrl_c_received:
@@ -255,7 +231,7 @@ while not ctrl_c_received:
                     i+=1
 
             makePlot(dfs,
-                    x_data_id,
+                    x_data_id=args["xdataid"],
                     max_x = args["maxx"],
                     min_x = args["minx"],
                     y_data_id=y_data_id,

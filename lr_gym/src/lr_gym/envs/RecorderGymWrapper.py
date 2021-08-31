@@ -12,7 +12,7 @@ class RecorderGymWrapper(gym.Wrapper):
     .. note::
         Don't forget to call ``super().__init__(env)`` if the subclass overrides :meth:`__init__`.
     """
-    def __init__(self, env : gym.Env, fps : float, outFile : str,
+    def __init__(self, env : gym.Env, fps : float, outFolder : str,
                         saveBestEpisodes = False, 
                         saveFrequency_ep = 1,
                         saveFrequency_step = -1):
@@ -20,15 +20,21 @@ class RecorderGymWrapper(gym.Wrapper):
         self._videoFps = fps
         self._frameBuffer = []
         self._episodeCounter = 0
-        self._outFolder = os.path.dirname(outFile)
+        self._outFolder = outFolder
         self._saveBestEpisodes = saveBestEpisodes
         self._saveFrequency_ep = saveFrequency_ep
         self._saveFrequency_step = saveFrequency_step
         self._bestReward = float("-inf")
         self._epReward = 0
         self._last_saved_ep_steps = -1
-        os.makedirs(self._outFolder)
-        os.makedirs(self._outFolder+"/best")
+        try:
+            os.makedirs(self._outFolder)
+        except FileExistsError:
+            pass
+        try:
+            os.makedirs(self._outFolder+"/best")
+        except FileExistsError:
+            pass
 
     def step(self, action):
         stepRet =  self.env.step(action)
@@ -64,9 +70,9 @@ class RecorderGymWrapper(gym.Wrapper):
             if self._saveBestEpisodes:
                 self._saveLastEpisode(self._outFolder+"/best/ep_"+(f"{self._episodeCounter}").zfill(6)+f"_{self._epReward}.mp4")            
         if self._saveFrequency_ep>0 and self._episodeCounter % self._saveFrequency_ep == 0:
-            self._saveLastEpisode(self._outFolder+"ep_"+(f"{self._episodeCounter}").zfill(6)+f"_{self._epReward}.mp4")
+            self._saveLastEpisode(self._outFolder+"/ep_"+(f"{self._episodeCounter}").zfill(6)+f"_{self._epReward}.mp4")
         elif self._saveFrequency_step>0 and int(self.num_timesteps/self._saveFrequency_step) != int(self._last_saved_ep_steps/self._saveFrequency_step):
-            self._saveLastEpisode(self._outFolder+"ep_"+(f"{self._episodeCounter}").zfill(6)+f"_{self._epReward}.mp4")
+            self._saveLastEpisode(self._outFolder+"/ep_"+(f"{self._episodeCounter}").zfill(6)+f"_{self._epReward}.mp4")
             self._last_saved_ep_steps = self.num_timesteps
 
 
@@ -82,7 +88,7 @@ class RecorderGymWrapper(gym.Wrapper):
         return obs
 
     def close(self):
-        self._saveLastEpisode(self._outFolder+(f"ep_{self._episodeCounter}").zfill(6)+f"_{self._epReward}.mp4")
+        self._saveLastEpisode(self._outFolder+(f"/ep_{self._episodeCounter}").zfill(6)+f"_{self._epReward}.mp4")
         return self.env.close()
 
     def setSaveAllEpisodes(self, enable : bool, disable_after_one_episode : bool = False):

@@ -269,10 +269,11 @@ class HopperEnv(ControlledEnv):
     def _destroySimulation(self):
         self._mmRosLauncher.stop()
 
-    def getInfo(self) -> Dict[Any,Any]:
-        i = super().getInfo()
+    def getInfo(self,state=None) -> Dict[Any,Any]:
+        i = super().getInfo(state=state)
         i["success"] = self._success
         i["success_ratio"] = self._success_ratio
+        i["x_position"] = state[self.AVG_X_POS]
         # ggLog.info(f"Setting success_ratio to {i['success_ratio']}")
         return i
 

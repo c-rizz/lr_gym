@@ -94,19 +94,11 @@ class GymEnvWrapper(gym.Env):
         self._timeSpentStepping_ep = 0
         self._successRatio = -1
         self._last_ep_succeded = False
+        self._logFileCsvWriter = None
         self._info = {}
-        self._setInfo()
 
         self._done = False
 
-        if self._logEpisodeInfo:
-            try:
-                os.makedirs(os.path.dirname(self._episodeInfoLogFile))
-            except FileExistsError:
-                pass
-            self._logFile = open(self._episodeInfoLogFile, "w")
-            self._logFileCsvWriter = csv.writer(self._logFile, delimiter = ",")
-            self._logFileCsvWriter.writerow(self._info.keys())
 
     def _setInfo(self):
         if self._framesCounter>0:
@@ -152,7 +144,18 @@ class GymEnvWrapper(gym.Env):
         self._info["success_ratio"] = self._successRatio
         self._info["success"] = self._last_ep_succeded
 
+        self._info.update(self._ggEnv.getInfo(self._getStateCached()))
+
+
     def _logInfoCsv(self):
+        if self._logFileCsvWriter is None:
+            try:
+                os.makedirs(os.path.dirname(self._episodeInfoLogFile))
+            except FileExistsError:
+                pass
+            self._logFile = open(self._episodeInfoLogFile, "w")
+            self._logFileCsvWriter = csv.writer(self._logFile, delimiter = ",")
+            self._logFileCsvWriter.writerow(self._info.keys())
         #print("writing csv")
         self._logFileCsvWriter.writerow(self._info.values())
         self._logFile.flush()
@@ -194,7 +197,7 @@ class GymEnvWrapper(gym.Env):
             reward = 0
             done = True
             info = {}
-            info.update(self._ggEnv.getInfo())
+            info.update(self._ggEnv.getInfo(state=self._getStateCached()))
             self._lastStepEndSimTimeFromStart = self._ggEnv.getSimTimeFromEpStart()
             info.update(self._info)
             return (observation, reward, done, info)
@@ -230,7 +233,7 @@ class GymEnvWrapper(gym.Env):
         info = {"gz_gym_base_env_reached_state" : state,
                 "gz_gym_base_env_previous_state" : previousState,
                 "gz_gym_base_env_action" : action}
-        ggInfo = self._ggEnv.getInfo()
+        ggInfo = self._ggEnv.getInfo(state=state)
         if done:
             if "success_ratio" in ggInfo:
                 self._successRatio = ggInfo["success_ratio"]

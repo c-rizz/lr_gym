@@ -87,7 +87,7 @@ class ControlledEnv(BaseEnv):
         self.initializeEpisode()
 
 
-    def getInfo(self):
+    def getInfo(self,state=None):
         return {"simTime":self._intendedSimTime}
 
 

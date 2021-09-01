@@ -31,7 +31,7 @@ class RosEnvController(EnvironmentController):
 
     """
 
-    def __init__(   self, stepLength_sec : float = 0.001, forced_ros_master_uri : str = None):
+    def __init__(   self, stepLength_sec : float = 0.001, forced_ros_master_uri : str = None, maxObsDelay = float("+inf"), blocking_observation = False):
         """Initialize the Simulator controller.
 
         Raises
@@ -57,6 +57,9 @@ class RosEnvController(EnvironmentController):
         self._jointStateMsgAgeAvg = lr_gym.utils.utils.AverageKeeper(bufferSize = 100)
         self._linkStateMsgAgeAvg = lr_gym.utils.utils.AverageKeeper(bufferSize = 100)
         self._cameraMsgAgeAvg = lr_gym.utils.utils.AverageKeeper(bufferSize = 100)
+
+        self._maxObsAge = maxObsDelay
+        self._blocking_observation = blocking_observation
 
 
     def step(self) -> float:
@@ -184,22 +187,39 @@ class RosEnvController(EnvironmentController):
             if c not in self._camerasToObserve:
                 raise RuntimeError(f"Requested image from a camera {c}, which was not requested in setCamerasToObserve")
 
-        ret = []
-
-        for c in requestedCameras:
-            if c not in self._lastImagesReceived.keys():# This shouldn't happen
-                rospy.logerr("An image from "+c+" was requested to RosEnvcontroller, but no image has been received yet. Will return None")
-                img = None
-            else:
+        retDict = {}
+        call_time = rospy.get_time()
+        lastErrTime = call_time
+        camerasGotten = []
+        camerasMissing = requestedCameras
+        while True:            
+            for c in requestedCameras:
                 img = self._lastImagesReceived[c]
-                if img is not None:
-                    msgDelay = rospy.get_time() - img.header.stamp.to_sec()
-                    self._cameraMsgAgeAvg.addValue(msgDelay)
-            ret.append(img)
-            # ggLog.info(f"Got image for '{c}' from topic, delay = {msgDelay}")
+                if img is None:
+                    msgAge = float("+inf")
+                else:
+                    msgAge = call_time - img.header.stamp.to_sec()
+                    self._cameraMsgAgeAvg.addValue(msgAge)
+                if msgAge < self._maxObsAge or self._maxObsAge == float("+inf"):
+                    camerasGotten.append(c)
+                    retDict[c] = img
+                elif not self._blocking_observation:
+                    camerasGotten.append(c)
+                    retDict[c] = None
+            if len(camerasGotten) >= len(requestedCameras):
+                break
+            rospy.sleep(0.01)
+            camerasMissing = []
+            for c in requestedCameras:
+                if c not in camerasGotten:
+                    camerasMissing.append(c)
+
+            if rospy.get_time() - lastErrTime > 10:
+                ggLog.warn(f"Waiting for images since {rospy.get_time()-call_time}s. Still missing: {camerasMissing}")
+                lastErrTime = rospy.get_time()
 
 
-        return ret
+        return [retDict[c] for c in camerasMissing]
 
 
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
@@ -210,47 +230,54 @@ class RosEnvController(EnvironmentController):
             if j not in self._jointsToObserve:
                 raise RuntimeError("Requested joint that was not requested in setJointsToObserve")
 
-        ret = {}
-
 
         self._jointStatesMutex.acquire()
 
         # ggLog.info("RosEnvController.getJointsState() called")
 
-        missingJoints = []
-        noMsg = False
+        call_time = rospy.get_time()
+        gottenJoints = {}
 
-        for j in requestedJoints:
-            modelName = j[0]
-            jointName = j[1]
+
+        while True:
             jointStatesMsg = self._lastJointStatesReceived
-            if jointStatesMsg is None:
-                noMsg = True
-                missingJoints = requestedJoints
+            if jointStatesMsg is not None:
+                msgAge = call_time - jointStatesMsg.header.stamp.to_sec()
+                if msgAge < self._maxObsAge or self._maxObsAge == float("+inf"):
+                    for j in requestedJoints:
+                        modelName = j[0]
+                        jointName = j[1]                    
+                        try:
+                            jointIndex = jointStatesMsg.name.index(jointName)
+                        except ValueError:
+                            jointIndex = None
+                        if jointIndex is not None:
+                            gottenJoints[j] = JointState([jointStatesMsg.position[jointIndex]], [jointStatesMsg.velocity[jointIndex]], [jointStatesMsg.effort[jointIndex]])
+            missingJoints = []
+            for j in requestedJoints:
+                if j not in gottenJoints:
+                    missingJoints.append(j)
+            if len(missingJoints) == 0 or not self._blocking_observation:
                 break
-            try:
-                jointIndex = jointStatesMsg.name.index(jointName)
-            except ValueError:
-                missingJoints.append(j)
-                continue
+            rospy.sleep(0.01)
 
-            ret[j] = JointState([jointStatesMsg.position[jointIndex]], [jointStatesMsg.velocity[jointIndex]], [jointStatesMsg.effort[jointIndex]])
+            if rospy.get_time() - lastErrTime > 10:
+                ggLog.warn(f"Waiting for joints since {rospy.get_time()-call_time}s. Still missing: {missingJoints}")
+                lastErrTime = rospy.get_time()
 
-        msgDelay = jointStatesMsg.header.stamp.to_sec() - rospy.get_time()
-        self._jointStateMsgAgeAvg.addValue(msgDelay)
+
+        msgAge = jointStatesMsg.header.stamp.to_sec() - rospy.get_time()
+        self._jointStateMsgAgeAvg.addValue(msgAge)
 
         self._jointStatesMutex.release()
 
 
         if len(missingJoints)>0:
-            if noMsg:                
-                err = f"Requested joints {requestedJoints} but no joint_states message was ever received"
-            else:
-                err = f"Failed to get state for joints {missingJoints}"
+            err = f"Failed to get state for joints {missingJoints}, requested {requestedJoints} "
             #rospy.logerr(err)
             raise RequestFailError(message=err, partialResult=ret)
 
-        return ret
+        return gottenJoints
 
     def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],LinkState]:
         if not self._listenersStarted:
@@ -261,6 +288,7 @@ class RosEnvController(EnvironmentController):
             if l not in self._linksToObserve:
                 raise RuntimeError("Requested link '"+str(l)+"' that was not requested in setLinksToObserve")
 
+        call_time = rospy.get_time()
         ret = {}
         # It would be best to use the joint_state and compute link poses with kdl.
         # But this is a problem in python3
@@ -269,39 +297,50 @@ class RosEnvController(EnvironmentController):
 
 
 
-        self._linkStatesMutex.acquire()
+
 
         missingLinks = []
-        noMsg = False
+        lastErrTime = call_time
+        while True:
+            for lnm in requestedLinks:
+                self._linkStatesMutex.acquire()
+                try:
+                    lsMsg = self._linkStates[lnm]
+                except KeyError as e:
+                    lsMsg = None
+                if lsMsg is not None:
+                    msgAge = call_time - lsMsg.header.stamp.to_sec()
+                    if msgAge < self._maxObsAge or self._maxObsAge == float("+inf"):
+                        self._linkStateMsgAgeAvg.addValue(msgAge)
 
-        for lnm in requestedLinks:
-            try:
-                lsMsg = self._linkStates[lnm]
+                        # Add link state to return dict
+                        if lsMsg.pose.header.frame_id != "world":
+                            raise RuntimeError("Received link pose is not in world frame! This is not supported!")
+                        pose = lsMsg.pose.pose
+                        twist = lsMsg.twist
+                        ret[lnm] = LinkState( position_xyz     = (pose.position.x, pose.position.y, pose.position.z),
+                                            orientation_xyzw = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
+                                            pos_velocity_xyz = (twist.linear.x, twist.linear.y, twist.linear.z),
+                                            ang_velocity_xyz = (twist.angular.x, twist.angular.y, twist.angular.z))
+                self._linkStatesMutex.release()
+            missingLinks = []
+            for lnm in requestedLinks:
+                if lnm not in ret:
+                    missingLinks.append(lnm)
+            if len(missingLinks) == 0 or not self._blocking_observation:
+                break
+            rospy.sleep(0.01)
 
-                # Log delay for debug purposes
-                msgDelay = lsMsg.header.stamp.to_sec() - rospy.get_time()
-                self._linkStateMsgAgeAvg.addValue(msgDelay)
+            if rospy.get_time() - lastErrTime > 10:
+                ggLog.warn(f"Waiting for links since {rospy.get_time()-call_time}s. Still missing: {missingLinks}")
+                lastErrTime = rospy.get_time()
 
-                # Add link state to return dict
-                if lsMsg.pose.header.frame_id != "world":
-                    raise RuntimeError("Received link pose is not in world frame! This is not supported!")
-                pose = lsMsg.pose.pose
-                twist = lsMsg.twist
-                ret[lnm] = LinkState( position_xyz     = (pose.position.x, pose.position.y, pose.position.z),
-                                    orientation_xyzw = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
-                                    pos_velocity_xyz = (twist.linear.x, twist.linear.y, twist.linear.z),
-                                    ang_velocity_xyz = (twist.angular.x, twist.angular.y, twist.angular.z))
-            except KeyError as e:
-                missingLinks.append(lnm)
 
-        self._linkStatesMutex.release()
+
 
 
         if len(missingLinks)>0:
-            if noMsg:                
-                err = f"Requested links {requestedLinks} but no link_states message was ever received"
-            else:
-                err = f"Failed to get state for links {missingLinks}"
+            err = f"Failed to get state for links {missingLinks}. requested {requestedLinks}"
             # rospy.logerr(err)
             raise RequestFailError(message=err, partialResult=ret)
 

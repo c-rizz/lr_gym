@@ -53,11 +53,13 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
                  gripperInitialWidth : float = -1,
                  default_velocity_scaling = 0.1,
                  default_acceleration_scaling = 0.1,
-                 default_collision_objs : List[Tuple[List[float],List[float]]] = []):
+                 default_collision_objs : List[Tuple[List[float],List[float]]] = [],
+                 maxObsDelay = float("+inf"),
+                 blocking_observation = False):
         """Initialize the environment controller.
 
         """
-        super().__init__(stepLength_sec = -1)
+        super().__init__(stepLength_sec = -1, maxObsDelay = maxObsDelay, blocking_observation = blocking_observation)
         self._stepLength_sec = -1
 
         self._jointsOrder = jointsOrder
@@ -351,6 +353,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
             self.moveGripperSync(0,20)
             self.moveGripperSync(self._gripperInitialWidth,20)
         self._step_count = 0
+        super().resetWorld()
 
     def actionsFailsInLastStep(self):
         return self._actionsFailsInLastStepCounter

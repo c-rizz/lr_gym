@@ -28,6 +28,7 @@ def prepData(csvfiles : List[str],
     out_dfs = []
     for df in in_dfs:
         if "success" in df:
+            df["success"].fillna(value=-1,inplace=True)
             df["success"] = df["success"].astype(int) # boolean to 0-1
         if xscaling is not None:
             df[x_data_id] = df[x_data_id] * xscaling
@@ -80,7 +81,7 @@ def makePlot(dfs : List[pd.DataFrame],
              title : str = None,
              xlabel : str = None,
              ylabel : str = None,
-             noRaw : bool = False,
+             raw : bool = False,
              dfLabels : List[str] = None):
 
     plt.clf()
@@ -94,7 +95,7 @@ def makePlot(dfs : List[pd.DataFrame],
     sns.set_theme(style="darkgrid")
     palette = sns.color_palette("husl", len(dfs))
     i = 0
-    if not noRaw:
+    if raw:
         for df in dfs:
             print("cols = "+str(df.columns))
             c = palette[i]
@@ -107,9 +108,10 @@ def makePlot(dfs : List[pd.DataFrame],
         for df in dfs:
             c = palette[i]
             p = sns.lineplot(data=df,x=x_data_id,y="mean", color=c, label=dfLabels[i]) #, ax = ax) #
-            cis = (df["mean"] - df["std"], df["mean"] + df["std"])
-            c = [(e+1)/2 for e in c]
-            p.fill_between(df[x_data_id],cis[0],cis[1], color=c, alpha = 0.5)
+            if not raw:
+                cis = (df["mean"] - df["std"], df["mean"] + df["std"])
+                c = [(e+1)/2 for e in c]
+                p.fill_between(df[x_data_id],cis[0],cis[1], color=c, alpha = 0.5)
             i+=1
     #plt.legend(loc='lower right', labels=names)
     # pathSplitted = os.path.dirname(csvfile).split("/")
@@ -148,7 +150,7 @@ ap.add_argument("--nogui", default=False, action='store_true', help="Dont show t
 ap.add_argument("--once", default=False, action='store_true', help="Plot only once")
 ap.add_argument("--noavg", default=False, action='store_true', help="Do not plot curve average")
 ap.add_argument("--avgfiles", default=False, action='store_true', help="Make an average pof the provided files instead of displaying all of them")
-ap.add_argument("--noraw", default=True, action='store_true', help="Do not plot raw data")
+ap.add_argument("--raw", default=False, action='store_true', help="Plot raw data")
 ap.add_argument("--maxx", required=False, default=None, type=float, help="Maximum x value to plot")
 ap.add_argument("--minx", required=False, default=None, type=float, help="Minimum x value to plot")
 ap.add_argument("--maxy", required=False, default=None, type=float, help="Maximum y axis value")
@@ -241,7 +243,7 @@ while not ctrl_c_received:
                     title = title,
                     xlabel = args["xlabel"],
                     ylabel = args["ylabel"],
-                    noRaw = args["noraw"],
+                    raw = args["raw"],
                     dfLabels=dfLabels)
             if args["out"] is not None:
                 fname = args["out"]

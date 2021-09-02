@@ -45,3 +45,9 @@ def critical(msg, *args, **kwargs):
 
 def exception(msg, *args, **kwargs):
     logger.exception(_addRosMasterUri(msg), *args, **kwargs)
+
+def addLogFile(path :str, level = logging.DEBUG):
+    fh = logging.FileHandler(path)
+    fh.setLevel(level)
+    logger.addHandler(fh)
+

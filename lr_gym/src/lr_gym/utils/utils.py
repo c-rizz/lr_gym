@@ -335,6 +335,7 @@ def setupLoggingForRun(file : str, currentframe, run_id_prefix : str = "", folde
     
 def lr_gym_startup(main_file_path : str, currentframe, using_pytorch : bool = True, run_id_prefix : str = "", folderName : str = None) -> str:
     logFolder = setupLoggingForRun(main_file_path, currentframe, run_id_prefix=run_id_prefix, folderName=folderName)
+    ggLog.addLogFile(logFolder+"/gglog.log")
     setupSigintHandler()
     if using_pytorch:
         import torch as th

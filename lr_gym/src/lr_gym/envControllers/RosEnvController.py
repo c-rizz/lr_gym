@@ -203,23 +203,27 @@ class RosEnvController(EnvironmentController):
                 if msgAge < self._maxObsAge or self._maxObsAge == float("+inf"):
                     camerasGotten.append(c)
                     retDict[c] = img
-                elif not self._blocking_observation:
-                    camerasGotten.append(c)
-                    retDict[c] = None
             if len(camerasGotten) >= len(requestedCameras):
                 break
-            rospy.sleep(0.01)
+            self.freerun(0.1)
             camerasMissing = []
             for c in requestedCameras:
                 if c not in camerasGotten:
                     camerasMissing.append(c)
 
+            if not self._blocking_observation:
+                break
             if rospy.get_time() - lastErrTime > 10:
                 ggLog.warn(f"Waiting for images since {rospy.get_time()-call_time}s. Still missing: {camerasMissing}")
                 lastErrTime = rospy.get_time()
 
+        if len(camerasMissing) > 0:
+            err = f"Failed to get images for cameras {camerasMissing}, requested {requestedCameras} "
+            #rospy.logerr(err)
+            raise RequestFailError(message=err, partialResult=camerasGotten)
 
-        return [retDict[c] for c in camerasMissing]
+
+        return [retDict[c] for c in camerasGotten]
 
 
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
@@ -259,7 +263,7 @@ class RosEnvController(EnvironmentController):
                     missingJoints.append(j)
             if len(missingJoints) == 0 or not self._blocking_observation:
                 break
-            rospy.sleep(0.01)
+            self.freerun(0.1)
 
             if rospy.get_time() - lastErrTime > 10:
                 ggLog.warn(f"Waiting for joints since {rospy.get_time()-call_time}s. Still missing: {missingJoints}")
@@ -275,7 +279,7 @@ class RosEnvController(EnvironmentController):
         if len(missingJoints)>0:
             err = f"Failed to get state for joints {missingJoints}, requested {requestedJoints} "
             #rospy.logerr(err)
-            raise RequestFailError(message=err, partialResult=ret)
+            raise RequestFailError(message=err, partialResult=gottenJoints)
 
         return gottenJoints
 
@@ -289,7 +293,7 @@ class RosEnvController(EnvironmentController):
                 raise RuntimeError("Requested link '"+str(l)+"' that was not requested in setLinksToObserve")
 
         call_time = rospy.get_time()
-        ret = {}
+        gottenLinks = {}
         # It would be best to use the joint_state and compute link poses with kdl.
         # But this is a problem in python3
         # For now I have to rely on another node do the forward kinematics
@@ -318,18 +322,18 @@ class RosEnvController(EnvironmentController):
                             raise RuntimeError("Received link pose is not in world frame! This is not supported!")
                         pose = lsMsg.pose.pose
                         twist = lsMsg.twist
-                        ret[lnm] = LinkState( position_xyz     = (pose.position.x, pose.position.y, pose.position.z),
+                        gottenLinks[lnm] = LinkState( position_xyz     = (pose.position.x, pose.position.y, pose.position.z),
                                             orientation_xyzw = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
                                             pos_velocity_xyz = (twist.linear.x, twist.linear.y, twist.linear.z),
                                             ang_velocity_xyz = (twist.angular.x, twist.angular.y, twist.angular.z))
                 self._linkStatesMutex.release()
             missingLinks = []
             for lnm in requestedLinks:
-                if lnm not in ret:
+                if lnm not in gottenLinks:
                     missingLinks.append(lnm)
             if len(missingLinks) == 0 or not self._blocking_observation:
                 break
-            rospy.sleep(0.01)
+            self.freerun(0.1)
 
             if rospy.get_time() - lastErrTime > 10:
                 ggLog.warn(f"Waiting for links since {rospy.get_time()-call_time}s. Still missing: {missingLinks}")
@@ -342,9 +346,9 @@ class RosEnvController(EnvironmentController):
         if len(missingLinks)>0:
             err = f"Failed to get state for links {missingLinks}. requested {requestedLinks}"
             # rospy.logerr(err)
-            raise RequestFailError(message=err, partialResult=ret)
+            raise RequestFailError(message=err, partialResult=gottenLinks)
 
-        return ret
+        return gottenLinks
 
     def resetWorld(self):
         ggLog.info("Average link_state age ="+str(self._linkStateMsgAgeAvg.getAverage()))

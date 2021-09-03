@@ -44,10 +44,13 @@ class MoveitGazeboController(MoveitRosController, SimulatedEnvController):
                  gripperActionTopic : str = None,
                  gripperInitialWidth : float = -1,
                  default_velocity_scaling = 0.1,
-                 default_acceleration_scaling = 0.1):
+                 default_acceleration_scaling = 0.1,
+                 maxObsDelay = float("+inf"),
+                 blocking_observation = False):
         """Initialize the environment controller.
 
         """
+        self._gazeboController = GazeboController() #Could do with multiple inheritance but this is more readable
         super().__init__(   jointsOrder = jointsOrder,
                             endEffectorLink = endEffectorLink,
                             referenceFrame = referenceFrame,
@@ -55,9 +58,12 @@ class MoveitGazeboController(MoveitRosController, SimulatedEnvController):
                             gripperActionTopic = gripperActionTopic,
                             gripperInitialWidth = gripperInitialWidth,
                             default_velocity_scaling = default_velocity_scaling,
-                            default_acceleration_scaling = default_acceleration_scaling)
+                            default_acceleration_scaling = default_acceleration_scaling,
+                            maxObsDelay = maxObsDelay,
+                            blocking_observation = blocking_observation)
 
-        self._gazeboController = GazeboController() #Could do with multiple inheritance but this is more readable
+
+
 
     def startController(self):
         """Start the ROS listeners for receiving images, link states and joint states.
@@ -193,3 +199,16 @@ class MoveitGazeboController(MoveitRosController, SimulatedEnvController):
     
     def freerun(self, duration_sec : float):
         self._gazeboController.freerun(duration_sec)
+
+
+    def setJointsToObserve(self, jointsToObserve : List[Tuple[str,str]]):
+       super().setJointsToObserve(jointsToObserve=jointsToObserve)
+       self._gazeboController.setJointsToObserve(jointsToObserve=jointsToObserve)
+
+    def setLinksToObserve(self, linksToObserve : List[Tuple[str,str]]):
+       super().setLinksToObserve(linksToObserve=linksToObserve)
+       self._gazeboController.setLinksToObserve(linksToObserve=linksToObserve)
+
+    def setCamerasToObserve(self, camerasToRender : List[str] = []):
+       super().setCamerasToObserve(camerasToRender=camerasToRender)
+       self._gazeboController.setCamerasToObserve(camerasToRender=camerasToRender)

@@ -202,15 +202,17 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
 
 
     def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
+        # ggLog.info("GazebController.getRenderings")
         for name in requestedCameras:
             if name not in self._camerasToObserve:
-                raise RuntimeError("Requested rendering from a camera that was not set with setCamerasToObserve")
+                # print(f"Requested rendering camera {name} which was not set with setCamerasToObserve (cameras are {self._camerasToObserve})")
+                raise RuntimeError(f"Requested rendering camera {name} which was not set with setCamerasToObserve (cameras are {self._camerasToObserve})")
 
         if self._simulationState.stepNumber!=self._stepsTaken: #If no step has ever been done
-            #ggLog.info("Manually rendering images for "+str(requestedCameras))
+            # ggLog.info("Manually rendering images for "+str(requestedCameras))
             cameraRenders = self._performRender(requestedCameras)
         else:
-            #ggLog.info("Using available renders for "+str(requestedCameras)+" step = "+str(self._simulationState.stepNumber))
+            # ggLog.info("Using available renders for "+str(requestedCameras)+" step = "+str(self._simulationState.stepNumber))
             cameraRenders = self._simulationState.cameraRenders
 
         ret = []

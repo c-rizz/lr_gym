@@ -81,6 +81,7 @@ void RenderingHelper::searchCameras()
     {
       std::string rosTfFrame_id = "";//TODO: somehow get this
       gymCameras.push_back(std::make_shared<GymCamera>(std::dynamic_pointer_cast<gazebo::sensors::CameraSensor>(sp),rosTfFrame_id));
+      ROS_INFO_STREAM("Found camera "<<gymCameras.back()->sensor->Name());
     }
   }
 }
@@ -239,19 +240,20 @@ void RenderingHelper::renderCameras(std::vector<std::string> cameras, gazebo_gym
   //If can't find a camera do a search
   for(std::string reqName : cameras)
   {
-    bool found = false;
-    for(std::shared_ptr<GymCamera> cam : gymCameras)
+    for(int tries=0; tries<2; tries++)
     {
-      if(reqName.compare(cam->sensor->Name())==0)
+      bool found = false;
+      for(std::shared_ptr<GymCamera> cam : gymCameras)
       {
-        found = true;
-        break;
+        if(reqName.compare(cam->sensor->Name())==0)
+        {
+          found = true;
+          break;
+        }
       }
-    }
-    if(!found)
-    {
+      if(found)
+        break;
       searchCameras();
-      break;//Only do it once
     }
   }
 

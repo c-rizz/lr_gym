@@ -420,7 +420,7 @@ class GymEnvWrapper(gym.Env):
         Environments will automatically close() themselves when
         garbage collected or when the program exits.
         """
-        if self._logEpisodeInfo:
+        if self._logEpisodeInfo and self._logFileCsvWriter is not None:
             self._logFile.close()
         self._ggEnv.close()
         if self._saveVideo:

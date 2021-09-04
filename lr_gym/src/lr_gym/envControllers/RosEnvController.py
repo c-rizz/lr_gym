@@ -58,6 +58,10 @@ class RosEnvController(EnvironmentController):
         self._linkStateMsgAgeAvg = lr_gym.utils.utils.AverageKeeper(bufferSize = 100)
         self._cameraMsgAgeAvg = lr_gym.utils.utils.AverageKeeper(bufferSize = 100)
 
+        self._cameraMsgWaitAvg = lr_gym.utils.utils.AverageKeeper(bufferSize = 100)
+        self._linkMsgWaitAvg = lr_gym.utils.utils.AverageKeeper(bufferSize = 100)
+        self._jointMsgWaitAvg = lr_gym.utils.utils.AverageKeeper(bufferSize = 100)
+
         self._maxObsAge = maxObsDelay
         self._blocking_observation = blocking_observation
 
@@ -203,13 +207,13 @@ class RosEnvController(EnvironmentController):
                 if msgAge < self._maxObsAge or self._maxObsAge == float("+inf"):
                     camerasGotten.append(c)
                     retDict[c] = img
-            if len(camerasGotten) >= len(requestedCameras):
-                break
             self.freerun(0.1)
             camerasMissing = []
             for c in requestedCameras:
                 if c not in camerasGotten:
                     camerasMissing.append(c)
+            if len(camerasGotten) >= len(requestedCameras):
+                break
 
             if not self._blocking_observation:
                 break
@@ -217,6 +221,8 @@ class RosEnvController(EnvironmentController):
                 ggLog.warn(f"Waiting for images since {rospy.get_time()-call_time}s. Still missing: {camerasMissing}")
                 lastErrTime = rospy.get_time()
 
+        waitTime = rospy.get_time() - call_time
+        self._cameraMsgWaitAvg.addValue(waitTime)
         if len(camerasMissing) > 0:
             err = f"Failed to get images for cameras {camerasMissing}, requested {requestedCameras} "
             #rospy.logerr(err)
@@ -272,6 +278,8 @@ class RosEnvController(EnvironmentController):
 
         msgAge = jointStatesMsg.header.stamp.to_sec() - rospy.get_time()
         self._jointStateMsgAgeAvg.addValue(msgAge)
+        waitTime = rospy.get_time() - call_time
+        self._jointMsgWaitAvg.addValue(waitTime)
 
         self._jointStatesMutex.release()
 
@@ -340,6 +348,8 @@ class RosEnvController(EnvironmentController):
                 lastErrTime = rospy.get_time()
 
 
+        waitTime = rospy.get_time() - call_time
+        self._linkMsgWaitAvg.addValue(waitTime)
 
 
 
@@ -354,6 +364,9 @@ class RosEnvController(EnvironmentController):
         ggLog.info("Average link_state age ="+str(self._linkStateMsgAgeAvg.getAverage()))
         ggLog.info("Average joint_state age ="+str(self._jointStateMsgAgeAvg.getAverage()))
         ggLog.info("Average camera image age ="+str(self._cameraMsgAgeAvg.getAverage()))
+        ggLog.info("Average link_state wait ="+str(self._linkMsgWaitAvg.getAverage()))
+        ggLog.info("Average joint_state wait ="+str(self._jointMsgWaitAvg.getAverage()))
+        ggLog.info("Average camera image wait ="+str(self._cameraMsgWaitAvg.getAverage()))
         self._simTimeStart = rospy.get_time()
         self._lastStepEnd = self._simTimeStart
 

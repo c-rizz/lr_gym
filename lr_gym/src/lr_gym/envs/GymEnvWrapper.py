@@ -153,9 +153,11 @@ class GymEnvWrapper(gym.Env):
                 os.makedirs(os.path.dirname(self._episodeInfoLogFile))
             except FileExistsError:
                 pass
-            self._logFile = open(self._episodeInfoLogFile, "w")
+            existed = os.path.isfile(self._episodeInfoLogFile)
+            self._logFile = open(self._episodeInfoLogFile, "a")
             self._logFileCsvWriter = csv.writer(self._logFile, delimiter = ",")
-            self._logFileCsvWriter.writerow(self._info.keys())
+            if not existed:
+                self._logFileCsvWriter.writerow(self._info.keys())
         #print("writing csv")
         self._logFileCsvWriter.writerow(self._info.values())
         self._logFile.flush()

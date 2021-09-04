@@ -309,6 +309,8 @@ bool clearCollisionObjectsServiceCallback(lr_gym_utils::ClearCollisionObjects::R
   // ROS_WARN_STREAM("clearCollisionObjectsServiceCallback");
   for(std::string obj_id : attached_objects_ids)
     moveGroupInt->detachObject(obj_id);
+  moveGroupInt->detachObject();//Should detache whatever is attached
+  attached_objects_ids.clear();
 
   moveit_msgs::CollisionObject collision_object;
   std::vector<moveit_msgs::CollisionObject> collision_objects;

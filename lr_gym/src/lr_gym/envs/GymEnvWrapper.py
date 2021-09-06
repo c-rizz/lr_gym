@@ -163,7 +163,8 @@ class GymEnvWrapper(gym.Env):
                         lastRow = row
                     self._resetCount += int(lastRow[columns.index("reset_count")])
                     self._totalSteps += int(lastRow[columns.index("total_steps")])
-                    self._successRatio += float(lastRow[columns.index("success_ratio")]                    )
+                    self._successRatio += float(lastRow[columns.index("success_ratio")])
+                    self._setInfo()
             self._logFile = open(self._episodeInfoLogFile, "a")
             self._logFileCsvWriter = csv.writer(self._logFile, delimiter = ",")
             if not existed:

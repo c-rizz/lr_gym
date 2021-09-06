@@ -154,6 +154,16 @@ class GymEnvWrapper(gym.Env):
             except FileExistsError:
                 pass
             existed = os.path.isfile(self._episodeInfoLogFile)
+            if existed:
+                with open(self._episodeInfoLogFile) as csvfile:
+                    csvreader = csv.reader(csvfile, delimiter=',')
+                    columns = next(csvreader)
+                    lastRow = None
+                    for row in csvreader:
+                        lastRow = row
+                    self._resetCount += int(lastRow[columns.index("reset_count")])
+                    self._totalSteps += int(lastRow[columns.index("total_steps")])
+                    self._successRatio += float(lastRow[columns.index("success_ratio")]                    )
             self._logFile = open(self._episodeInfoLogFile, "a")
             self._logFileCsvWriter = csv.writer(self._logFile, delimiter = ",")
             if not existed:

@@ -207,7 +207,6 @@ class RosEnvController(EnvironmentController):
                 if msgAge < self._maxObsAge or self._maxObsAge == float("+inf"):
                     camerasGotten.append(c)
                     retDict[c] = img
-            self.freerun(0.1)
             camerasMissing = []
             for c in requestedCameras:
                 if c not in camerasGotten:
@@ -220,6 +219,7 @@ class RosEnvController(EnvironmentController):
             if rospy.get_time() - lastErrTime > 10:
                 ggLog.warn(f"Waiting for images since {rospy.get_time()-call_time}s. Still missing: {camerasMissing}")
                 lastErrTime = rospy.get_time()
+            self.freerun(0.1)
 
         waitTime = rospy.get_time() - call_time
         self._cameraMsgWaitAvg.addValue(waitTime)

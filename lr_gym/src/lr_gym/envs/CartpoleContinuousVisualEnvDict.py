@@ -30,7 +30,8 @@ class CartpoleContinuousVisualEnvDict(CartpoleContinuousVisualEnv):
                     frame_stacking_size : int = 3,
                     imgEncoding : str = "float",
                     wall_sim_speed = False,
-                    seed = 1):
+                    seed = 1,
+                    continuousActions = False):
         """Short summary.
 
         Parameters
@@ -71,6 +72,8 @@ class CartpoleContinuousVisualEnvDict(CartpoleContinuousVisualEnv):
         self._obs_img_width = obs_img_height_width[1]
         self._frame_stacking_size = frame_stacking_size
         self._imgEncoding = imgEncoding
+        self._continuousActions = continuousActions
+        
         if imgEncoding == "float":
             self.observation_space = gym.spaces.Box(low=0, high=1,
                                                     shape=(self._frame_stacking_size, self._obs_img_height, self._obs_img_width),
@@ -85,7 +88,7 @@ class CartpoleContinuousVisualEnvDict(CartpoleContinuousVisualEnv):
 
         self._stackedImg = np.zeros(shape=(self._frame_stacking_size,self._obs_img_height, self._obs_img_height), dtype=np.float32)
 
-        self.action_space = gym.spaces.Box(low=np.array([0]),high=np.array([1]))
+        self.action_space = gym.spaces.Box(low=np.array([-1]),high=np.array([1]))
 
         self._environmentController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
         self._environmentController.setCamerasToObserve(["camera"])

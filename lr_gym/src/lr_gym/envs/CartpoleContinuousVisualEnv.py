@@ -31,7 +31,8 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
                     frame_stacking_size : int = 3,
                     imgEncoding : str = "float",
                     wall_sim_speed = False,
-                    seed = 1):
+                    seed = 1,
+                    continuousActions = False): #TODO: make true by default
         """Short summary.
 
         Parameters
@@ -71,6 +72,8 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         self._obs_img_width = obs_img_height_width[1]
         self._frame_stacking_size = frame_stacking_size
         self._imgEncoding = imgEncoding
+        self._continuousActions = continuousActions
+
         if imgEncoding == "float":
             self.observation_space = gym.spaces.Box(low=0, high=1,
                                                     shape=(self._frame_stacking_size, self._obs_img_height, self._obs_img_width),
@@ -84,7 +87,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         
         self._stackedImg = np.zeros(shape=(self._frame_stacking_size,self._obs_img_height, self._obs_img_height), dtype=np.float32)
 
-        self.action_space = gym.spaces.Box(low=np.array([0]),high=np.array([1]))
+        self.action_space = gym.spaces.Box(low=np.array([-1]),high=np.array([1]))
 
         self._environmentController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
         self._environmentController.setCamerasToObserve(["camera"])
@@ -92,18 +95,20 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         self._environmentController.startController()
 
 
-    def submitAction(self, action : int) -> None:
+    def submitAction(self, action : float) -> None:
         super(CartpoleEnv, self).submitAction(action) #skip CartpoleEnv's submitAction, call its parent one
-        # print("action = ",action)
+        # ggLog.info(f"action = {action}")
         # print("type(action) = ",type(action))
-        if action < 0.5: #left
-            direction = -1
-        elif action >= 0.5:
-            direction = 1
-        else:
-            raise AttributeError("Invalid action (it's "+str(action)+")")
 
-        self._environmentController.setJointsEffortCommand(jointTorques = [("cartpole_v0","foot_joint", direction * 10)])
+        if action>1 or action<-1:
+            raise AttributeError("Invalid action (it's "+str(action)+")")
+        if not self._continuousActions:
+            if action>0:
+                action = 1
+            else:
+                action = -1
+        
+        self._environmentController.setJointsEffortCommand(jointTorques = [("cartpole_v0","foot_joint", action * 10)])
 
     def getObservation(self, state) -> np.ndarray:
         obs = state[1]

@@ -312,12 +312,9 @@ def setupLoggingForRun(file : str, currentframe, run_id_prefix : str = "", folde
         run_id = run_id_prefix+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
         script_out_folder = os.getcwd()+"/"+os.path.basename(file)
         folderName = script_out_folder+"/"+run_id
-        os.makedirs(folderName)
+        os.makedirs(folderName, exist_ok=True)
     else:
-        try:
-            os.makedirs(folderName)
-        except FileExistsError:
-            pass
+        os.makedirs(folderName, exist_ok=True)
         script_out_folder = str(Path(folderName).parent.absolute())
 
     createSymlink(src = folderName, dst = script_out_folder+"/latest")

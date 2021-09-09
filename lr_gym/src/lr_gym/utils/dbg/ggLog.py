@@ -29,22 +29,52 @@ def _addRosMasterUri(msg):
         return "["+str(ros_master_uri)+"] "+msg
 
 def debug(msg, *args, **kwargs):
-    logger.debug(_addRosMasterUri(msg), *args, **kwargs)
+    msg = _addRosMasterUri(msg)
+    try:
+        logger.debug(msg, *args, **kwargs)
+    except Exception as e:
+        print(f"logging failed with exception {e}. Msg:")
+        print(msg,*args,**kwargs)
 
 def info(msg, *args, **kwargs):
-    logger.info(_addRosMasterUri(msg), *args, **kwargs)
+    msg = _addRosMasterUri(msg)
+    try:
+        logger.info(msg, *args, **kwargs)
+    except Exception as e:
+        print(f"logging failed with exception {e}. Msg:")
+        print(msg,*args,**kwargs)
 
 def warn(msg, *args, **kwargs):
-    logger.warn(_addRosMasterUri(msg), *args, **kwargs)
+    msg = _addRosMasterUri(msg)
+    try:
+        logger.warn(msg, *args, **kwargs)
+    except Exception as e:
+        print(f"logging failed with exception {e}. Msg:")
+        print(msg,*args,**kwargs)
 
 def error(msg, *args, **kwargs):
-    logger.error(_addRosMasterUri(msg), *args, **kwargs)
+    msg = _addRosMasterUri(msg)
+    try:
+        logger.error(msg, *args, **kwargs)
+    except Exception as e:
+        print(f"logging failed with exception {e}. Msg:")
+        print(msg,*args,**kwargs)
 
 def critical(msg, *args, **kwargs):
-    logger.critical(_addRosMasterUri(msg), *args, **kwargs)
+    msg = _addRosMasterUri(msg)
+    try:
+        logger.critical(msg, *args, **kwargs)
+    except Exception as e:
+        print(f"logging failed with exception {e}. Msg:")
+        print(msg,*args,**kwargs)
 
 def exception(msg, *args, **kwargs):
-    logger.exception(_addRosMasterUri(msg), *args, **kwargs)
+    msg = _addRosMasterUri(msg)
+    try:
+        logger.exception(msg, *args, **kwargs)
+    except Exception as e:
+        print(f"logging failed with exception {e}. Msg:")
+        print(msg,*args,**kwargs)
 
 def addLogFile(path :str, level = logging.DEBUG):
     fh = logging.FileHandler(path)

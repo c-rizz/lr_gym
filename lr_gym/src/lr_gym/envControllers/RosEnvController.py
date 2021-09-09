@@ -248,7 +248,7 @@ class RosEnvController(EnvironmentController):
         call_time = rospy.get_time()
         gottenJoints = {}
 
-
+        lastErrTime = call_time
         while True:
             jointStatesMsg = self._lastJointStatesReceived
             if jointStatesMsg is not None:

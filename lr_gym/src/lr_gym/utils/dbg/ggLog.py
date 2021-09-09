@@ -79,5 +79,6 @@ def exception(msg, *args, **kwargs):
 def addLogFile(path :str, level = logging.DEBUG):
     fh = logging.FileHandler(path)
     fh.setLevel(level)
+    fh.setFormatter(formatter)
     logger.addHandler(fh)
 

@@ -93,6 +93,8 @@ def makePlot(dfs : List[pd.DataFrame],
 
 
     sns.set_theme(style="darkgrid")
+    sns.set_context("paper")
+
     palette = sns.color_palette("husl", len(dfs))
     i = 0
     if raw:

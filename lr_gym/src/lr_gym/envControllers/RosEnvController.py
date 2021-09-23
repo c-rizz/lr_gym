@@ -17,6 +17,7 @@ import os
 import time
 import lr_gym.utils.dbg.ggLog as ggLog
 import lr_gym.utils.utils
+import lr_gym.utils.beep
 
 
 class RequestFailError(Exception):
@@ -218,6 +219,7 @@ class RosEnvController(EnvironmentController):
                 break
             if rospy.get_time() - lastErrTime > 10:
                 ggLog.warn(f"Waiting for images since {rospy.get_time()-call_time}s. Still missing: {camerasMissing}")
+                lr_gym.utils.beep.beep()
                 lastErrTime = rospy.get_time()
             self.freerun(0.1)
 
@@ -273,6 +275,8 @@ class RosEnvController(EnvironmentController):
 
             if rospy.get_time() - lastErrTime > 10:
                 ggLog.warn(f"Waiting for joints since {rospy.get_time()-call_time}s. Still missing: {missingJoints}")
+                lr_gym.utils.beep.beep()
+                
                 lastErrTime = rospy.get_time()
 
 
@@ -345,6 +349,7 @@ class RosEnvController(EnvironmentController):
 
             if rospy.get_time() - lastErrTime > 10:
                 ggLog.warn(f"Waiting for links since {rospy.get_time()-call_time}s. Still missing: {missingLinks}")
+                lr_gym.utils.beep.beep()
                 lastErrTime = rospy.get_time()
 
 

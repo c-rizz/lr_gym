@@ -142,11 +142,11 @@ class HopperEnv(ControlledEnv):
                          state : Tuple[float,float,float,float,float,float,float,float,float,float]) -> bool:
         done = False
         if super().checkEpisodeEnded(previousState, state):
-            ggLog.info("Episode terminated: superclass reasons")
+            # ggLog.info("Episode terminated: superclass reasons")
             done |= True
 
         if state[self.AVG_X_POS]<-0.5 or state[self.POS_Z_OBS] <= -0.45 or abs(state[self.TORSO_PITCH_OBS]) >= 1.0 :
-            ggLog.info("Episode terminated: terminal hopper state")
+            # ggLog.info("Episode terminated: terminal hopper state")
             done |= True
         #rospy.loginfo("height = {:1.4f}".format(torso_z_displacement)+"\t pitch = {:1.4f}".format(torso_pitch)+"\t done = "+str(done))
         if done:

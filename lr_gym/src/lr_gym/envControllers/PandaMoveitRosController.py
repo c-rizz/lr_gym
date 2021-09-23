@@ -110,6 +110,7 @@ class PandaMoveitRosController(MoveitRosController):
             except MoveFailError as e:
                 ggLog.warn(f"{functionName} failed. exception = {e}\n"+
                             f"Trying to recover (retries = {tries}).")
+                lr_gym.utils.beep.beep()
                 rospy.sleep(1.0)
                 self._checkArmErrorAndRecover()
                 tries += 1
@@ -120,7 +121,7 @@ class PandaMoveitRosController(MoveitRosController):
                     tries=0
                     a = ""
                     while a!='y' and a!='n':
-                        a = input("Retry last movement? If not, the movement will be skipped (y/n)")
+                        a = input("Retry last movement? If not, the movement will be skipped (Y/n)")
                     if a=="n":
                         ggLog.error("Skipping movement")
                         break

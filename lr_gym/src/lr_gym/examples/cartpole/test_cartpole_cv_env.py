@@ -9,8 +9,9 @@ import argparse
 import lr_gym.utils.PyBulletUtils as PyBulletUtils
 import errno
 from pyvirtualdisplay import Display
+import random
 
-from lr_gym.envs.CartpoleEnv import CartpoleEnv
+from lr_gym.envs.CartpoleContinuousVisualEnv import CartpoleContinuousVisualEnv
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper
 from lr_gym.envControllers.GazeboController import GazeboController
 from lr_gym.envControllers.PyBulletController import PyBulletController
@@ -38,7 +39,9 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
 
 
     #env = gym.make('CartPoleStayUp-v0')
-    env = GymEnvWrapper(CartpoleEnv(render = doRender, stepLength_sec=stepLength_sec, simulatorController=simulatorController, startSimulation = True))
+    env = GymEnvWrapper(CartpoleContinuousVisualEnv(stepLength_sec=stepLength_sec,
+                                                    simulatorController=simulatorController,
+                                                    startSimulation = True))
     #setup seeds for reproducibility
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
@@ -57,7 +60,6 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
     #frames = []
     totalSimTime = 0
 
-    img_shape = None
     #do an average over a bunch of episodes
     for episode in tqdm.tqdm(range(0,100)):
         frame = 0
@@ -72,21 +74,8 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
             #time.sleep(1)
             #rospy.loginfo("Episode "+str(episode)+" frame "+str(frame))
 
-            if doRender:
-                img = env.render()
-                img_shape = img.shape
-                if saveFrames and img.size!=0:
-                    r = cv2.imwrite(imagesOutFolder+"/frame-"+str(episode)+"-"+str(frame)+".png",img)
-                    if not r:
-                        print("couldn't save image")
-                    #else:
-                    #    print("saved image")
-
             #rospy.loginfo(obs)
-            if obs[2]>0:
-                action = 1
-            else:
-                action = 0
+            action = 0 if random.random() > 0.5 else 1
             #rospy.loginfo("stepping("+str(action)+")...")
             obs, stepReward, done, info = env.step(action)
             #rospy.loginfo("stepped")
@@ -107,7 +96,7 @@ def main(simulatorController, doRender : bool = False, noPlugin : bool = False, 
     env.close()
 
     print("Average reward is "+str(avgReward)+". Took "+str(totalWallTime)+" seconds ({:.3f}".format(totFrames/totDuration)+" fps). simTime/wallTime={:.3f}".format(totalSimTime/totalWallTime)+" total frames count = "+str(totFrames))
-    print("image resolution was "+str(img_shape))
+
 
 def createFolders(folder):
     if not os.path.exists(folder):
@@ -125,13 +114,9 @@ if __name__ == "__main__":
     ap.add_argument("--saveframes", default=False, action='store_true', help="Saves each frame of each episode in ./frames")
     ap.add_argument("--steplength", required=False, default=0.05, type=float, help="Duration of each simulation step")
     ap.add_argument("--sleeplength", required=False, default=0, type=float, help="How much to sleep at the end of each frame execution")
-    ap.add_argument("--xvfb", default=False, action='store_true', help="Run with xvfb")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
 
-    if args["xvfb"]:
-        disp = Display()
-        disp.start()  
 
     
     if args["pybullet"]:
@@ -141,6 +126,3 @@ if __name__ == "__main__":
         simulatorController = GazeboController(stepLength_sec = args["steplength"])
 
     main(simulatorController, doRender = args["render"], noPlugin=args["noplugin"], saveFrames=args["saveframes"], stepLength_sec=args["steplength"], sleepLength = args["sleeplength"])
-
-    if args["xvfb"]:    
-        disp.stop()

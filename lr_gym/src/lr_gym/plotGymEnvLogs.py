@@ -12,6 +12,7 @@ import argparse
 import time
 import signal
 import os
+import math
 import numpy as np
 from typing import List
 
@@ -21,10 +22,14 @@ def prepData(csvfiles : List[str],
              xscaling : float = None,
              max_x : float = None,
              deparallelize : bool = False,
-             avglen : int  = 20):
+             avglen : int  = 20,
+             parallelsims : int = 1,
+             cummax : bool = False,
+             nostd : bool = False):
 
     in_dfs = [pd.read_csv(csvfile) for csvfile in csvfiles]
-    parallel_runs = len(in_dfs)
+    parallel_runs = int(len(in_dfs)/parallelsims)
+    print(f"{len(in_dfs)} runs, {parallelsims} parallel sims")
     out_dfs = []
     for df in in_dfs:
         if "success" in df:
@@ -38,8 +43,8 @@ def prepData(csvfiles : List[str],
         for df in in_dfs:
             rdf = pd.DataFrame()
             rdf[y_data_id] = df[y_data_id]
-            rdf["mean"] = df[y_data_id].rolling(avglen).mean()
-            rdf["std"] = df[y_data_id].rolling(avglen).std()
+            rdf["mean"] = df[y_data_id].rolling(avglen, center=True).mean()
+            rdf["std"] = df[y_data_id].rolling(avglen, center=True).std()
             rdf[x_data_id] = df[x_data_id]
             out_dfs.append(rdf)
     else:
@@ -53,19 +58,65 @@ def prepData(csvfiles : List[str],
             i = 0
             for df in in_dfs:
                 if x_data_id == "reset_count":
-                    df[x_data_id] = df[x_data_id]*parallel_runs + i
+                    df[x_data_id] = df[x_data_id]*parallelsims + i
                     i +=1
                 else:
-                    df[x_data_id] = df[x_data_id]*parallel_runs
-            parallel_runs = 1
+                    df[x_data_id] = df[x_data_id]*parallelsims
+            parallelsims = 1
 
+        for df in in_dfs:
+            df["mean"] = df[y_data_id].rolling(avglen, center=True).mean()
+            df["mean_cummax"] = df["mean"].cummax()
+
+        def get_mean_cummax_mean(row):
+            # print("row="+str(row))
+            last_cummaxes = []
+            for df in in_dfs:
+                lim = row[x_data_id]
+                # print("lim="+str(lim))
+                df_uptonow = df.loc[df[x_data_id] < lim]
+                # print("df_uptonow="+str(df_uptonow))
+                if len(df_uptonow) > 0:
+                    latest = df_uptonow[x_data_id].idxmax
+                    last_cummax = df_uptonow.iloc[latest]["mean_cummax"]
+                    last_cummaxes.append(last_cummax)
+                else:
+                    last_cummaxes.append(0)
+            mean_cummax_mean = sum(last_cummaxes)/len(last_cummaxes)
+            mean_cummax_std = math.sqrt(sum([lc*lc for lc in last_cummaxes])/len(last_cummaxes) - mean_cummax_mean*mean_cummax_mean)
+            return mean_cummax_mean, mean_cummax_std
+
+        if cummax:
+            # This is so inefficient
+            print("Computing mean cumulative mean max...")
+            for df in in_dfs:
+                df[["mean_cummax_mean","mean_cummax_std"]] = df.apply(get_mean_cummax_mean, axis = 1, result_type="expand")
+            print("Done.")
+            
         concatdf = pd.concat(in_dfs)
         concatdf = concatdf.sort_values(x_data_id)
+        concatdf.reset_index(drop=True)
         rdf = pd.DataFrame()
         rdf[y_data_id] = concatdf[y_data_id]
-        rdf["mean"] = concatdf[y_data_id].rolling(parallel_runs*avglen).mean()
-        rdf["std"] = concatdf[y_data_id].rolling(parallel_runs*avglen).std()
+        # print(f"df = \n{df}")
+        # print(f"concatdf = \n{concatdf}")
+        # print(f"parallel_runs*avglen = {parallel_runs}*{avglen} = {parallel_runs*avglen}")
+        # print(f"rdf = \n{rdf}")
         rdf[x_data_id] = concatdf[x_data_id]
+        if cummax:
+            rdf["mean"] = concatdf["mean_cummax_mean"]
+            if not nostd:
+                rdf["std"] = concatdf["mean_cummax_std"]
+            print("cumulative maximum mean performance: "+str(rdf["mean"].max()))
+        else:
+            rdf["mean"] = concatdf[y_data_id].rolling(parallel_runs*avglen, center=True).mean()
+            if not nostd:
+                rdf["std"] = concatdf[y_data_id].rolling(parallel_runs*avglen, center=True).std()
+            # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+            #     print(rdf)
+            # max_loc = rdf["mean"].idxmax()
+            print("maximum mean performance: "+str(rdf['mean'].max()))
+
         out_dfs.append(rdf)
     return out_dfs
 
@@ -82,9 +133,11 @@ def makePlot(dfs : List[pd.DataFrame],
              xlabel : str = None,
              ylabel : str = None,
              raw : bool = False,
-             dfLabels : List[str] = None):
+             dfLabels : List[str] = None,
+             cummax : bool = False):
 
     plt.clf()
+
 
     showLegend = True
     if dfLabels is None:
@@ -92,10 +145,11 @@ def makePlot(dfs : List[pd.DataFrame],
         showLegend = False
 
 
-    sns.set_theme(style="darkgrid")
+    sns.set_theme(style="ticks") #"darkgrid")
     sns.set_context("paper")
 
-    palette = sns.color_palette("husl", len(dfs))
+    palette = sns.color_palette("tab10")#"husl", len(dfs))
+    # palette = sns.color_palette("husl", len(dfs))
     i = 0
     if raw:
         for df in dfs:
@@ -103,14 +157,16 @@ def makePlot(dfs : List[pd.DataFrame],
             c = palette[i]
             if doAvg:
                 c = [(e+1)/2 for e in c]
-            p = sns.lineplot(data=df,x=x_data_id,y=y_data_id,color=c, alpha = 0.7) #, ax = ax) #
+            p = sns.lineplot(data=df,x=x_data_id,y=y_data_id,color=c, alpha = 0.7, ci=None) #, ax = ax) #
             i+=1
     i = 0
     if doAvg:                                
         for df in dfs:
             c = palette[i]
-            p = sns.lineplot(data=df,x=x_data_id,y="mean", color=c, label=dfLabels[i]) #, ax = ax) #
-            if not raw:
+            print(f"Plotting {dfLabels[i]} mean")
+            p = sns.lineplot(x=df[x_data_id],y=df["mean"], color=c, label=dfLabels[i], ci=None) #, ax = ax) #
+            if not raw and "std" in df:
+                print(f"Plotting {dfLabels[i]} std")
                 cis = (df["mean"] - df["std"], df["mean"] + df["std"])
                 c = [(e+1)/2 for e in c]
                 p.fill_between(df[x_data_id],cis[0],cis[1], color=c, alpha = 0.5)
@@ -132,7 +188,9 @@ def makePlot(dfs : List[pd.DataFrame],
         p.set_ylabel(ylabel)
 
     if showLegend:
-        p.legend()
+        p.legend(loc='upper left')
+
+    p.set_aspect(1.0/p.get_data_ratio()*0.5)
 
     if title is not None:
         plt.title(title)
@@ -171,12 +229,17 @@ ap.add_argument("--savedfs", default=False, action='store_true', help="Save prep
 ap.add_argument("--dontplot", default=False, action='store_true', help="Do not plot")
 ap.add_argument("--loadprepped", default=False, action='store_true', help="load already prepared csv files")
 ap.add_argument("--deparallelize", default=False, action='store_true', help="Transform data collected in parallel in sequential data")
+ap.add_argument("--parallelsims", required=False, default=1, type=int, help="Number of parallel simulators per run")
 ap.add_argument("--legend", nargs="+", required=False, default=None, type=str, help="List of the labels to put in the legend")
+ap.add_argument("--cummax", default=False, action='store_true', help="Plot cumulative maximum")
+ap.add_argument("--nostd", default=False, action='store_true', help="Dont plot std")
+ap.add_argument("--outfname", required=False, default=None, type=str, help="Name of the output file (without path)")
 
 
 ap.set_defaults(feature=True)
 args = vars(ap.parse_args())
-signal.signal(signal.SIGINT, signal_handler)
+if not args["nogui"]:
+    signal.signal(signal.SIGINT, signal_handler)
 
 matplotlib.rcParams['figure.raise_window'] = False
 #matplotlib.use('Tkagg')
@@ -208,13 +271,22 @@ while not ctrl_c_received:
                             xscaling=args["xscaling"],
                             max_x = args["maxx"],
                             deparallelize = args["deparallelize"],
-                            avglen=args["avglen"])
+                            avglen=args["avglen"],
+                            cummax = args["cummax"],
+                            parallelsims= args["parallelsims"],
+                            nostd=args["nostd"])
         else:
             dfs = [pd.read_csv(csvfile) for csvfile in csvfiles]
         if args["savedfs"]:
             i = 0
             for df in dfs:
-                path = commonPath+"/preppedDf_"+str(i)+".csv"
+                if args["outfname"] is None:
+                    fname = y_data_id
+                else:
+                    fname = args["outfname"]
+                if args["avgfiles"]:
+                    fname+="_avg"
+                path = commonPath+"/preppedDf_"+fname+"_"+str(i)+".csv"
                 df.to_csv(path)
                 print("Saved to "+path)
                 i+=1
@@ -246,23 +318,23 @@ while not ctrl_c_received:
                     xlabel = args["xlabel"],
                     ylabel = args["ylabel"],
                     raw = args["raw"],
-                    dfLabels=dfLabels)
+                    dfLabels=dfLabels,
+                    cummax=args["cummax"])
             if args["out"] is not None:
-                fname = args["out"]
-                if fname.split(".")[-1] == "png":
-                    plt.savefig(fname, dpi=1200)
-                else:
-                    plt.savefig(fname)
+                path = args["out"]
             else:
-                fname = y_data_id
+                if args["outfname"] is None:
+                    fname = y_data_id
+                else:
+                    fname = args["outfname"]
                 if args["avgfiles"]:
                     fname+="_avg"
                 path = commonPath+"/"+fname+"."+args["format"]
-                if args["format"] == "png":
-                    plt.savefig(path, dpi=1200)
-                else:
-                    plt.savefig(path)
-                print("Saved to "+path)
+            if args["format"] == "png":
+                plt.savefig(path, dpi=600,bbox_inches='tight')
+            else:
+                plt.savefig(path,bbox_inches='tight')
+            print("Saved to "+path)
 
             #plt.show(block=True)
             if not args["nogui"]:

@@ -361,12 +361,12 @@ class RosEnvController(EnvironmentController):
         return gottenLinks
 
     def resetWorld(self):
-        ggLog.info("Average link_state age ="+str(self._linkStateMsgAgeAvg.getAverage()))
-        ggLog.info("Average joint_state age ="+str(self._jointStateMsgAgeAvg.getAverage()))
-        ggLog.info("Average camera image age ="+str(self._cameraMsgAgeAvg.getAverage()))
-        ggLog.info("Average link_state wait ="+str(self._linkMsgWaitAvg.getAverage()))
-        ggLog.info("Average joint_state wait ="+str(self._jointMsgWaitAvg.getAverage()))
-        ggLog.info("Average camera image wait ="+str(self._cameraMsgWaitAvg.getAverage()))
+        # ggLog.info("Average link_state age ="+str(self._linkStateMsgAgeAvg.getAverage()))
+        # ggLog.info("Average joint_state age ="+str(self._jointStateMsgAgeAvg.getAverage()))
+        # ggLog.info("Average camera image age ="+str(self._cameraMsgAgeAvg.getAverage()))
+        # ggLog.info("Average link_state wait ="+str(self._linkMsgWaitAvg.getAverage()))
+        # ggLog.info("Average joint_state wait ="+str(self._jointMsgWaitAvg.getAverage()))
+        # ggLog.info("Average camera image wait ="+str(self._cameraMsgWaitAvg.getAverage()))
         self._simTimeStart = rospy.get_time()
         self._lastStepEnd = self._simTimeStart
 

@@ -18,13 +18,13 @@ class PyBulletController(EnvironmentController, JointEffortEnvController):
     For what is possible it is meant to be interchangeable with GazeboController.
     """
 
-    def __init__(self):
+    def __init__(self, stepLength_sec : float = 0.004166666666):
         """Initialize the Simulator controller.
 
 
         """
         super().__init__()
-        self._stepLength_sec = -1
+        self._stepLength_sec = stepLength_sec
 
     def startController(self):
         if not p.isConnected():
@@ -97,10 +97,16 @@ class PyBulletController(EnvironmentController, JointEffortEnvController):
             raise NotImplementedError("Rendering is not supported for PyBullet")
 
         #p.setTimeStep(self._stepLength_sec) #This is here, but still, as stated in the pybulelt quickstart guide this should not be changed often
-        p.stepSimulation()
-        self._simTime += self._stepLength_sec
-        return self._stepLength_sec
+        stepLength = self.freerun(self._stepLength_sec)
+        self._simTime += stepLength
+        return stepLength
 
+    def freerun(self, duration_sec: float):
+        bullet_stepLength_sec = p.getPhysicsEngineParameters()["fixedTimeStep"]
+        simsteps = int(duration_sec/bullet_stepLength_sec)
+        for i in range(simsteps):
+            p.stepSimulation()
+        return simsteps*bullet_stepLength_sec
 
     def getRenderings(self, requestedCameras : List[str]) -> List[sensor_msgs.msg.Image]:
         raise NotImplementedError("Rendering is not supported for PyBullet")

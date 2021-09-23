@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     
     if args["pybullet"]:
-        PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../models/cartpole_v0.urdf")
+        PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../../../../models/cartpole_v0.urdf")
         simulatorController = PyBulletController(stepLength_sec = args["steplength"])
     else:
         simulatorController = GazeboController(stepLength_sec = args["steplength"])

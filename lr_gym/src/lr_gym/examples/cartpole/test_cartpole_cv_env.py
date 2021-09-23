@@ -108,15 +108,18 @@ def createFolders(folder):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--render", default=False, action='store_true', help="Enable camera rendering")
     ap.add_argument("--pybullet", default=False, action='store_true', help="Use pybullet simulator")
     ap.add_argument("--noplugin", default=False, action='store_true', help="Don't use the gazebo lr_gym_env plugin")
     ap.add_argument("--saveframes", default=False, action='store_true', help="Saves each frame of each episode in ./frames")
     ap.add_argument("--steplength", required=False, default=0.05, type=float, help="Duration of each simulation step")
     ap.add_argument("--sleeplength", required=False, default=0, type=float, help="How much to sleep at the end of each frame execution")
+    ap.add_argument("--xvfb", default=False, action='store_true', help="Run with xvfb")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
 
+    if args["xvfb"]:
+        disp = Display()
+        disp.start()  
 
     
     if args["pybullet"]:
@@ -126,3 +129,6 @@ if __name__ == "__main__":
         simulatorController = GazeboController(stepLength_sec = args["steplength"])
 
     main(simulatorController, doRender = args["render"], noPlugin=args["noplugin"], saveFrames=args["saveframes"], stepLength_sec=args["steplength"], sleepLength = args["sleeplength"])
+
+    if args["xvfb"]:    
+        disp.stop()

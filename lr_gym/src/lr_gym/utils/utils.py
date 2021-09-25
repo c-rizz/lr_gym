@@ -348,7 +348,8 @@ def lr_gym_startup(main_file_path : str, currentframe, using_pytorch : bool = Tr
             time.sleep(10)
     return logFolder
 
-def evaluatePolicy(env, model, episodes : int):
+def evaluatePolicy(env, model, episodes : int, on_ep_done_callback = None):
+
     rewards = np.empty((episodes,), dtype = np.float32)
     steps = np.empty((episodes,), dtype = np.int32)
     wallDurations = np.empty((episodes,), dtype = np.float32)
@@ -384,6 +385,8 @@ def evaluatePolicy(env, model, episodes : int):
         steps[episode]=frame
         wallDurations[episode]=time.monotonic() - t0
         predictWallDurations[episode]=sum(predDurations)
+        if on_ep_done_callback is not None:
+            on_ep_done_callback(episodeReward=episodeReward, steps=frame, episode=episode)
         ggLog.debug("Episode "+str(episode)+" lasted "+str(frame)+" frames, total reward = "+str(episodeReward))
     eval_results = {"reward_mean" : np.mean(rewards),
                     "reward_std" : np.std(rewards),
@@ -425,7 +428,7 @@ def fileGlobToList(fileGlobStr : str):
 
 
 
-def evaluateSavedModels(files : List[str], evaluator : Callable[[str],Dict[str,Union[float,int,str]]]):
+def evaluateSavedModels(files : List[str], evaluator : Callable[[str],Dict[str,Union[float,int,str]]], maxProcs = int(multiprocessing.cpu_count()/2), args = []):
     # file paths should be in the format ".../<__file__>/<run_id>/checkpoints/<model.zip>"
     loaded_run_id = files[0].split("/")[-2]
     run_id = "eval_of_"+loaded_run_id+"_at_"+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
@@ -436,28 +439,21 @@ def evaluateSavedModels(files : List[str], evaluator : Callable[[str],Dict[str,U
         csvwriter = csv.writer(csvfile, delimiter = ",")
         neverWroteToCsv = True
 
-        processes = int(multiprocessing.cpu_count()/2)
+        processes = maxProcs
         print(f"Using {processes} parallel evaluators")
-        file_groups  = [files[i:i+processes] for i in range(0, len(files), processes)]
-        for file_group in file_groups:
+        argss = [[file,*args] for file in files]
+        with multiprocessing.Pool(processes) as p:
+            eval_results = p.map(evaluator, argss)
 
-            # Run each evaluation in a subprocess:
-            # - avoids issues with ros initialization
-            # - parallelizes
+        for i in range(len(argss)):
+            eval_results[i]["file"] = argss[i][0]
 
-
-            with multiprocessing.Pool(processes) as p:
-                eval_results_group = p.map(evaluator, file_group)
-
-            for i in range(len(file_group)):
-                eval_results_group[i]["file"] = file_group[i]
-
-            if neverWroteToCsv:
-                csvwriter.writerow(eval_results_group[0].keys())
-                neverWroteToCsv = False
-            for eval_results in eval_results_group:
-                csvwriter.writerow(eval_results.values())
-                csvfile.flush()
+        if neverWroteToCsv:
+            csvwriter.writerow(eval_results[0].keys())
+            neverWroteToCsv = False
+        for eval_results in eval_results:
+            csvwriter.writerow(eval_results.values())
+            csvfile.flush()
 
 
 def getBestGpu():

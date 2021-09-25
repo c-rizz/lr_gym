@@ -63,13 +63,13 @@ def main(simulator : str, doRender : bool = False, noPlugin : bool = False, save
     rewards=[]
     totFrames=0
     #frames = []
-    totalSimTime = 0
+    totalSimTime = 0.0
 
 
     obss = env.reset()
     episodeCounter = 0
     #do an average over a bunch of episodes
-    for step_count in tqdm.tqdm(range(0,1000)):
+    for step_count in tqdm.tqdm(range(0,10000)):
         #rospy.loginfo("resetting...")
         #rospy.loginfo("resetted")
 
@@ -103,8 +103,8 @@ def main(simulator : str, doRender : bool = False, noPlugin : bool = False, save
         if sleepLength>0:
             time.sleep(sleepLength)
         step_count+=1
+        totalSimTime += stepLength_sec*parallelEnvsNum # not exact, but simTime in info is broken because of automatic resetting
 
-        totalSimTime += sum([info["simTime"] for info in infos])
         [rewards.append(stepReward) for stepReward in stepRewards]
         totFrames += 1
         #print("Episode "+str(episode)+" lasted "+str(frame)+" frames, total reward = "+str(episodeReward))

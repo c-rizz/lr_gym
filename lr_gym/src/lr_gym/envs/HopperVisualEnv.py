@@ -158,8 +158,8 @@ class HopperVisualEnv(HopperEnv):
         if backend == "gazebo":
             # simCamHeight = int(self._obs_img_height*240.0/220.0)
             # simCamWidth =  int(simCamHeight*16.0/9.0)
-            simCamHeight = 240
-            simCamWidth = 426
+            simCamHeight = int(64*(self._obs_img_height/64))
+            simCamWidth = int(64*16/9*(self._obs_img_height/64))
             self._mmRosLauncher = lr_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("lr_gym")+"/launch/hopper_gazebo_sim.launch",
                                                                                            cli_args=["gui:=false",
                                                                                                      "gazebo_seed:="+str(self._envSeed),
@@ -175,6 +175,7 @@ class HopperVisualEnv(HopperEnv):
 
     def _reshapeFrame(self, frame):
         npArrImage = lr_gym.utils.utils.image_to_numpy(frame)
+        # ggLog.info("Received image of shape "+str(npArrImage.shape))
         npArrImage = cv2.cvtColor(npArrImage, cv2.COLOR_BGR2GRAY)
         
         og_width = npArrImage.shape[1]

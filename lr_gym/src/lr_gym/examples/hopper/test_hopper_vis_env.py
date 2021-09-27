@@ -102,9 +102,9 @@ def main(saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength :
             imgName = framesNames[i]
             img = np.transpose(img, (1,2,0))
             img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-            img = img*255
+            # img = img*255
             
-            print(f"imgCv has shape {img.shape}")
+            # print(f"imgCv has shape {img.shape}")
             if saveFrames and img.size!=0:
                 r = cv2.imwrite(imagesOutFolder+"/"+imgName+".png",img)
                 if not r:

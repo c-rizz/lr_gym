@@ -11,7 +11,7 @@ import errno
 from pyvirtualdisplay import Display
 import stable_baselines3
 
-from lr_gym.envs.CartpoleContinuousVisualEnv import CartpoleContinuousVisualEnv
+from lr_gym.envs.HopperVisualEnv import HopperVisualEnv
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper
 from lr_gym.envControllers.GazeboController import GazeboController
 from lr_gym.envControllers.PyBulletController import PyBulletController
@@ -19,39 +19,20 @@ from lr_gym.envControllers.PyBulletController import PyBulletController
 import random
 import numpy as np
 
-def main(saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength : float = 0, parallelEnvsNum : int = 1) -> None:
-    """Run the gazebo cartpole environment with a simple hard-coded policy.
-
-    Parameters
-    ----------
-    doRender : bool
-        Set to True to enable the rendering of each simulation step
-    noPlugin : bool
-        set to True to disable the use of the gazebo lr_gym_env plugin
-    saveFrames : bool
-        Set to true to save every computed frame rendering to file. (will save to ./frames/)
-    stepLength_sec : float
-        Here you can set the duration in seconds of each simulation step
-
-    Returns
-    -------
-    None
-
-    """
+def main(saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength : float = 0, parallelEnvsNum : int = 1, imgSize : int = 64) -> None:
 
 
-    img_height = 64
-    img_width = 64
-    targetFps = 10
+    img_height = imgSize
+    img_width = imgSize
+    targetFps = 50
     stepLength_sec = (1/targetFps)/3 #Frame stacking reduces by 3 the fps
     def constructEnv(i):
-        env = GymEnvWrapper(CartpoleContinuousVisualEnv(startSimulation = True,
-                                                        simulatorController = GazeboController(stepLength_sec = stepLength_sec),
-                                                        stepLength_sec = stepLength_sec,
-                                                        obs_img_height_width = (img_height,img_width),
-                                                        imgEncoding = "int",
-                                                        continuousActions = True),
-                            episodeInfoLogFile = os.path.basename(__file__)+"/GymEnvWrapper_log."+str(i)+".csv")
+        env = GymEnvWrapper(HopperVisualEnv( startSimulation = True,
+                                                            simulatorController = GazeboController(stepLength_sec = stepLength_sec),
+                                                            stepLength_sec = stepLength_sec,
+                                                            obs_img_height_width = (img_height,img_width),
+                                                            imgEncoding = "int"),
+                                            episodeInfoLogFile = "test_hopper_vis_env.py/GymEnvWrapper_log."+str(i)+".csv")                            
         return env
     env = stable_baselines3.common.vec_env.SubprocVecEnv([lambda i=i: constructEnv(i) for i in range(parallelEnvsNum)])
 
@@ -60,7 +41,6 @@ def main(saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength :
     RANDOM_SEED=20200401
     env.seed(RANDOM_SEED)
     env.action_space.seed(RANDOM_SEED)
-    env._max_episode_steps = 500 #limit episode length
 
     imagesOutFolder = "./frames"
     createFolders(imagesOutFolder)
@@ -68,13 +48,16 @@ def main(saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength :
 
 
 
-    rospy.loginfo("Testing with hardcoded policy")
-    wallTimeStart = time.time()
+    rospy.loginfo("Testing with random policy")
+    wallTimeStart = time.monotonic()
     rewards=[]
     totFrames=0
     #frames = []
     totalSimTime = 0.0
 
+
+    print("Built environment, will now start...")
+    time.sleep(1)
 
     frames = []
     framesNames = []
@@ -89,8 +72,7 @@ def main(saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength :
 
 
         #rospy.loginfo(obs)
-        action = [0 if random.random() > 0.5 else 1 for _ in range(parallelEnvsNum)]
-
+        action = [env.action_space.sample() for _ in range(parallelEnvsNum)]
         #rospy.loginfo("stepping("+str(action)+")...")
         obss, stepRewards, dones, infos = env.step(action)
         #rospy.loginfo("stepped")
@@ -100,13 +82,13 @@ def main(saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength :
 
         if sleepLength>0:
             time.sleep(sleepLength)
-        totalSimTime += stepLength_sec*parallelEnvsNum # not exact, but simTime in info is broken because of automatic resetting
+        totalSimTime += (1/targetFps)*parallelEnvsNum # not exact, but simTime in info is broken because of automatic resetting
 
         [rewards.append(stepReward) for stepReward in stepRewards]
         totFrames += parallelEnvsNum
         #print("Episode "+str(episode)+" lasted "+str(frame)+" frames, total reward = "+str(episodeReward))
     avgReward = sum(rewards)/episodeCounter
-    totalWallTime = time.time() - wallTimeStart
+    totalWallTime = time.monotonic() - wallTimeStart
 
 
     env.close()
@@ -120,9 +102,9 @@ def main(saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength :
             imgName = framesNames[i]
             img = np.transpose(img, (1,2,0))
             img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-            img = img*255
+            # img = img*255
             
-            print(f"imgCv has shape {img.shape}")
+            # print(f"imgCv has shape {img.shape}")
             if saveFrames and img.size!=0:
                 r = cv2.imwrite(imagesOutFolder+"/"+imgName+".png",img)
                 if not r:
@@ -148,6 +130,7 @@ if __name__ == "__main__":
     ap.add_argument("--sleeplength", required=False, default=0, type=float, help="How much to sleep at the end of each frame execution")
     ap.add_argument("--envsNum", required=False, default=1, type=int, help="Number of environments to run in parallel")
     ap.add_argument("--xvfb", default=False, action='store_true', help="Run with xvfb")
+    ap.add_argument("--imgSize", required=False, default=64, type=int, help="Specify the size of the image observation (observations are always square, specify the resolution in pixel). Default is 64")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
 
@@ -159,7 +142,8 @@ if __name__ == "__main__":
     main(saveFrames=args["saveframes"],
          stepLength_sec=args["steplength"],
          sleepLength = args["sleeplength"],
-         parallelEnvsNum = args["envsNum"])
+         parallelEnvsNum = args["envsNum"],
+         imgSize = args["imgSize"])
 
     if args["xvfb"]:    
         disp.stop()

@@ -55,7 +55,6 @@ def main(simulator : str, doRender : bool = False, noPlugin : bool = False, save
     env._max_episode_steps = 500 #limit episode length
 
     imagesOutFolder = "./frames"
-
     createFolders(imagesOutFolder)
 
     rospy.loginfo("Testing with hardcoded policy")

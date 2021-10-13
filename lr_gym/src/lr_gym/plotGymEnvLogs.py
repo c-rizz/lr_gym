@@ -148,8 +148,8 @@ def makePlot(dfs : List[pd.DataFrame],
     sns.set_theme(style="ticks") #"darkgrid")
     sns.set_context("paper")
 
-    palette = sns.color_palette("tab10")#"husl", len(dfs))
-    # palette = sns.color_palette("husl", len(dfs))
+    # palette = sns.color_palette("tab10")#"husl", len(dfs))
+    palette = sns.color_palette("husl", len(dfs))
     i = 0
     if raw:
         for df in dfs:

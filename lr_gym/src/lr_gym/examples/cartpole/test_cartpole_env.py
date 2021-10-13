@@ -133,7 +133,6 @@ if __name__ == "__main__":
         disp = Display()
         disp.start()  
 
-    
     if args["pybullet"]:
         PyBulletUtils.buildSimpleEnv(os.path.dirname(os.path.realpath(__file__))+"/../../../../models/cartpole_v0.urdf")
         simulatorController = PyBulletController(stepLength_sec = args["steplength"])

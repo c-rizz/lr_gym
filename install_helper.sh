@@ -15,7 +15,7 @@ if [ $ans != "y" ]; then
     echo "exiting without installing."
     exit 0
 fi
-exit 1
+
 
 
 echo "Preparing workspace in $1..."

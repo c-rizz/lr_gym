@@ -15,7 +15,7 @@ if [ $ans != "y" ]; then
     echo "exiting without installing."
     exit 0
 fi
-
+exit 1
 
 
 echo "Preparing workspace in $1..."
@@ -56,5 +56,6 @@ sudo apt-get -y install xvfb xserver-xephyr tigervnc-standalone-server xfonts-ba
 
 echo "Building workspace..."
 sleep 3
+. /opt/ros/noetic/setup.bash
 catkin build -DCMAKE_BUILD_TYPE=Release
 

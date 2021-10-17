@@ -26,10 +26,10 @@ cd $1
 mkdir src
 cd src
 
-git clone --branch crzz-dev-noetic https://gitlab.idiap.com/learn-real/lr_gym.git
-git clone --branch crzz-dev https://gitlab.idiap.com/learn-real/lr_panda.git
-git clone --branch crzz-dev https://gitlab.idiap.com/learn-real/lr_panda_moveit_config.git
-git clone --branch crzz-dev https://gitlab.idiap.com/learn-real/lr_realsense.git
+git clone --branch crzz-dev-noetic https://gitlab.idiap.ch/learn-real/lr_gym.git
+git clone --branch crzz-dev https://gitlab.idiap.ch/learn-real/lr_panda.git
+git clone --branch crzz-dev https://gitlab.idiap.ch/learn-real/lr_panda_moveit_config.git
+git clone --branch crzz-dev https://gitlab.idiap.ch/learn-real/lr_realsense.git
 
 
 echo "Installing python 3.7..."

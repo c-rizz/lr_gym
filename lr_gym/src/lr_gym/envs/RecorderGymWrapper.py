@@ -3,7 +3,7 @@ import cv2
 import os
 import time
 import lr_gym.utils.dbg.ggLog as ggLog
-
+import numpy as np
 class RecorderGymWrapper(gym.Wrapper):
     """Wraps the environment to allow a modular transformation.
     This class is the base class for all wrappers. The subclass could override
@@ -48,21 +48,44 @@ class RecorderGymWrapper(gym.Wrapper):
         if len(self._frameBuffer)>0:
             if not filename.endswith(".avi"):
                 filename = filename+".avi"
-            shape = (self._frameBuffer[0].shape[1], self._frameBuffer[0].shape[0])
+            pf0 = self._preproc_frame(self._frameBuffer[0])
+            shape_whc = pf0.shape
+            shape_wh = (pf0.shape[1], pf0.shape[0])
             videoWriter = cv2.VideoWriter(  filename,
-                                            cv2.VideoWriter_fourcc(*'MPEG'), #FFV! is too heavy, mp4 is somehow broken, it just shows grey and green squares on the top left
+                                            cv2.VideoWriter_fourcc(*'MPEG'), #FFV1 is too heavy, mp4 is somehow broken, it just shows grey and green squares on the top left
                                             self._videoFps,
-                                            shape)
+                                            shape_wh)
             i = 0
             for img in self._frameBuffer:
                 # ggLog.info(f"img {i} has shape {img.shape}")
+                img = self._preproc_frame(img)
                 videoWriter.write(img)
-                if img.shape != self._frameBuffer[0].shape:
-                    ggLog.warn(f"RecorderGymEnvWrapper: frame {i} has shape {img.shape}, but frame 0 had shape {self._frameBuffer[0].shape}")
+                if img.shape != shape_whc:
+                    ggLog.warn(f"RecorderGymEnvWrapper: frame {i} has shape {img.shape}, but frame 0 had shape {shape_whc}")
                 i+=1
             videoWriter.release()
             ggLog.info(f"RecorderGymEnvWrapper: saved video of {len(self._frameBuffer)} frames at {filename}")
             # time.sleep(10)
+
+    def _preproc_frame(self, img_whc):
+        # ggLog.info(f"raw frame shape = {img_whc.shape}")
+        if img_whc.dtype == np.float32:
+            img_whc = np.uint8(img_whc*255)
+
+        if len(img_whc.shape) == 2:
+            img_whc = np.expand_dims(img_whc,axis=2)
+        if img_whc.shape[2] == 1:
+            img_whc = np.repeat(img_whc,3,axis=2)
+        
+        if img_whc.shape[2] != 3 or img_whc.dtype != np.uint8:
+            raise RuntimeError(f"Unsupported image format, dtpye={img_whc.dtype}, shape={img_whc.shape}")
+        # ggLog.info(f"Preproc frame shape = {img_whc.shape}")
+
+        if img_whc.shape[0]<256:
+            shape_wh = (256,int(256/img_whc.shape[0]*img_whc.shape[1]))
+            img_whc = cv2.resize(img_whc,dsize=shape_wh,interpolation=cv2.INTER_NEAREST)
+        return img_whc
+
 
     def reset(self, **kwargs):
         if self._epReward > self._bestReward:

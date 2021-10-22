@@ -111,6 +111,11 @@ def image_to_numpy(rosMsg : sensor_msgs.msg.Image) -> np.ndarray:
         dtype.itemsize
     )
 
+    if not np.isfinite(data).all():
+        ggLog.warn(f"image_to_numpy(): nan detected in image")
+
+
+
     # opencv uses bgr instead of rgb
     # probably should be done also for other encodings
     if rosMsg.encoding == "rgb8":

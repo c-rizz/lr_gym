@@ -18,7 +18,7 @@ fi
 
 
 
-echo "Preparing workspace in $1..."
+echo "Preparing workspace in $1 ..."
 sleep 3
 
 cd $1
@@ -54,7 +54,8 @@ rosdep install --from-paths src --ignore-src -r -y
 sudo apt-get -y install python3-catkin-tools python3-osrf-pycommon
 sudo apt-get -y install xvfb xserver-xephyr tigervnc-standalone-server xfonts-base
 
-echo "Building workspace..."
+cd $1
+echo "Building workspace in $1 ..."
 sleep 3
 . /opt/ros/noetic/setup.bash
 catkin build -DCMAKE_BUILD_TYPE=Release

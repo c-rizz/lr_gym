@@ -16,6 +16,12 @@ if [ $ans != "y" ]; then
     exit 0
 fi
 
+echo "Do you want to install the virtualenv? [y/N]"
+read install_venv
+
+if [ $ans != "y" ]; then
+    echo "Will not install venv"
+fi
 
 
 echo "Preparing workspace in $1..."
@@ -32,18 +38,21 @@ git clone --branch crzz-dev https://gitlab.idiap.ch/learn-real/lr_panda_moveit_c
 git clone --branch crzz-dev https://gitlab.idiap.ch/learn-real/lr_realsense.git
 
 
-echo "Installing python 3.7..."
-sleep 3
-sudo add-apt-repository -y ppa:deadsnakes/ppa
-sudo apt-get -y update
-sudo apt-get -y install python3.7 python3.7-venv python3.7-dev
+# echo "Installing python 3.7..."
+# sleep 3
+# sudo add-apt-repository -y ppa:deadsnakes/ppa
+# sudo apt-get -y update
+# sudo apt-get -y install python3.7 python3.7-venv python3.7-dev
 
 cd $1
 
-echo "Creating python virtualenv..."
-sleep 3
-src/lr_gym/lr_gym/build_virtualenv.sh sb3
-. ./virtualenv/lr_gym_sb/bin/activate
+if [ $ans == "y" ]; then
+    echo "Creating python virtualenv..."
+    sleep 3
+    src/lr_gym/lr_gym/build_virtualenv.sh sb3
+    . ./virtualenv/lr_gym_sb/bin/activate
+    sudo apt-get -y install xvfb xserver-xephyr tigervnc-standalone-server xfonts-base
+fi
 
 echo "Installing dependencies..."
 sleep 3
@@ -52,7 +61,6 @@ rosdep update
 rosdep install --from-paths src --ignore-src -r -y
 
 sudo apt-get -y install python3-catkin-tools python3-osrf-pycommon
-sudo apt-get -y install xvfb xserver-xephyr tigervnc-standalone-server xfonts-base
 
 echo "Building workspace..."
 sleep 3

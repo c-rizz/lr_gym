@@ -60,19 +60,19 @@ catkin workspace src folder, be careful about using the correct branch and corre
 
  * This current repository (if you didn't do it already):
    ```
-   git clone --branch a2110 https://github.com/c-rizz/lr_gym.git
+   git clone --branch a2110 https://gitlab.idiap.ch/learn-real/lr_gym.git
    ```
  * For using the Panda arm you will need the `lr_panda` repository:
    ```
-   git clone --branch a2110 https://github.com/c-rizz/lr_panda.git
+   git clone --branch a2110 https://gitlab.idiap.ch/learn-real/lr_panda.git
    ```
  * For using the Panda arm with moveit you will need `lr_panda_moveit_config`:
    ```
-   git clone --branch a2110 https://github.com/c-rizz/lr_panda_moveit_config.git
+   git clone --branch a2110 https://gitlab.idiap.ch/learn-real/lr_panda_moveit_config.git
    ```
  * For using the realsense camera you will need `lr_realsense`:
    ```
-   git clone --branch a2110 https://github.com/c-rizz/lr_realsense.git
+   git clone --branch a2110 https://gitlab.idiap.ch/learn-real/lr_realsense.git
    ```
 
 You will also need to install some python3 modules, preferably in a python virtual

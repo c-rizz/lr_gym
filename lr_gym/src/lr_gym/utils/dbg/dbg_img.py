@@ -17,7 +17,7 @@ class DbgImg:
     def _addDbgStream(self, streamName : str):
         if not self._initialized:
             self.init()
-        pub = rospy.Publisher(streamName,sensor_msgs.msg.Image, queue_size = 1)
+        pub = rospy.Publisher(streamName,sensor_msgs.msg.Image, queue_size = 10)
         self._publishers[streamName] = pub
 
     def _removeDbgStream(self, streamName : str):

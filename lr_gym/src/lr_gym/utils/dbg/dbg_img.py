@@ -30,13 +30,15 @@ class DbgImg:
             self._addDbgStream(streamName)
         return self._publishers[streamName].get_num_connections()
 
-    def publishDbgImg(self, streamName : str, img : np.ndarray, encoding : str = "rgb8"):
+    def publishDbgImg(self, streamName : str, img : np.ndarray, encoding : str = "rgb8", force_publish : bool =False):
         try:
             if not self._initialized:
                 self.init()
             if streamName not in self._publishers:
                 self._addDbgStream(streamName)
 
+            if self.num_subscribers(streamName) < 1 and not force_publish:
+                return
             if encoding == "32FC1" or img.dtype == np.float32:
                 t = np.uint8(img*255)
                 pubImg = np.dstack([t,t,t])

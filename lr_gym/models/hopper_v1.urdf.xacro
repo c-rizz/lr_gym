@@ -381,6 +381,6 @@
         <update_rate>60</update_rate>
         <visualize>0</visualize>
     </sensor>
-</gazebo>
+  </gazebo>
 
 </robot>

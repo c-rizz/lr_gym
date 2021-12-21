@@ -1,7 +1,3 @@
-<!-- Launches gazebo with the cartpole environment loaded and
-     all the nodes necessary to control and monitor the cartpole
-     via ROS.
--->
 <launch>
     <env name="ROSCONSOLE_FORMAT" value="[${severity}] [${walltime}] [${node}]: ${message}" />
 
@@ -14,7 +10,7 @@
         
     <include file="$(find lr_gym)/launch/gazebo_server.launch">
       <arg name="gui" default="$(arg gui)"/>
-      <arg name="paused" default="true"/> <!-- must correspond with the robot name in the urdf/xacro file -->
+      <arg name="paused" default="true"/>
       <arg name="physics_engine" default="$(arg physics_engine)"/>
       <arg name="limit_sim_speed" default="true"/>
       <arg name="world_name" value="$(find lr_gym)/worlds/ground_plane_world_plugin.world"/>

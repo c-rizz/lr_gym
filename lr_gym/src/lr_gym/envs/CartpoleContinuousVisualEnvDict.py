@@ -58,42 +58,22 @@ class CartpoleContinuousVisualEnvDict(CartpoleContinuousVisualEnv):
 
         """
 
-        self.seed(seed)
-        self._stepLength_sec = stepLength_sec
-        self._wall_sim_speed = wall_sim_speed
-        super(CartpoleEnv, self).__init__(  maxActionsPerEpisode = maxActionsPerEpisode,
-                                            stepLength_sec = stepLength_sec,
-                                            environmentController = simulatorController,
-                                            startSimulation = startSimulation,
-                                            simulationBackend = "gazebo")
 
-        #aspect = 426/160.0
-        self._obs_img_height = obs_img_height_width[0]
-        self._obs_img_width = obs_img_height_width[1]
-        self._frame_stacking_size = frame_stacking_size
-        self._imgEncoding = imgEncoding
-        self._continuousActions = continuousActions
-        
-        if imgEncoding == "float":
-            self.observation_space = gym.spaces.Box(low=0, high=1,
-                                                    shape=(self._frame_stacking_size, self._obs_img_height, self._obs_img_width),
-                                                    dtype=np.float32)
-        elif imgEncoding == "int":
-            self.observation_space = gym.spaces.Box(low=0, high=255,
-                                                    shape=(self._frame_stacking_size, self._obs_img_height, self._obs_img_width),
-                                                    dtype=np.uint8)
-        else:
-            raise AttributeError(f"Unsupported imgEncoding '{imgEncoding}' requested, it can be either 'int' or 'float'")
+        super().__init__(   maxActionsPerEpisode = maxActionsPerEpisode,
+                            stepLength_sec = stepLength_sec,
+                            simulatorController = simulatorController,
+                            startSimulation = startSimulation,
+                            obs_img_height_width = obs_img_height_width,
+                            frame_stacking_size = frame_stacking_size,
+                            imgEncoding = imgEncoding,
+                            wall_sim_speed = wall_sim_speed,
+                            seed = seed,
+                            continuousActions = continuousActions)
+
         self.observation_space = gym.spaces.Dict({"camera": self.observation_space})
 
-        self._stackedImg = np.zeros(shape=(self._frame_stacking_size,self._obs_img_height, self._obs_img_height), dtype=np.float32)
 
-        self.action_space = gym.spaces.Box(low=np.array([-1]),high=np.array([1]))
 
-        self._environmentController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
-        self._environmentController.setCamerasToObserve(["camera"])
-
-        self._environmentController.startController()
 
     def getObservation(self, state) -> np.ndarray:
         img = state[1]

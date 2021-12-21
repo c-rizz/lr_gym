@@ -21,7 +21,7 @@
 
     <plugin name='lr_gym_env' filename='libgazebo_gym_env_plugin.so'/>
 
-    <physics name="bullet_default" type="bullet" default="true">
+    <physics name="bullet_5x" type="bullet" default="true">
       <max_step_size>0.0041666</max_step_size> <!-- 240fps, bullet should be optimized for this frequency -->
       <real_time_update_rate>1200</real_time_update_rate> <!-- steps done in each real-time second, -1 does as many as possible-->
       <bullet>
@@ -40,7 +40,7 @@
       </bullet>
     </physics>
 
-    <physics name="ode_default" type="ode" default="true">
+    <physics name="ode_5x" type="ode" default="true">
       <max_step_size>0.001</max_step_size>
       <real_time_update_rate>5000</real_time_update_rate> <!-- steps done in each real-time second, -1 does as many as possible-->
       <max_contacts>50</max_contacts>

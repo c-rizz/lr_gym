@@ -189,6 +189,9 @@ def makePlot(dfs : List[pd.DataFrame],
 
     if showLegend:
         p.legend(loc='upper left')
+    p.minorticks_on()
+    #p.tick_params(axis='x', which='minor', bottom=False)
+    p.grid(linestyle='dotted',which="both")
 
     p.set_aspect(1.0/p.get_data_ratio()*0.5)
 
@@ -206,8 +209,8 @@ def signal_handler(sig, frame):
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--csvfiles", nargs="+", required=True, type=str, help="Csv file(s) to read from")
-ap.add_argument("--nogui", default=False, action='store_true', help="Dont show the plot window, just save to file")
-ap.add_argument("--once", default=False, action='store_true', help="Plot only once")
+ap.add_argument("--nogui", default=True, action='store_true', help="Dont show the plot window, just save to file")
+ap.add_argument("--once", default=True, action='store_true', help="Plot only once")
 ap.add_argument("--noavg", default=False, action='store_true', help="Do not plot curve average")
 ap.add_argument("--avgfiles", default=False, action='store_true', help="Make an average pof the provided files instead of displaying all of them")
 ap.add_argument("--raw", default=False, action='store_true', help="Plot raw data")

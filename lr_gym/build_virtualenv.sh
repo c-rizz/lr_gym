@@ -17,7 +17,7 @@ venv_name="lr_gym_$venv_type"
 mkdir virtualenv
 cd virtualenv
 echo "Creating venv..."
-python -m venv $venv_name #Tensorflow 1.15 requires python<=3.7
+python3 -m venv $venv_name #Tensorflow 1.15 requires python<=3.7
 echo "Done."
 echo "Activating venv..."
 . "$venv_name/bin/activate"
@@ -28,9 +28,9 @@ fi
 echo "Done."
 
 echo "Installing modules.."
-python -m pip install pip --upgrade
-python -m pip install setuptools --upgrade
-python -m pip install wheel --upgrade
+python3 -m pip install pip --upgrade
+python3 -m pip install setuptools --upgrade
+python3 -m pip install wheel --upgrade
 
-python -m pip install -r "../src/lr_gym/lr_gym/requirements_$venv_type.txt"
+python3 -m pip install -r "../src/lr_gym/lr_gym/requirements_$venv_type.txt"
 echo "Done."

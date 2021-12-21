@@ -5,20 +5,12 @@ Base-class for cresting GAzebo-based gym environments.
 The provided class must be extended to define a specific environment
 """
 
-import rospy
-import rospy.client
 
-import gym
 import numpy as np
-from gym.utils import seeding
 from typing import Tuple
 from typing import Dict
 from typing import Any
 from typing import Sequence
-import time
-
-import lr_gym.utils.utils
-
 
 class BaseEnv():
     """This is a base-class for implementing lr_gym environments.

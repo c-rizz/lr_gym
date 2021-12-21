@@ -17,6 +17,10 @@ from lr_gym.envs.CartpoleEnv import CartpoleEnv
 import lr_gym.utils
 import cv2
 import lr_gym.utils.dbg.ggLog as ggLog
+import rospkg
+import lr_gym_utils
+from lr_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
+
 
 class CartpoleContinuousVisualEnv(CartpoleEnv):
     """This class implements an OpenAI-gym environment with Gazebo, representing the classic cart-pole setup."""
@@ -62,17 +66,27 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         self.seed(seed)
         self._stepLength_sec = stepLength_sec
         self._wall_sim_speed = wall_sim_speed
-        super(CartpoleEnv, self).__init__(  maxActionsPerEpisode = maxActionsPerEpisode,
-                                            stepLength_sec = stepLength_sec,
-                                            environmentController = simulatorController,
-                                            startSimulation = startSimulation,
-                                            simulationBackend = "gazebo")
-        #aspect = 426/160.0
         self._obs_img_height = obs_img_height_width[0]
         self._obs_img_width = obs_img_height_width[1]
         self._frame_stacking_size = frame_stacking_size
         self._imgEncoding = imgEncoding
         self._continuousActions = continuousActions
+        self._img_crop_rel_left   = 0.41666 # 100 at 240p   100.0/426.0
+        self._img_crop_rel_right  = 1.35833 # 326 at 240p   326.0/426.0
+        self._img_crop_rel_top    = 0       # 0 at 240p     0.0/240.0
+        self._img_crop_rel_bottom = 0.62500 # 150px at 240p 150.0/240.0
+
+        super(CartpoleEnv, self).__init__(  maxActionsPerEpisode = maxActionsPerEpisode,
+                                            stepLength_sec = stepLength_sec,
+                                            environmentController = simulatorController,
+                                            startSimulation = startSimulation,
+                                            simulationBackend = "gazebo")
+
+        self._stackedImg = np.zeros(shape=(self._frame_stacking_size,self._obs_img_height, self._obs_img_height), dtype=np.float32)
+        self.action_space = gym.spaces.Box(low=np.array([-1]),high=np.array([1]))
+        self._environmentController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
+        self._environmentController.setCamerasToObserve(["camera"])
+
 
         if imgEncoding == "float":
             self.observation_space = gym.spaces.Box(low=0, high=1,
@@ -85,14 +99,9 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         else:
             raise AttributeError(f"Unsupported imgEncoding '{imgEncoding}' requested, it can be either 'int' or 'float'")
         
-        self._stackedImg = np.zeros(shape=(self._frame_stacking_size,self._obs_img_height, self._obs_img_height), dtype=np.float32)
-
-        self.action_space = gym.spaces.Box(low=np.array([-1]),high=np.array([1]))
-
-        self._environmentController.setJointsToObserve([("cartpole_v0","foot_joint"),("cartpole_v0","cartpole_joint")])
-        self._environmentController.setCamerasToObserve(["camera"])
 
         self._environmentController.startController()
+
 
 
     def submitAction(self, action : float) -> None:
@@ -123,7 +132,8 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         # assert npArrImage.shape[1] == 426, "Next few lines assume image size is 426x240"
         og_width = npArrImage.shape[1]
         og_height = npArrImage.shape[0]
-        npArrImage = npArrImage[0:int(150.0/240*og_height), int(100/426.0*og_width):int(326/426.0*og_width)] #crop bottom 90px , left 100px, right 100px
+        npArrImage = npArrImage[int(self._img_crop_rel_top*og_height) : int(self._img_crop_rel_bottom*og_height),
+                                int(self._img_crop_rel_left*og_height) : int(self._img_crop_rel_right*og_height)] #crop bottom 90px , left 100px, right 100px
         # print("shape",npArrImage.shape)
         #imgHeight = npArrImage.shape[0]
         #imgWidth = npArrImage.shape[1]
@@ -194,7 +204,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
             img = self._environmentController.getRenderings(["camera"])[0]
             if img is None:
                 rospy.logerr("No camera image received. Observation will contain and empty image.")
-                img = np.empty([self._obs_img_height, self._obs_img_width,3])
+                img = np.zeros([self._obs_img_height, self._obs_img_width,3])
             img = self._reshapeFrame(img)
             self._stackedImg[i] = img
             self._intendedSimTime += self._stepLength_sec
@@ -214,3 +224,42 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         img = self._reshapeFrame(img)
         for i in range(self._frame_stacking_size):
             self._stackedImg[i] = img
+
+
+    def buildSimulation(self, backend : str = "gazebo"):
+        if backend != "gazebo":
+            raise NotImplementedError("Backend "+backend+" not supported")
+
+
+        roi_aspect = (self._img_crop_rel_right-self._img_crop_rel_left)/(self._img_crop_rel_bottom-self._img_crop_rel_top)
+        if roi_aspect>1:
+            roi_height = self._obs_img_height
+            roi_width = roi_height*roi_aspect
+        else:
+            roi_width = self._obs_img_width
+            roi_height = roi_width/roi_aspect
+
+        # ggLog.info(f"roi_width  = {roi_width}")
+        # ggLog.info(f"roi_height = {roi_height}")
+
+        sim_img_width  = roi_width/(self._img_crop_rel_right-self._img_crop_rel_left)*16/9
+        sim_img_height = roi_height/(self._img_crop_rel_bottom-self._img_crop_rel_top)
+        # ggLog.info(f"sim_img_width  = {sim_img_width}")
+        # ggLog.info(f"sim_img_height = {sim_img_height}")
+
+        # input("Press enter")
+
+        self._mmRosLauncher = lr_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("lr_gym")+"/launch/cartpole_gazebo_sim.launch",
+                                                                                      cli_args=["gui:=false",
+                                                                                                "gazebo_seed:="+str(self._envSeed),
+                                                                                                "wall_sim_speed:="+str(self._wall_sim_speed),
+                                                                                                f"camera_width:={sim_img_width}",
+                                                                                                f"camera_height:={sim_img_height}"])
+        self._mmRosLauncher.launchAsync()
+
+        # ggLog.info("Launching Gazebo env...")
+        # time.sleep(10)
+        # ggLog.info("Gazebo env launched.")
+        
+        if isinstance(self._environmentController, GazeboControllerNoPlugin):
+            self._environmentController.setRosMasterUri(self._mmRosLauncher.getRosMasterUri())

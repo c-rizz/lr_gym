@@ -8,7 +8,7 @@ import datetime
 logger = logging.getLogger('GGLog')
 logger.setLevel(logging.DEBUG)
 # create file handler that logs debug and higher level messages
-fh = logging.FileHandler('spam'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+'.log')
+fh = logging.FileHandler('ggLog_'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+'.log')
 fh.setLevel(logging.DEBUG)
 # create console handler with a higher log level
 ch = logging.StreamHandler()
@@ -20,6 +20,7 @@ fh.setFormatter(formatter)
 # add the handlers to logger
 logger.addHandler(ch)
 logger.addHandler(fh)
+logger.propagate = False
 
 def _addRosMasterUri(msg):
     ros_master_uri = os.environ['ROS_MASTER_URI'].split(":")[-1]

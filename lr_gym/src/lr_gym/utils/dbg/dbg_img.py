@@ -1,4 +1,4 @@
-import typing
+from typing import Callable
 import numpy as np
 
 import rospy
@@ -30,25 +30,36 @@ class DbgImg:
             self._addDbgStream(streamName)
         return self._publishers[streamName].get_num_connections()
 
-    def publishDbgImg(self, streamName : str, img : np.ndarray, encoding : str = "rgb8", force_publish : bool =False):
+    def publishDbgImg(self, streamName : str,
+                            img : np.ndarray = None,
+                            encoding : str = "rgb8",
+                            force_publish : bool =False,
+                            img_callback : Callable[[], np.ndarray] = None):
         try:
             if not self._initialized:
                 self.init()
             if streamName not in self._publishers:
                 self._addDbgStream(streamName)
 
-            if self.num_subscribers(streamName) < 1 and not force_publish:
-                return
-            if encoding == "32FC1" or img.dtype == np.float32:
-                t = np.uint8(img*255)
-                pubImg = np.dstack([t,t,t])
-                pubEnc = "rgb8"
-            else:
-                pubImg = img
-                pubEnc = encoding
-            rosMsg = self._cv_bridge.cv2_to_imgmsg(pubImg, "passthrough")
-            rosMsg.encoding = pubEnc
-            self._publishers[streamName].publish(rosMsg)
+            if self.num_subscribers(streamName) > 0 or force_publish:
+
+                if img is not None:
+                    ggLog.info("dbg_img.publishDbgImg(): Please do not use the img argument, use img_callback")
+                elif img_callback is not None:
+                    img = img_callback()
+                else:
+                    ggLog.info("dbg_img.publishDbgImg(): No image provided, will not publish")
+
+                if encoding == "32FC1" or img.dtype == np.float32:
+                    t = np.uint8(img*255)
+                    pubImg = np.dstack([t,t,t])
+                    pubEnc = "rgb8"
+                else:
+                    pubImg = img
+                    pubEnc = encoding
+                rosMsg = self._cv_bridge.cv2_to_imgmsg(pubImg, "passthrough")
+                rosMsg.encoding = pubEnc
+                self._publishers[streamName].publish(rosMsg)
         except Exception as e:
             ggLog.error("Ignored exception "+str(e))
 

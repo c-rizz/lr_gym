@@ -109,6 +109,8 @@ RenderingHelper::RenderingHelper(gazebo::physics::WorldPtr world)
  */
 bool RenderingHelper::renderCameras(std::vector<std::shared_ptr<GymCamera>> cameras)
 {
+  if(cameras.size()==0)
+    return true;
   avgRenderThreadDelay.onTaskStart();
   avgTotalRenderTime.onTaskStart();
 
@@ -281,15 +283,18 @@ void RenderingHelper::renderCameras(std::vector<std::string> cameras, gazebo_gym
   }
   ROS_DEBUG_STREAM("Selected "<<requestedCameras.size()<<" cameras");
 
-  bool ret = renderCameras(requestedCameras);//renders the cameras on the rendering thread
-  if(!ret)
+  if(requestedCameras.size()>0)
   {
-    ROS_WARN("GazeboGymEnvPlugin: Failed to render cameras");
-    renderedCameras.success=false;
-    renderedCameras.error_message="Renderer task timed out";
-    return;
+    bool ret = renderCameras(requestedCameras);//renders the cameras on the rendering thread
+    if(!ret)
+    {
+      ROS_WARN("GazeboGymEnvPlugin: Failed to render cameras");
+      renderedCameras.success=false;
+      renderedCameras.error_message="Renderer task timed out";
+      return;
+    }
   }
-
+  
   //Fill up the response with the images
   gazebo::common::Time simTime = world->SimTime();
   for(std::shared_ptr<GymCamera> cam  : requestedCameras)

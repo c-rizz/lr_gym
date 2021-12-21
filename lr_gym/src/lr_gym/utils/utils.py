@@ -480,6 +480,19 @@ def getBestGpu():
     ggLog.info(f"Choosing GPU {bestGpu} with {bestRatio*100}% free memory")
     return bestGpu
 
+def getGpuMemUsage():
+    nvsmi = nvidia_smi.getInstance()
+    query = nvsmi.DeviceQuery('memory.free, memory.total')
+    gpus_info = query["gpu"]
+    s = ""
+    for i in range(len(gpus_info)):
+        tot = gpus_info[i]["fb_memory_usage"]["total"]
+        free = gpus_info[i]["fb_memory_usage"]["free"]
+        ratio = free/tot
+        s += f"GPU {i} mem usage = {tot-free}/{tot} ({(1-ratio)*100}%)\n"
+    return s
+
+
 def torch_selectBestGpu():
     import torch as th
     th.cuda.set_device(getBestGpu())

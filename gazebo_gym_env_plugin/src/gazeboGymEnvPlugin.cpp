@@ -420,7 +420,7 @@ namespace gazebo
       ROS_DEBUG_STREAM("Image fill duration:          avg="<<renderingHelper->getAvgFillTime()*1000<<"ms");
       ROS_DEBUG_STREAM("Total Render duration:        avg="<<renderingHelper->getAvgTotalRenderTime()*1000<<"ms");
       ROS_DEBUG_STREAM("Step request delay:           avg="<<avgStepRequestDelay.getAverage()*1000<<"ms");
-      ROS_DEBUG_STREAM("Step wall duration:           avg="<<avgSteppingTime.getAverage()*1000<<"ms");
+      ROS_DEBUG_STREAM("Physics step wall duration:   avg="<<avgSteppingTime.getAverage()*1000<<"ms");
       ROS_DEBUG_STREAM("Tot call duration:            avg="<<totStepCallbackDuration.getAverage()*1000<<"ms");
 
       return true;//Must be false only in case we cannot send a response

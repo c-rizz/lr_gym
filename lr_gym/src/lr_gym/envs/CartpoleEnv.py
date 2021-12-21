@@ -13,6 +13,7 @@ from typing import Tuple
 import time
 import lr_gym_utils.ros_launch_utils
 import rospkg
+import lr_gym.utils.dbg.ggLog as ggLog
 
 from lr_gym.envs.ControlledEnv import ControlledEnv
 from lr_gym.envControllers.GazeboControllerNoPlugin import GazeboControllerNoPlugin
@@ -160,6 +161,10 @@ class CartpoleEnv(ControlledEnv):
                                                                                        cli_args=["gui:=false","gazebo_seed:="+str(self._envSeed),"wall_sim_speed:="+str(self._wall_sim_speed)])
         self._mmRosLauncher.launchAsync()
 
+        # ggLog.info("Launching Gazebo env...")
+        # time.sleep(10)
+        # ggLog.info("Gazebo env launched.")
+        
         if isinstance(self._environmentController, GazeboControllerNoPlugin):
             self._environmentController.setRosMasterUri(self._mmRosLauncher.getRosMasterUri())
 

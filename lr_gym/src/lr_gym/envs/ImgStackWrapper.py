@@ -27,18 +27,31 @@ class ImgStackWrapper(gym.Wrapper):
             sub_img_space = env.observation_space[img_dict_key]
 
         if self._rgb_to_greyscale:
-            self._obs_img_channels = self._frame_stacking_size
+            self._nonstacked_channels = 1
         else:
-            self._obs_img_channels = self._frame_stacking_size*sub_img_space.shape[0]
+            self._nonstacked_channels = sub_img_space.shape[0]
+            
         if len(sub_img_space.shape) == 3:
-            self._obs_img_height = sub_img_space.shape[1]
-            self._obs_img_width = sub_img_space.shape[2]
+            self._input_img_height = sub_img_space.shape[1]
+            self._input_img_width = sub_img_space.shape[2]
+            self._input_img_channels = sub_img_space.shape[0]
         elif len(sub_img_space.shape) == 2:
-            self._obs_img_height = sub_img_space.shape[0]
-            self._obs_img_width = sub_img_space.shape[1]
+            self._input_img_height = sub_img_space.shape[0]
+            self._input_img_width = sub_img_space.shape[1]
+            self._input_img_channels = 1
         else:
             raise RuntimeError("Unexpected image shape ",sub_img_space)
+        # ggLog.info(f"img space = {sub_img_space}")
 
+        if self._rgb_to_greyscale:
+            if self._input_img_channels!=3:
+                raise RuntimeError(f"You asked to do rgb to greyscale, but input channels are not 3, input_shape = {sub_img_space}")
+            self._output_img_channels = 1
+        else:
+            self._output_img_channels = self._input_img_channels
+        self._output_img_height = self._input_img_height
+        self._output_img_width = self._input_img_width
+        
         if sub_img_space.dtype == np.float32:
             low = 0
             high = 1
@@ -48,7 +61,7 @@ class ImgStackWrapper(gym.Wrapper):
         else:
             raise RuntimeError(f"Unsupported env observation space dtype {sub_img_space.dtype}")
         img_obs_space =  gym.spaces.Box(low=low, high=high,
-                                        shape=(self._obs_img_channels , self._obs_img_height, self._obs_img_width),
+                                        shape=(self._output_img_channels*self._frame_stacking_size , self._output_img_height, self._output_img_width),
                                         dtype=sub_img_space.dtype)
         if self._img_dict_key is None:
             self.observation_space = img_obs_space
@@ -58,23 +71,43 @@ class ImgStackWrapper(gym.Wrapper):
                 obs_dict[k] = env.observation_space[k]
             obs_dict[self._img_dict_key] = img_obs_space
             self.observation_space = gym.spaces.Dict(obs_dict)
+
+        stack_shape = [self._output_img_channels*self._frame_stacking_size, self._output_img_height, self._output_img_height]
+        self._stackedImg = np.empty(shape=stack_shape, dtype=sub_img_space.dtype)
         # print("observation_space =", self.observation_space)
         # print("observation_space.dtype =", self.observation_space.dtype)
 
     def _preproc_frame(self, img):
+        # ggLog.info(f"preproc input shape = {img.shape}")
         if self._rgb_to_greyscale:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         if self._equalize_frames:
             img = cv2.equalizeHist(img)
         img = np.squeeze(img)
+        if len(img.shape) == 3:
+            img = np.transpose(img, (2,0,1)) # channel ordering from HWC to CHW
+        elif len(img.shape) != 2:
+            raise RuntimeError(f"Unexpected image shape {img.shape}")
+        
         if self._convert_to_float:
             if np.issubdtype(img.dtype, np.integer):
                 img = np.float32(img)/np.iinfo(img.dtype).max
         # print("ImgStack: ",img.shape)
         return img
 
+    def _stack_frames_in_obs(self, obs, frames):
+        for i in range(self._frame_stacking_size):
+            self._stackedImg[i*self._output_img_channels:(i+1)*self._output_img_channels] = frames[i]
+        if self._img_dict_key is not None:
+            obs[self._img_dict_key] = self._stackedImg
+        else:
+            obs = self._stackedImg
+        return obs
+
+
     def step(self, action):
         done = False
+        frames = []
         for i in range(self._frame_stacking_size):
             if not done:
                 obs, reward, done, info =  self.env.step(action)
@@ -83,11 +116,8 @@ class ImgStackWrapper(gym.Wrapper):
             else:
                 img = obs
             img = self._preproc_frame(img)
-            self._stackedImg[i] = img
-        if self._img_dict_key is not None:
-            obs[self._img_dict_key] = self._stackedImg
-        else:
-            obs = self._stackedImg
+            frames.append(img)
+        obs = self._stack_frames_in_obs(obs, frames)
         # print("ImgStack: obs.shape=",obs.shape)
         return obs, reward, done, info
 
@@ -100,20 +130,8 @@ class ImgStackWrapper(gym.Wrapper):
             img = obs
 
         img = self._preproc_frame(img)
-
-        img_shape = list(img.shape)
-        if len(img_shape)!=2:
-            raise RuntimeError(f"Unexpected image shape {img_shape}")
         # print("img_shape =",img_shape)
-        stack_shape = [self._frame_stacking_size, img_shape[0], img_shape[1]]
-        # print("stack_shape =",stack_shape)
-        self._stackedImg = np.empty(shape=stack_shape, dtype=img.dtype)
-        for i in range(self._frame_stacking_size):
-            self._stackedImg[i*self._frame_stacking_size:(i+1)*self._frame_stacking_size] = img
-        if self._img_dict_key is not None:
-            obs[self._img_dict_key] = self._stackedImg
-        else:
-            obs = self._stackedImg
+        obs = self._stack_frames_in_obs(obs,[img for _ in range(self._frame_stacking_size)])
         # print("ImgStack: obs.shape=",obs.shape)
         return obs
 

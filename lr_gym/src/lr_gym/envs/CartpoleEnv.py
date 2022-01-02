@@ -9,7 +9,7 @@ Based on ControlledEnv
 
 import gym
 import numpy as np
-from typing import Tuple
+from typing import Tuple, Dict, Any
 import time
 import lr_gym_utils.ros_launch_utils
 import rospkg
@@ -102,6 +102,8 @@ class CartpoleEnv(ControlledEnv):
         else:
             done = False
 
+        self._success = self._actionsCounter>=self._maxActionsPerEpisode
+
         return done
 
 
@@ -170,3 +172,9 @@ class CartpoleEnv(ControlledEnv):
 
     def _destroySimulation(self):
         self._mmRosLauncher.stop()
+
+    def getInfo(self,state=None) -> Dict[Any,Any]:
+        i = super().getInfo(state=state)
+        i["success"] = self._success
+        # ggLog.info(f"Setting success_ratio to {i['success_ratio']}")
+        return i

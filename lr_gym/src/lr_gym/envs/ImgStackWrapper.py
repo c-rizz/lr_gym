@@ -13,7 +13,8 @@ class ImgStackWrapper(gym.Wrapper):
                         img_dict_key = None,
                         rgb_to_greyscale : bool = False,
                         equalize_frames : bool = False,
-                        convert_to_float : bool = False):
+                        convert_to_float : bool = False,
+                        action_repeat : bool = True):
         super().__init__(env)
         self._img_dict_key = img_dict_key
         self._frame_stacking_size = frame_stacking_size
@@ -74,6 +75,11 @@ class ImgStackWrapper(gym.Wrapper):
 
         stack_shape = [self._output_img_channels*self._frame_stacking_size, self._output_img_height, self._output_img_height]
         self._stackedImg = np.empty(shape=stack_shape, dtype=sub_img_space.dtype)
+        self._framesBuffer = [None]*self._frame_stacking_size
+        if action_repeat:
+            self._action_repeat = self._frame_stacking_size
+        else:
+            self._action_repeat = 1
         # print("observation_space =", self.observation_space)
         # print("observation_space.dtype =", self.observation_space.dtype)
 
@@ -84,9 +90,9 @@ class ImgStackWrapper(gym.Wrapper):
         if self._equalize_frames:
             img = cv2.equalizeHist(img)
         img = np.squeeze(img)
-        if len(img.shape) == 3:
-            img = np.transpose(img, (2,0,1)) # channel ordering from HWC to CHW
-        elif len(img.shape) != 2:
+        if len(img.shape) == 3 and img.shape[2] == 3: # RGB with HWC shape
+            img = np.transpose(img, (2,0,1)) # convert channel ordering from HWC to CHW
+        elif len(img.shape) != 2 and len(img.shape) != 3:
             raise RuntimeError(f"Unexpected image shape {img.shape}")
         
         if self._convert_to_float:
@@ -95,20 +101,23 @@ class ImgStackWrapper(gym.Wrapper):
         # print("ImgStack: ",img.shape)
         return img
 
-    def _stack_frames_in_obs(self, obs, frames):
+    def _fill_observation(self, obs):
         for i in range(self._frame_stacking_size):
-            self._stackedImg[i*self._output_img_channels:(i+1)*self._output_img_channels] = frames[i]
+            self._stackedImg[i*self._output_img_channels:(i+1)*self._output_img_channels] = self._framesBuffer[i]
         if self._img_dict_key is not None:
             obs[self._img_dict_key] = self._stackedImg
         else:
             obs = self._stackedImg
         return obs
 
+    def _pushFrame(self, frame):
+        for i in range(len(self._framesBuffer)-1):
+            self._framesBuffer[i]=self._framesBuffer[i+1]
+        self._framesBuffer[-1] = frame
 
     def step(self, action):
         done = False
-        frames = []
-        for i in range(self._frame_stacking_size):
+        for i in range(self._action_repeat):
             if not done:
                 obs, reward, done, info =  self.env.step(action)
             if self._img_dict_key is not None:
@@ -116,9 +125,9 @@ class ImgStackWrapper(gym.Wrapper):
             else:
                 img = obs
             img = self._preproc_frame(img)
-            frames.append(img)
-        obs = self._stack_frames_in_obs(obs, frames)
-        # print("ImgStack: obs.shape=",obs.shape)
+            self._pushFrame(img)
+        obs = self._fill_observation(obs)
+
         return obs, reward, done, info
 
     def reset(self, **kwargs):
@@ -130,8 +139,9 @@ class ImgStackWrapper(gym.Wrapper):
             img = obs
 
         img = self._preproc_frame(img)
-        # print("img_shape =",img_shape)
-        obs = self._stack_frames_in_obs(obs,[img for _ in range(self._frame_stacking_size)])
-        # print("ImgStack: obs.shape=",obs.shape)
+        for _ in range(self._frame_stacking_size):
+            self._pushFrame(img)
+        obs = self._fill_observation(obs)
+
         return obs
 

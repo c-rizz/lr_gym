@@ -138,7 +138,10 @@ def makePlot(dfs : List[pd.DataFrame],
 
     plt.clf()
 
-
+    print(f"Plotting {len(dfs)} dfs")
+    for df in dfs:
+        df.reset_index(drop = True, inplace=True)
+        # print(df.head())
     showLegend = True
     if dfLabels is None:
         dfLabels = [None]*len(dfs)

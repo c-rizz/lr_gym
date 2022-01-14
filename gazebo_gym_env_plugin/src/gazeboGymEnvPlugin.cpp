@@ -12,6 +12,7 @@
 
 #include "gazebo_gym_env_plugin/StepSimulation.h"
 #include "gazebo_gym_env_plugin/RenderCameras.h"
+#include "gazebo_gym_env_plugin/GetInfo.h"
 #include "gazebo_gym_env_plugin/JointInfo.h"
 #include "gazebo_gym_env_plugin/JointEffortRequest.h"
 
@@ -52,6 +53,9 @@ namespace gazebo
 
     ros::ServiceServer renderService;
     const std::string renderServiceName = "render";
+
+    ros::ServiceServer infoService;
+    const std::string infoServiceName = "get_info";
 
     bool keepServingCallbacks = true;
 
@@ -118,6 +122,9 @@ namespace gazebo
 
       observeService = nodeHandle->advertiseService(observeServiceName, &GazeboGymEnvPlugin::observeServiceCallback,this);
       ROS_INFO_STREAM("Advertised service "<<observeServiceName);
+
+      infoService = nodeHandle->advertiseService(infoServiceName, &GazeboGymEnvPlugin::infoServiceCallback,this);
+      ROS_INFO_STREAM("Advertised service "<<infoServiceName);
 
       //world->Physics()->SetSeed(20200413);
     }
@@ -516,6 +523,19 @@ namespace gazebo
 
 
       world->SetPaused(wasPaused);
+      return true;
+    }
+
+
+    /**
+     * Handles a call from the get_info ROS service
+     * @param  req [description]
+     * @param  res [description]
+     * @return     [description]
+     */
+    bool infoServiceCallback(gazebo_gym_env_plugin::GetInfo::Request &req, gazebo_gym_env_plugin::GetInfo::Response &res)
+    {
+      res.is_paused = world->IsPaused();
       return true;
     }
 

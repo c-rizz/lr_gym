@@ -66,7 +66,8 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
         super()._makeRosConnections()
 
         serviceNames = {"step" : "/gazebo/gym_env_interface/step",
-                        "render" : "/gazebo/gym_env_interface/render"}
+                        "render" : "/gazebo/gym_env_interface/render",
+                        "get_info" : "/gazebo/gym_env_interface/get_info"}
 
         timeout_secs = 30.0
         for serviceName in serviceNames.values():
@@ -83,7 +84,11 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
 
         self._stepGazeboService   = rospy.ServiceProxy(serviceNames["step"], gazebo_gym_env_plugin.srv.StepSimulation, persistent=self._usePersistentConnections)
         self._renderGazeboService   = rospy.ServiceProxy(serviceNames["render"], gazebo_gym_env_plugin.srv.RenderCameras, persistent=self._usePersistentConnections)
+        self._infoGazeboService   = rospy.ServiceProxy(serviceNames["get_info"], gazebo_gym_env_plugin.srv.GetInfo, persistent=self._usePersistentConnections)
 
+
+    def isPaused(self):
+        return self._infoGazeboService.call().is_paused
 
     def step(self) -> float:
         """Run the simulation for the step time and optionally get some information.

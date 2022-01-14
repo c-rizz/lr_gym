@@ -1,0 +1,3 @@
+# This service returns various information about the simulation
+---
+bool is_paused

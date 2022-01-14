@@ -25,6 +25,7 @@ import time
 
 from lr_gym.utils.utils import buildPoseStamped
 import lr_gym.utils.dbg.ggLog as ggLog
+import lr_gym.utils.dbg.dbg_pose as dbg_pose
 
 import geometry_msgs
 import lr_gym_utils.srv
@@ -193,6 +194,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         goal.do_cartesian = do_cartesian
         self._moveEeClient.send_goal(goal)
 
+        # ggLog.info(f"Moving ee to {goal.pose}")
+        dbg_pose.helper.publish("mrc_ee_goal",goal.pose)
 
         def waitCallback():
             # ggLog.info("waiting cartesian....")

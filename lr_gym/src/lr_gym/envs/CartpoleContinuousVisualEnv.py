@@ -75,6 +75,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         self._img_crop_rel_right  = 1.35833 # 326 at 240p   326.0/426.0
         self._img_crop_rel_top    = 0       # 0 at 240p     0.0/240.0
         self._img_crop_rel_bottom = 0.62500 # 150px at 240p 150.0/240.0
+        self._success = False
 
         super(CartpoleEnv, self).__init__(  maxActionsPerEpisode = maxActionsPerEpisode,
                                             stepLength_sec = stepLength_sec,
@@ -251,8 +252,8 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
 
         self._mmRosLauncher = lr_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("lr_gym")+"/launch/cartpole_gazebo_sim.launch",
                                                                                       cli_args=["gui:=false",
-                                                                                                "gazebo_seed:="+str(self._envSeed),
-                                                                                                "wall_sim_speed:="+str(self._wall_sim_speed),
+                                                                                                f"gazebo_seed:={self._envSeed}",
+                                                                                                f"wall_sim_speed:={self._wall_sim_speed}",
                                                                                                 f"camera_width:={sim_img_width}",
                                                                                                 f"camera_height:={sim_img_height}"])
         self._mmRosLauncher.launchAsync()

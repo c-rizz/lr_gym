@@ -72,6 +72,7 @@ add_service_files(
   FILES
   StepSimulation.srv
   RenderCameras.srv
+  GetInfo.srv
 )
 
 # add_action_files(

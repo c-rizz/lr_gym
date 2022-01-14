@@ -74,6 +74,7 @@ class CartpoleEnv(ControlledEnv):
             self._environmentController.setCamerasToObserve(["camera"])
 
         self._environmentController.startController()
+        self._success = False
 
     def submitAction(self, action : int) -> None:
         super().submitAction(action)

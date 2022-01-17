@@ -39,7 +39,7 @@ both Gazebo and PyBullet.
 Different environment controllers have been implemented for different simulators and for the real world.
 All of the environments controllers are derived form EnvironmentController
 
-* **GazeboController** and GazeboControllerNoPlugin provide the means to control a Gazebo simulation
+* **GazeboController** and **GazeboControllerNoPlugin** provide the means to control a Gazebo simulation
 * **PyBulletController** allows to control a PyBullet simulation
 * **RosEnvController** uses ROS to control and observe the environment, this is meant to be usable both for
 simulations and for the real world (but it will be less efficient and "precise" than GazeboController)

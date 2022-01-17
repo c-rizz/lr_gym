@@ -67,24 +67,24 @@ class RecorderGymWrapper(gym.Wrapper):
             ggLog.info(f"RecorderGymEnvWrapper: saved video of {len(self._frameBuffer)} frames at {filename}")
             # time.sleep(10)
 
-    def _preproc_frame(self, img_whc):
+    def _preproc_frame(self, img_hwc):
         # ggLog.info(f"raw frame shape = {img_whc.shape}")
-        if img_whc.dtype == np.float32:
-            img_whc = np.uint8(img_whc*255)
+        if img_hwc.dtype == np.float32:
+            img_hwc = np.uint8(img_hwc*255)
 
-        if len(img_whc.shape) == 2:
-            img_whc = np.expand_dims(img_whc,axis=2)
-        if img_whc.shape[2] == 1:
-            img_whc = np.repeat(img_whc,3,axis=2)
+        if len(img_hwc.shape) == 2:
+            img_hwc = np.expand_dims(img_hwc,axis=2)
+        if img_hwc.shape[2] == 1:
+            img_hwc = np.repeat(img_hwc,3,axis=2)
         
-        if img_whc.shape[2] != 3 or img_whc.dtype != np.uint8:
-            raise RuntimeError(f"Unsupported image format, dtpye={img_whc.dtype}, shape={img_whc.shape}")
+        if img_hwc.shape[2] != 3 or img_hwc.dtype != np.uint8:
+            raise RuntimeError(f"Unsupported image format, dtpye={img_hwc.dtype}, shape={img_hwc.shape}")
         # ggLog.info(f"Preproc frame shape = {img_whc.shape}")
 
-        if img_whc.shape[0]<256:
-            shape_wh = (256,int(256/img_whc.shape[0]*img_whc.shape[1]))
-            img_whc = cv2.resize(img_whc,dsize=shape_wh,interpolation=cv2.INTER_NEAREST)
-        return img_whc
+        if img_hwc.shape[1]<256:
+            shape_wh = (256,int(256/img_hwc.shape[0]*img_hwc.shape[1]))
+            img_hwc = cv2.resize(img_hwc,dsize=shape_wh,interpolation=cv2.INTER_NEAREST)
+        return img_hwc
 
 
     def reset(self, **kwargs):

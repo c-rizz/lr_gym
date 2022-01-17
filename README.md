@@ -77,18 +77,9 @@ catkin workspace src folder, be careful about using the correct branch and corre
 
 You will also need to install some python3 modules, preferably in a python virtual
 environment. You can use the build_virtualenv.sh helper script in the lr_gym folder.
-However you need to have python3.7 (stable_baselines 2 requires tensorflow 1.15, which requires
-python<=3.7). (Currently other python versions have not been tested, even if you use pytorch)
 
-You can install python 3.7 with the following:
 
-```
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt update
-sudo apt install python3.7 python3.7-venv python3.7-dev
-```
-
-At this point you can create the virtual python environment with the following helper
+You can create the virtual python environment with the following helper
 script:
 
 ```

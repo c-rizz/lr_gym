@@ -55,12 +55,10 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
 
         self._stepLength_sec = stepLength_sec
         self._lastUnpausedTime = 0
-        self._episodeSimDuration = 0
-        self._episodeRealSimDuration = 0
-        self._episodeRealStartTime = 0
+        self._episodeIntendedSimDuration = 0
+        self._episodeWallStartTime = 0
         self._totalRenderTime = 0
         self._stepsTaken = 0
-        self._epStartSimTime = 0
 
         self._lastStepRendered = None
         self._lastRenderResult = None
@@ -198,18 +196,19 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
 
         """
         self.pauseSimulation()
-        totalEpSimDuration = rospy.get_time() - self._epStartSimTime
+        totalEpSimDuration = self.getEnvSimTimeFromStart()
 
         ret = self._callService(self._resetGazeboService)
 
         self._lastUnpausedTime = 0
 
-
-        totalSimTimeError = totalEpSimDuration - self._episodeSimDuration
+        # ggLog.info(f"totalEpSimDuration = {totalEpSimDuration}")
+        # ggLog.info(f"self._episodeIntendedSimDuration = {self._episodeIntendedSimDuration}")
+        totalSimTimeError = totalEpSimDuration - self._episodeIntendedSimDuration
         if abs(totalSimTimeError)>=0.1:
-            rospy.logwarn("Episode error in simulation time keeping = "+str(totalSimTimeError)+"s (This is just an upper bound, could actually be fine)")
+            rospy.logwarn("Episode error in simulation time keeping = "+str(totalSimTimeError)+"s (This is just an upper bound, may actually be fine)")
 
-        # totalEpRealDuration = time.time() - self._episodeRealStartTime
+        # totalEpRealDuration = time.time() - self._episodeWallStartTime
         # if self._episodeRealSimDuration!=0:
         #     ratio = float(totalEpSimDuration)/self._episodeRealSimDuration
         # else:
@@ -226,9 +225,8 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
         #                     " totalRenderTime={:.4f}".format(self._totalRenderTime)+
         #                     " realFps={:.2f}".format(self._stepsTaken/totalEpRealDuration)+
         #                     " simFps={:.2f}".format(self._stepsTaken/totalEpSimDuration))
-        self._episodeSimDuration = 0
-        self._episodeRealSimDuration = 0
-        self._episodeRealStartTime = time.time()
+        self._episodeIntendedSimDuration = 0
+        self._episodeWallStartTime = time.time()
         self._totalRenderTime = 0
         self._stepsTaken = 0
 
@@ -236,7 +234,7 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
         t = rosgraph_msgs.msg.Clock()
         self._clockPublisher.publish(t)
 
-        self._epStartSimTime = 0
+
 
         #rospy.loginfo("resetted sim")
         return ret
@@ -273,8 +271,7 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
         self.pauseSimulation()
         t3 = rospy.get_time()
         tf_real = time.time()
-        self._episodeSimDuration += t3 - t0
-        self._episodeRealSimDuration = tf_real - t0_real
+        self._episodeIntendedSimDuration += t3 - t0
         rospy.loginfo("t0 = "+str(t0)+"   t3 = "+str(t3))
         rospy.loginfo("Unpaused for a duration between "+str(t2-t1)+"s and "+str(t3-t0)+"s")
 

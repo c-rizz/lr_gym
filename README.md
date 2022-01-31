@@ -122,6 +122,17 @@ will need to install the following system dependencies (however you will not hav
 sudo apt install xvfb xserver-xephyr tigervnc-standalone-server xfonts-base
 ```
 
+### Installation issues
+
+#### CUDA error: no kernel image is available for execution on device
+You may get this error if you are using a relatively new card (or maybe a very old one). I had this problem on an RTX3060 and on an RTX A6000.
+This is due to your pytorch installation not being compiled for the architecture of your gpu (e.g for sm_86).
+You can get a build that includes your device from pytorch.org, but you need to select the correct torch/torchvision version and the correct CUDA version. You can get torch and torchvision from requirements_sb3.txt in the lr_gym folder. I believe you should use the CUDA version that appears in nvidia-smi, but that exact one may not be available on pytorch.org, so choose a similar one. I for example had CUDA 11.5, but installed pytorch for CUDA 11.3, and everything worked. You can find the list of the builds at https://download.pytorch.org/whl/torch_stable.html
+You can then install with the following (replace the versions according to your needs):
+
+```
+pip install --pre torch==1.10.1+cu113 torchvision==0.11.2+cu113 -f https://download.pytorch.org/whl/torch_stable.html
+```
 
 ## Examples - Cartpole hardcoded
 

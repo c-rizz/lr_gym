@@ -100,10 +100,6 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
 
         """
 
-        t0_real = time.time()
-        #t0 = rospy.get_time()
-
-
         request = gazebo_gym_env_plugin.srv.StepSimulationRequest()
         request.step_duration_secs = self._stepLength_sec
         request.request_time = time.time()
@@ -147,14 +143,8 @@ class GazeboController(GazeboControllerNoPlugin, JointEffortEnvController):
 
         #print("Step response = "+str(response))
 
-        #t3 = rospy.get_time()
-        tf_real = time.time()
-        self._episodeSimDuration += self._stepLength_sec
-        self._episodeRealSimDuration += tf_real - t0_real
-        #rospy.loginfo("t0 = "+str(t0)+"   t3 = "+str(t3))
-        #rospy.loginfo("Unpaused for a duration of about  "+str(t3-t0)+"s")
-        #rospy.loginfo("Reported duration is  "+str(response.step_duration_done_secs)+"s")
-
+        self._episodeIntendedSimDuration += self._stepLength_sec
+        
         #rospy.loginfo("Transfer time of stepping response = "+str(time.time()-response.response_time))
 
         self._simulationState.stepNumber = self._stepsTaken

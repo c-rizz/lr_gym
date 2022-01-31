@@ -265,9 +265,10 @@ while not ctrl_c_received:
     try:
         csvfiles = args["csvfiles"]
         commonPath = os.path.commonpath([os.path.abspath(os.path.dirname(cf)) for cf in csvfiles])
+        commonRealPath = os.path.realpath(commonPath) # absolute path without links
         title = args["title"]
         if title is None:
-            title = commonPath.split("/")[-1]
+            title = commonRealPath.split("/")[-2]+"/"+commonRealPath.split("/")[-1]
         if title.lower() == "none":
             title = None
         if not args["loadprepped"]:

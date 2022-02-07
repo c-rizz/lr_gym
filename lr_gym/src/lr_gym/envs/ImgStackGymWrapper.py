@@ -1,26 +1,39 @@
 import gym
 import cv2
+import os
+import time
 import lr_gym.utils.dbg.ggLog as ggLog
 import numpy as np
-from lr_gym.envs.LrWrapper import LrWrapper
+import copy
 
-class ImgStackWrapper(LrWrapper):
-
+class ImgStackGymWrapper(gym.Wrapper):
+    
     def __init__(self,  env : gym.Env,
                         frame_stacking_size : int,
                         img_dict_key = None,
+                        rgb_to_greyscale : bool = False,
+                        equalize_frames : bool = False,
+                        convert_to_float : bool = False,
                         action_repeat : int = -1):
         super().__init__(env)
         self._img_dict_key = img_dict_key
         self._frame_stacking_size = frame_stacking_size
-        self._actionToDo = None
+        self._rgb_to_greyscale = rgb_to_greyscale
+        self._equalize_frames = equalize_frames
+        self._convert_to_float = convert_to_float
+
+        if self._convert_to_float:
+            ggLog.warn("ImgStackGymWrapper: Do not use convert_to_float, use ImgFormatWrapper")
 
         if self._img_dict_key is None:
             sub_img_space = env.observation_space
         else:
             sub_img_space = env.observation_space[img_dict_key]
 
-        self._nonstacked_channels = sub_img_space.shape[0]
+        if self._rgb_to_greyscale:
+            self._nonstacked_channels = 1
+        else:
+            self._nonstacked_channels = sub_img_space.shape[0]
             
         if len(sub_img_space.shape) == 3:
             self._input_img_height = sub_img_space.shape[1]
@@ -34,7 +47,12 @@ class ImgStackWrapper(LrWrapper):
             raise RuntimeError("Unexpected image shape ",sub_img_space)
         # ggLog.info(f"img space = {sub_img_space}")
 
-        self._output_img_channels = self._input_img_channels
+        if self._rgb_to_greyscale:
+            if self._input_img_channels!=3:
+                raise RuntimeError(f"You asked to do rgb to greyscale, but input channels are not 3, input_shape = {sub_img_space}")
+            self._output_img_channels = 1
+        else:
+            self._output_img_channels = self._input_img_channels
         self._output_img_height = self._input_img_height
         self._output_img_width = self._input_img_width
         
@@ -70,6 +88,10 @@ class ImgStackWrapper(LrWrapper):
 
     def _preproc_frame(self, img):
         # ggLog.info(f"preproc input shape = {img.shape}")
+        if self._rgb_to_greyscale:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        if self._equalize_frames:
+            img = cv2.equalizeHist(img)
         img = np.squeeze(img)
         if len(img.shape) == 3 and img.shape[2] == 3: # RGB with HWC shape
             img = np.transpose(img, (2,0,1)) # convert channel ordering from HWC to CHW
@@ -77,16 +99,19 @@ class ImgStackWrapper(LrWrapper):
         elif len(img.shape) != 2 and len(img.shape) != 3:
             raise RuntimeError(f"Unexpected image shape {img.shape}")
         
+        if self._convert_to_float:
+            if np.issubdtype(img.dtype, np.integer):
+                img = np.float32(img)/np.iinfo(img.dtype).max
         # print("ImgStack: ",img.shape)
         return img
 
     def _fill_observation(self, obs):
         for i in range(self._frame_stacking_size):
             self._stackedImg[i*self._output_img_channels:(i+1)*self._output_img_channels] = self._framesBuffer[i]
-        if self._img_dict_key is None:
-            obs = self._stackedImg
-        else:
+        if self._img_dict_key is not None:
             obs[self._img_dict_key] = self._stackedImg
+        else:
+            obs = self._stackedImg
         return obs
 
     def _pushFrame(self, frame):
@@ -94,56 +119,33 @@ class ImgStackWrapper(LrWrapper):
             self._framesBuffer[i]=self._framesBuffer[i+1]
         self._framesBuffer[-1] = frame
 
-    def submitAction(self, action) -> None:
-        self._actionToDo = action
-        self.env.submitAction(self._actionToDo)
-
-    def performStep(self):
-        self._rewardSum = 0
+    def step(self, action):
+        done = False
         for i in range(self._action_repeat):
-            previousState = self.env.getState()
-            self.env.performStep()
-            state = self.env.getState()
-            obs = self.env.getObservation(state)
-            if self._img_dict_key is None:
-                img = obs
-            else:
+            if not done:
+                obs, reward, done, info =  self.env.step(action)
+            if self._img_dict_key is not None:
                 img = obs[self._img_dict_key]
+            else:
+                img = obs
             img = self._preproc_frame(img)
             self._pushFrame(img)
-            self._rewardSum += self.env.computeReward(previousState, state, self._actionToDo)
-            self.env.submitAction(self._actionToDo)
-        self._previousState = self._lastState
-        self._lastState = state
+        obs = self._fill_observation(obs)
 
-    def getObservation(self, state):
-        obs = self.env.getObservation(state)
-        
-        for i in range(self._frame_stacking_size):
-            self._stackedImg[i*self._output_img_channels:(i+1)*self._output_img_channels] = self._framesBuffer[i]
-        if self._img_dict_key is None:
-            obs = self._stackedImg
-        else:
-            obs[self._img_dict_key] = self._stackedImg
+        return obs, reward, done, info
 
-        return obs
+    def reset(self, **kwargs):
 
-    def performReset(self):
-
-        self.env.performReset()
-
-        obs = self.env.getObservation(self.env.getState())
-        if self._img_dict_key is None:
-            img = obs
-        else:
+        obs = self.env.reset(**kwargs)
+        if self._img_dict_key is not None:
             img = obs[self._img_dict_key]
+        else:
+            img = obs
+
         img = self._preproc_frame(img)
         for _ in range(self._frame_stacking_size):
             self._pushFrame(img)
-        self._previousState = self.env.getState()
-        self._lastState = self.env.getState()
+        obs = self._fill_observation(obs)
 
-    def computeReward(self, previousState, state, action) -> float:
-        if not (state is self._lastState and action is self._actionToDo and previousState is self._previousState):
-            raise RuntimeError("GymToLr.computeReward is only valid if used for the last executed step. And it looks like you tried using it for something else.")
-        return self._rewardSum
+        return obs
+

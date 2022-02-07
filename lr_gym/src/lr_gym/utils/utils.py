@@ -299,7 +299,7 @@ def createSymlink(src, dst):
         except:
             pass
 
-def setupLoggingForRun(file : str, currentframe, run_id_prefix : str = "", folderName : str = None):
+def setupLoggingForRun(file : str, currentframe = None, run_id_prefix : str = "", folderName : str = None):
     """Sets up a logging output folder for a training run.
         It creates the folder, saves the current main script file for reference
 
@@ -338,7 +338,7 @@ def setupLoggingForRun(file : str, currentframe, run_id_prefix : str = "", folde
 
 
     
-def lr_gym_startup(main_file_path : str, currentframe, using_pytorch : bool = True, run_id_prefix : str = "", folderName : str = None) -> str:
+def lr_gym_startup(main_file_path : str, currentframe = None, using_pytorch : bool = True, run_id_prefix : str = "", folderName : str = None) -> str:
     logFolder = setupLoggingForRun(main_file_path, currentframe, run_id_prefix=run_id_prefix, folderName=folderName)
     ggLog.addLogFile(logFolder+"/gglog.log")
     setupSigintHandler()
@@ -495,4 +495,6 @@ def getGpuMemUsage():
 
 def torch_selectBestGpu():
     import torch as th
-    th.cuda.set_device(getBestGpu())
+    bestGpu = getBestGpu()
+    th.cuda.set_device(bestGpu)
+    return th.device('cuda:'+str(bestGpu))

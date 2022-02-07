@@ -7,6 +7,7 @@ The provided class must be extended to define a specific environment
 
 
 import numpy as np
+import gym
 from typing import Tuple
 from typing import Dict
 from typing import Any
@@ -23,6 +24,7 @@ class BaseEnv():
 
     action_space = None
     observation_space = None
+    reward_space = gym.spaces.Box(low=np.array([float("-inf")]), high=np.array([float("+inf")]), dtype=np.float32)
     metadata = None # e.g. {'render.modes': ['rgb_array']}
 
     def __init__(self,

@@ -13,6 +13,8 @@ from typing import Tuple
 from typing import Dict
 from typing import Any
 from typing import Sequence
+import time
+import os, psutil
 
 
 
@@ -93,6 +95,8 @@ class GymToLr(BaseEnv):
     def performStep(self) -> None:
         self._previousObservation = self._lastObservation
         self._stepCount += 1
+        # time.sleep(1)
+        # print(f"Step {self._stepCount}, memory usage = {psutil.Process(os.getpid()).memory_info().rss/1024} KB")
         self._lastObservation, self._lastReward, self._lastDone, self._lastInfo = self._openaiGym_env.step(self._actionToDo)
 
 

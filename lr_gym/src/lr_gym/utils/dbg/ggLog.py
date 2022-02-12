@@ -48,7 +48,7 @@ def info(msg, *args, **kwargs):
 def warn(msg, *args, **kwargs):
     msg = _addRosMasterUri(msg)
     try:
-        logger.warn(msg, *args, **kwargs)
+        logger.warning(msg, *args, **kwargs)
     except Exception as e:
         print(f"logging failed with exception {e}. Msg:")
         print(msg,*args,**kwargs)

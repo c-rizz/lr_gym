@@ -17,7 +17,6 @@ import lr_gym.utils.dbg.ggLog as ggLog
 
 def gym_to_spec(space : gym.spaces.Space, name : str = None):
     if type(space) == gym.spaces.Box:
-        print(f"box = {space}, dtype = {space.dtype}")
         spec = dm_env.specs.BoundedArray(shape = space.shape,
                                          dtype = space.dtype,
                                          minimum = space.low,
@@ -25,7 +24,6 @@ def gym_to_spec(space : gym.spaces.Space, name : str = None):
                                          name = name)
     elif type(space) == gym.spaces.Dict:
         spec = OrderedDict()
-        print(f"space = {space}")
         for subname, subspace in space.spaces.items():
             spec[subname] = gym_to_spec(subspace, subname)            
     else:

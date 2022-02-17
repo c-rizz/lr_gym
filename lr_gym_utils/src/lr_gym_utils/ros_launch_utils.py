@@ -56,13 +56,14 @@ class MultiMasterRosLauncher:
         baseGazeboPort = self._baseRosPort+maxInc
         inc = 0
         while not found:
+            self._rosMasterPort = self._baseRosPort + inc
             if inc > maxInc:
                 raise RuntimeError("Couldn't find port for new roscore")
-            self._mutex = SystemMutex("roscore-"+str(self._baseRosPort+inc))
+            self._mutex = SystemMutex("roscore-"+str(self._rosMasterPort))
             found = self._mutex.acquire()
             if not found:
                 inc+=1
-        self._rosMasterPort = self._baseRosPort + inc
+                ggLog.info(f"ROS master port {self._rosMasterPort} is reserved")
         self._gazeboPort = baseGazeboPort + inc
         self._rosMasterUri = "http://"+self._ros_master_ip+":"+str(self._rosMasterPort)
         self._gazeboMasterUri = "http://127.0.0.1:"+str(self._gazeboPort)

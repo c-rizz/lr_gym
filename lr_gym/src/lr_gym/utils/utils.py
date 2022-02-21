@@ -20,6 +20,7 @@ import random
 import multiprocessing
 import csv
 from pynvml.smi import nvidia_smi
+import yaml
 
 import lr_gym.utils.dbg.ggLog as ggLog
 
@@ -331,9 +332,11 @@ def setupLoggingForRun(file : str, currentframe = None, run_id_prefix : str = ""
         args, _, _, values = inspect.getargvalues(currentframe)
     else:
         args, values = ([],{})
-    inputargs = [(i, values[i]) for i in args]
-    with open(folderName+"/input_args.txt", "w") as input_args_file:
-        print(str(inputargs), file=input_args_file)
+    # inputargs = [(i, values[i]) for i in args]
+    # with open(folderName+"/input_args.txt", "w") as input_args_file:
+    #     print(str(inputargs), file=input_args_file)
+    with open(folderName+"/input_args.yaml", "w") as input_args_yamlfile:
+        yaml.dump(values,input_args_yamlfile, default_flow_style=None)
     return folderName
 
 

@@ -40,12 +40,16 @@ def prepData(csvfiles : List[str],
         if max_x is not None:
             df = df.loc[df[x_data_id] < max_x]
     if not avgFiles:
-        for df in in_dfs:
+        for i in range(len(in_dfs)):
+            df = in_dfs[i]
             rdf = pd.DataFrame()
             rdf[y_data_id] = df[y_data_id]
             rdf["mean"] = df[y_data_id].rolling(avglen, center=True).mean()
             rdf["std"] = df[y_data_id].rolling(avglen, center=True).std()
             rdf[x_data_id] = df[x_data_id]
+            count = rdf[y_data_id].count()
+            if count < 30:
+                print(f"file {csvfiles[i]} only has {count} samples")
             out_dfs.append(rdf)
     else:
         if max_x is None:
@@ -166,8 +170,8 @@ def makePlot(dfs : List[pd.DataFrame],
     if doAvg:                                
         for df in dfs:
             c = palette[i]
-            print(f"Plotting {dfLabels[i]} mean")
-            p = sns.lineplot(x=df[x_data_id],y=df["mean"], color=c, label=dfLabels[i], ci=None) #, ax = ax) #
+            print(f"Plotting {dfLabels[i]} mean, {len(df[x_data_id])} samples, max = {df['mean'].max()}")
+            p = sns.lineplot(x=df[x_data_id],y=df["mean"], color=c, label=dfLabels[i], ci=None, linewidth=0.5) #, ax = ax) #
             if not raw and "std" in df:
                 print(f"Plotting {dfLabels[i]} std")
                 cis = (df["mean"] - df["std"], df["mean"] + df["std"])
@@ -191,7 +195,8 @@ def makePlot(dfs : List[pd.DataFrame],
         p.set_ylabel(ylabel)
 
     if showLegend:
-        p.legend(loc='upper left')
+        # p.legend(loc='upper left')
+        p.legend(loc='lower right')
     p.minorticks_on()
     #p.tick_params(axis='x', which='minor', bottom=False)
     p.grid(linestyle='dotted',which="both")
@@ -268,7 +273,11 @@ while not ctrl_c_received:
         commonRealPath = os.path.realpath(commonPath) # absolute path without links
         title = args["title"]
         if title is None:
-            title = commonRealPath.split("/")[-2]+"/"+commonRealPath.split("/")[-1]
+            crps = commonRealPath.split("/")
+            if crps[-1] == "eval":
+                title = crps[-3]+"/"+crps[-2]+"/"+crps[-1]
+            else:
+                title = crps[-2]+"/"+crps[-1]
         if title.lower() == "none":
             title = None
         if not args["loadprepped"]:
@@ -312,6 +321,15 @@ while not ctrl_c_received:
                     if dfLabels[i] is None:
                         dfLabels[i] = chr(65+i)
                     i+=1
+                has_duplicates = len(dfLabels) != len(set(dfLabels))
+                if has_duplicates:
+                    i = 0
+                    for csvfile in csvfiles:
+                        split = csvfile.split("/")
+                        for j in range(len(split)-1):
+                            if split[j+1].startswith("seed_"):
+                                dfLabels[i] = split[j]+"/"+dfLabels[i]
+                        i+=1
 
             makePlot(dfs,
                     x_data_id=args["xdataid"],

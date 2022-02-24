@@ -8,8 +8,9 @@ import inspect
 import numpy as np
 from nptyping import NDArray
 
-from stable_baselines3 import SAC
-from stable_baselines3.sac import MlpPolicy
+from stable_baselines3.td3.policies import MlpPolicy
+from stable_baselines3 import TD3
+from stable_baselines3.common.noise import NormalActionNoise
 from lr_gym.envs.CartpoleContinuousEnv import CartpoleContinuousEnv
 from lr_gym.envs.CartpoleNoisyContinuousEnv import CartpoleNoisyContinuousEnv
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper
@@ -25,7 +26,16 @@ import dmc2gym.wrappers
 
 
 
-def main(obsNoise : NDArray[(4,),np.float32]) -> None: 
+def main(obsNoise : NDArray[(4,),np.float32],
+                    batch_size=2048,
+                    buffer_size=1000000,
+                    gamma=0.99,
+                    gradient_steps=1,
+                    tau = 0.02,
+                    learning_rate=0.0008,
+                    learning_starts=5000,
+                    policy_kwargs=dict(net_arch=[50, 50]),
+                    train_freq=(1,"step")) -> None: 
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
 
     It does not use the rendering at all, it learns from the joint states.
@@ -40,6 +50,7 @@ def main(obsNoise : NDArray[(4,),np.float32]) -> None:
     
     folderName = lr_gym.utils.utils.lr_gym_startup(__file__, inspect.currentframe())
     device = lr_gym.utils.utils.torch_selectBestGpu()
+
     RANDOM_SEED=0
     # dmenv = suite.load("cheetah",
     #                     "run",
@@ -62,20 +73,22 @@ def main(obsNoise : NDArray[(4,),np.float32]) -> None:
     #             policy_kwargs=dict(net_arch=[32,32]),
     #             target_entropy = 0.9)
 
-    model = SAC( MlpPolicy, env, verbose=1,
-                 batch_size=256,
-                 buffer_size=200000,
-                 gamma=0.99,
-                 learning_rate=0.0001,
-                 ent_coef="auto_0.1",
-                 learning_starts=1000,
-                 tau = 0.02,
-                 policy_kwargs=dict(net_arch=[64, 64]),
-                 gradient_steps=1,
-                 train_freq=(1,"step"),
-                 seed = RANDOM_SEED,
-                 device=device)
+    n_actions = env.action_space.shape[-1]
+    action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+    model = TD3( MlpPolicy, env, verbose=1,
+                    batch_size=batch_size,
+                    buffer_size=buffer_size,
+                    gamma=gamma,
+                    gradient_steps=gradient_steps,
+                    tau=tau,
+                    learning_rate=learning_rate,
+                    learning_starts=learning_starts,
+                    policy_kwargs=policy_kwargs,
+                    train_freq=train_freq,
+                    seed = RANDOM_SEED,
+                    device=device)
 
+    
     ggLog.info("Learning...")
     t_preLearn = time.time()
     model.learn(total_timesteps=1000000)

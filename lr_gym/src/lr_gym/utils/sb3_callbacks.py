@@ -162,9 +162,9 @@ class EvalCallback_ep(EventCallback):
         :param locals_:
         :param globals_:
         """
-        info = locals_["info"]
+        info = locals_["infos"]
 
-        if locals_["done"]:
+        if locals_["dones"]:
             maybe_is_success = info.get("is_success")
             if maybe_is_success is not None:
                 self._is_success_buffer.append(maybe_is_success)

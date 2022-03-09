@@ -17,7 +17,6 @@ from lr_gym.envs.GymEnvWrapper import GymEnvWrapper
 from lr_gym.envs.ObsDict2FlatBox import ObsDict2FlatBox
 import lr_gym.utils.dbg.ggLog as ggLog
 import gym
-import datetime
 import lr_gym.utils.utils
 
 from dm_control import suite
@@ -27,13 +26,13 @@ import dmc2gym.wrappers
 
 
 def main(obsNoise : NDArray[(4,),np.float32],
-                    batch_size=2048,
+                    batch_size=1024,
                     buffer_size=1000000,
+                    learning_starts=5000,
                     gamma=0.99,
+                    learning_rate=0.0001,
                     gradient_steps=1,
                     tau = 0.02,
-                    learning_rate=0.0008,
-                    learning_starts=5000,
                     policy_kwargs=dict(net_arch=[50, 50]),
                     train_freq=(1,"step")) -> None: 
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.

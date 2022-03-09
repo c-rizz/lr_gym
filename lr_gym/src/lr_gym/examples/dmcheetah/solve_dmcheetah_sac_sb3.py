@@ -25,7 +25,17 @@ import dmc2gym.wrappers
 
 
 
-def main(obsNoise : NDArray[(4,),np.float32]) -> None: 
+def main(obsNoise : NDArray[(4,),np.float32],
+                    batch_size=1024,
+                    buffer_size=200000,
+                    learning_starts=5000,
+                    gamma=0.99,
+                    learning_rate=0.0002,
+                    gradient_steps=1,
+                    tau = 0.02,
+                    policy_kwargs=dict(net_arch=[50, 50]),
+                    train_freq=(1,"step"),
+                    ent_coef="auto_0.1") -> None: 
     """Solves the gazebo cartpole environment using the DQN implementation by stable-baselines.
 
     It does not use the rendering at all, it learns from the joint states.
@@ -63,16 +73,16 @@ def main(obsNoise : NDArray[(4,),np.float32]) -> None:
     #             target_entropy = 0.9)
 
     model = SAC( MlpPolicy, env, verbose=1,
-                 batch_size=256,
-                 buffer_size=200000,
-                 gamma=0.99,
-                 learning_rate=0.0001,
-                 ent_coef="auto_0.1",
-                 learning_starts=1000,
-                 tau = 0.02,
-                 policy_kwargs=dict(net_arch=[64, 64]),
-                 gradient_steps=1,
-                 train_freq=(1,"step"),
+                 batch_size=batch_size,
+                 buffer_size=buffer_size,
+                 gamma=gamma,
+                 learning_rate=learning_rate,
+                 ent_coef=ent_coef,
+                 learning_starts=learning_starts,
+                 tau=tau,
+                 policy_kwargs=policy_kwargs,
+                 gradient_steps=gradient_steps,
+                 train_freq=train_freq,
                  seed = RANDOM_SEED,
                  device=device)
 

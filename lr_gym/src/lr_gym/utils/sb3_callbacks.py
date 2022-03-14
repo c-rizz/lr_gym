@@ -141,7 +141,9 @@ class EvalCallback_ep(EventCallback):
         # For computing success rate
         self._is_success_buffer = []
         self.evaluations_successes = []
-        self._rollouts_count = 0
+        self._episode_counter = 0
+        self._last_evaluation_episode = -1
+
 
     def _init_callback(self) -> None:
         # Does not work in some corner cases, where the wrapper is not the same
@@ -154,6 +156,12 @@ class EvalCallback_ep(EventCallback):
         if self.log_path is not None:
             os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
 
+    def _on_step(self):
+        # ggLog.info(f"AutoencodingSAC_VideoSaver: on_step, locals = {self.locals}")
+        if self.locals["dones"][0]:
+            self._episode_counter += 1
+        return True
+
     def _log_success_callback(self, locals_: Dict[str, Any], globals_: Dict[str, Any]) -> None:
         """
         Callback passed to the  ``evaluate_policy`` function
@@ -162,7 +170,7 @@ class EvalCallback_ep(EventCallback):
         :param locals_:
         :param globals_:
         """
-        info = locals_["infos"]
+        info = locals_["info"]
 
         if locals_["dones"]:
             maybe_is_success = info.get("is_success")
@@ -170,8 +178,8 @@ class EvalCallback_ep(EventCallback):
                 self._is_success_buffer.append(maybe_is_success)
 
     def _on_rollout_end(self) -> bool:
-        self._rollouts_count += 1
-        if self.eval_freq_ep > 0 and self._rollouts_count % self.eval_freq_ep == 0:
+        if self.eval_freq_ep > 0 and self._episode_counter % self.eval_freq_ep == 0 and self._last_evaluation_episode != self._episode_counter:
+            self._last_evaluation_episode = self._episode_counter
             # Sync training and eval env if there is VecNormalize
             if self.model.get_vec_normalize_env() is not None:
                 try:

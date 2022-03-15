@@ -8,12 +8,10 @@ The provided class must be extended to define a specific environment
 
 import numpy as np
 import gym
-from typing import Tuple
-from typing import Dict
-from typing import Any
-from typing import Sequence
+from typing import Tuple, Dict, Any, Sequence
+from abc import ABC, abstractmethod
 
-class BaseEnv():
+class BaseEnv(ABC):
     """This is a base-class for implementing lr_gym environments.
 
     It defines more general methods to be implemented than the original gym.Env class.
@@ -28,7 +26,7 @@ class BaseEnv():
     metadata = None # e.g. {'render.modes': ['rgb_array']}
 
     def __init__(self,
-                 maxActionsPerEpisode : int = 500,
+                 maxStepsPerEpisode : int = 500,
                  startSimulation : bool = False,
                  simulationBackend : str = "gazebo",
                  verbose : bool = False,
@@ -37,14 +35,15 @@ class BaseEnv():
 
         Parameters
         ----------
-        maxActionsPerEpisode : int
-            maximum number of frames per episode. The step() function will return
+        maxStepsPerEpisode : int
+            maximum number of frames per episode. The checkEpisodeEnded() function will return
             done=True after being called this number of times
 
         """
 
         self._actionsCounter = 0
-        self._maxActionsPerEpisode = maxActionsPerEpisode
+        self._stepCounter = 0
+        self._maxStepsPerEpisode = maxStepsPerEpisode
         self._backend = simulationBackend
         self._envSeed : int = 0
 
@@ -53,7 +52,7 @@ class BaseEnv():
 
 
 
-
+    @abstractmethod
     def submitAction(self, action) -> None:
         """To be implemented in subclass.
 
@@ -77,12 +76,17 @@ class BaseEnv():
         """
         self._actionsCounter += 1
 
+    def reachedTimeout(self):
+        """
+        If maxStepsPerEpisode is reached. Usually not supposed to be subclassed.
+        """
+        return self.getMaxStepsPerEpisode()>0 and self._stepsCounter >= self.getMaxStepsPerEpisode()
 
+    @abstractmethod
     def checkEpisodeEnded(self, previousState, state) -> bool:
         """To be implemented in subclass.
 
-        This method is called during the stepping of the simulation. Just after the simulation has been stepped forward
-        this method is used to determine if the episode is concluded.
+        If the episode has finished. In the subclass you should OR this with your own conditions.
 
         Parameters
         ----------
@@ -97,11 +101,9 @@ class BaseEnv():
             Return True if the episode has ended, False otherwise
 
         """
-        if self._actionsCounter >= self._maxActionsPerEpisode and self._maxActionsPerEpisode>0:
-            return True
-        else:
-            return False
+        return self.reachedTimeout()
 
+    @abstractmethod
     def computeReward(self, previousState, state, action) -> float:
         """To be implemented in subclass.
 
@@ -123,7 +125,7 @@ class BaseEnv():
         """
         raise NotImplementedError()
 
-
+    @abstractmethod
     def getObservation(self, state) -> np.ndarray:
         """To be implemented in subclass.
 
@@ -137,6 +139,7 @@ class BaseEnv():
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def getState(self) -> Sequence:
         """To be implemented in subclass.
 
@@ -150,7 +153,7 @@ class BaseEnv():
         """
         raise NotImplementedError()
 
-
+    @abstractmethod
     def initializeEpisode(self) -> None:
         """To be implemented in subclass.
 
@@ -159,28 +162,30 @@ class BaseEnv():
         """
         pass
 
-
+    @abstractmethod
     def performStep(self) -> None:
         """To be implemented in subclass.
 
-        This method is called by the step method to perform the stepping of the environment. In the case of
+        This method is called to perform the stepping of the environment. In the case of
         simulated environments this means stepping forward the simulated time.
         It is called after submitAction and before getting the state observation
 
         """
-        raise NotImplementedError()
+        self._stepCounter+=0
+        return
 
-
+    @abstractmethod
     def performReset(self) -> None:
         """To be implemented in subclass.
 
         This method is called by the reset method to perform the actual reset of the environment to its initial state
 
         """
+        self._stepCounter = 0
         self._actionsCounter = 0
 
 
-
+    @abstractmethod
     def getUiRendering(self) -> Tuple[np.ndarray, float]:
         """To be implemented in subclass.
 
@@ -190,17 +195,20 @@ class BaseEnv():
 
         raise NotImplementedError()
 
+    @abstractmethod
     def getInfo(self,state=None) -> Dict[Any,Any]:
         """To be implemented in subclass.
 
         This method is called by the step method. The values returned by it will be appended in the info variable returned bby step
         """
-        return {}
+        return {"timed_out" : self._actionsCounter >= self._maxStepsPerEpisode and self._maxStepsPerEpisode>0}
+
 
     def getMaxStepsPerEpisode(self):
         """Get the maximum number of frames of one episode, as set by the constructor."""
-        return self._maxActionsPerEpisode
+        return self._maxStepsPerEpisode
 
+    @abstractmethod
     def setGoalInState(self, state, goal):
         """To be implemented in subclass.
 
@@ -209,6 +217,7 @@ class BaseEnv():
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def getGoalFromState(self, state):
         """To be implemented in subclass.
 
@@ -216,6 +225,7 @@ class BaseEnv():
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def getAchievedGoalFromState(self, state):
         """To be implemented in subclass.
 
@@ -223,6 +233,7 @@ class BaseEnv():
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def getPureObservationFromState(self, state):
         """To be implemented in subclass.
 
@@ -231,6 +242,7 @@ class BaseEnv():
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def buildSimulation(self, backend : str = "gazebo"):
         """To be implemented in subclass.
 
@@ -238,6 +250,7 @@ class BaseEnv():
         """
         raise NotImplementedError() #TODO: Move this into the environmentControllers
 
+    @abstractmethod
     def _destroySimulation(self):
         """To be implemented in subclass.
 
@@ -245,6 +258,7 @@ class BaseEnv():
         """
         pass
 
+    @abstractmethod
     def getSimTimeFromEpStart(self):
         """Get the elapsed time since the episode start."""
         raise NotImplementedError()

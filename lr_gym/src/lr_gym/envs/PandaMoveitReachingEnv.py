@@ -58,7 +58,7 @@ class PandaMoveitReachingEnv(ControlledEnv):
 
     def __init__(   self,
                     goalPose : Tuple[float,float,float,float,float,float,float] = (0,0,0, 0,0,0,0),
-                    maxActionsPerEpisode : int = 500,
+                    maxStepsPerEpisode : int = 500,
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 0.0175*5,
@@ -73,7 +73,7 @@ class PandaMoveitReachingEnv(ControlledEnv):
         ----------
         goalPose : Tuple[float,float,float,float,float,float,float]
             end-effector pose to reach (x,y,z, qx,qy,qz,qw)
-        maxActionsPerEpisode : int
+        maxStepsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -110,7 +110,7 @@ class PandaMoveitReachingEnv(ControlledEnv):
         else:
             self._environmentController = environmentController
 
-        super().__init__(   maxActionsPerEpisode = maxActionsPerEpisode,
+        super().__init__(   maxStepsPerEpisode = maxStepsPerEpisode,
                             startSimulation = startSimulation,
                             environmentController=self._environmentController,
                             simulationBackend=backend)
@@ -200,7 +200,7 @@ class PandaMoveitReachingEnv(ControlledEnv):
             Why the exception is raised.
 
         """
-        self._environmentController.step()
+        super().performStep()
         if self._checkGoalReached(self.getState()):
             ggLog.info("Goal Reached")
 

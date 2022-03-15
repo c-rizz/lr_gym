@@ -70,7 +70,7 @@ class PandaEffortBaseEnv(ControlledEnv):
     metadata = {'render.modes': ['rgb_array']}
 
     def __init__(   self,
-                    maxActionsPerEpisode : int = 500,
+                    maxStepsPerEpisode : int = 500,
                     render : bool = False,
                     maxTorques : Tuple[float, float, float, float, float, float, float] = [87, 87, 87, 87, 12, 12, 12],
                     environmentController : lr_gym.envControllers.EnvironmentController = None,
@@ -81,7 +81,7 @@ class PandaEffortBaseEnv(ControlledEnv):
 
         Parameters
         ----------
-        maxActionsPerEpisode : int
+        maxStepsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -125,7 +125,7 @@ class PandaEffortBaseEnv(ControlledEnv):
                              stepLength_sec = stepLength_sec,
                              forced_ros_master_uri = forced_ros_master_uri)
 
-        super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
+        super().__init__(maxStepsPerEpisode = maxStepsPerEpisode,
                          environmentController = environmentController,
                          startSimulation = startSimulation)
 

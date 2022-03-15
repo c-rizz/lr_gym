@@ -37,7 +37,7 @@ class HopperVisualEnv(HopperEnv):
     State = Tuple[RobotState, ImgObservation]
     
     def __init__(   self,
-                    maxActionsPerEpisode : int = 500,
+                    maxStepsPerEpisode : int = 500,
                     render : bool = False,
                     stepLength_sec : float = 0.05,
                     simulatorController : EnvironmentController = None,
@@ -51,7 +51,7 @@ class HopperVisualEnv(HopperEnv):
 
         Parameters
         ----------
-        maxActionsPerEpisode : int
+        maxStepsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -85,7 +85,7 @@ class HopperVisualEnv(HopperEnv):
         self._successes = [1]*self._success_ratio_avglen
         self._tot_episodes = 0
         self._success_ratio = 0
-        super(HopperEnv, self).__init__(maxActionsPerEpisode = maxActionsPerEpisode,
+        super(HopperEnv, self).__init__(maxStepsPerEpisode = maxStepsPerEpisode,
                          stepLength_sec = stepLength_sec,
                          environmentController = simulatorController,
                          startSimulation = startSimulation,
@@ -103,7 +103,6 @@ class HopperVisualEnv(HopperEnv):
             raise AttributeError(f"Unsupported imgEncoding '{imgEncoding}' requested, it can be either 'int' or 'float'")
         
         self._stackedImg = np.zeros(shape=(self._frame_stacking_size,self._obs_img_height, self._obs_img_width), dtype=np.float32)
-        self._intendedSimTime = 0.0
         
 
         #print("HopperEnv: action_space = "+str(self.action_space))
@@ -202,6 +201,7 @@ class HopperVisualEnv(HopperEnv):
     def performStep(self) -> None:
         for i in range(self._frame_stacking_size):
             #ggLog.info(f"Stepping {i}")
+            super(HopperEnv, self).performStep()
             self._environmentController.step()
             img = self._environmentController.getRenderings(["camera"])[0]
             if img is None:
@@ -209,7 +209,7 @@ class HopperVisualEnv(HopperEnv):
                 img = np.empty([self._obs_img_height, self._obs_img_width,3])
             img = self._reshapeFrame(img)
             self._stackedImg[i] = img
-            self._intendedSimTime += self._stepLength_sec
+            self._estimatedSimTime += self._stepLength_sec
 
 
 
@@ -217,7 +217,6 @@ class HopperVisualEnv(HopperEnv):
         #ggLog.info("PerformReset")
         super().performReset()
         self._environmentController.resetWorld()
-        self._intendedSimTime = 0.0
         self.initializeEpisode()
         img = self._environmentController.getRenderings(["camera"])[0]
         if img is None:

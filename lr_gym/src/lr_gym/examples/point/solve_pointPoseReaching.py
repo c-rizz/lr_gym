@@ -147,7 +147,7 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
 
     print("Setting up environment...")
     env = PointPoseReachingEnv(  goalPoseSamplFunc=sampleGoal,
-                                 maxActionsPerEpisode = 30,
+                                 maxStepsPerEpisode = 30,
                                  operatingArea = np.array([[0, -1, 0.1], [1, 1, 1.35]]),
                                  startPose = lr_gym.utils.utils.Pose(0.46,0,0.83, 0, 0, 0, 1))
     # env = GymEnvWrapper(env, episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")

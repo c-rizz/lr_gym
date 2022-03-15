@@ -133,7 +133,7 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
 
 
     def constructEnv(i):
-        env = ToGoalEnvWrapper(PandaEffortKeepVarPoseEnv(maxActionsPerEpisode = maxStepsPerEpisode,
+        env = ToGoalEnvWrapper(PandaEffortKeepVarPoseEnv(maxStepsPerEpisode = maxStepsPerEpisode,
                                                          environmentController = envController,
                                                          maxTorques = [0.1*i for i in frankaMaxTorques],
                                                          stepLength_sec = stepLength_sec,

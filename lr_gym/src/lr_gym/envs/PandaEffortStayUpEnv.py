@@ -16,7 +16,7 @@ class PandaEffortStayUpEnv(PandaEffortBaseEnv):
     """This class represents an environment in which a Panda arm is controlled with torque control to keep the end-effector as high as possible."""
 
     def __init__(   self,
-                    maxActionsPerEpisode : int = 500,
+                    maxStepsPerEpisode : int = 500,
                     render : bool = False,
                     maxTorques = [100, 100, 100, 100, 100, 100, 100],
                     environmentController : lr_gym.envControllers.EnvironmentController = None,
@@ -25,7 +25,7 @@ class PandaEffortStayUpEnv(PandaEffortBaseEnv):
 
         Parameters
         ----------
-        maxActionsPerEpisode : int
+        maxStepsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -39,7 +39,7 @@ class PandaEffortStayUpEnv(PandaEffortBaseEnv):
         """
 
 
-        super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
+        super().__init__(maxStepsPerEpisode = maxStepsPerEpisode,
                          render = render,
                          maxTorques = maxTorques,
                          environmentController = environmentController,

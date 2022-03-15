@@ -17,13 +17,13 @@ class CartpoleNoisyContinuousEnv(CartpoleContinuousEnv):
     Still, the left and right pushes are of a fixed amount. Actions in [0,0.5] push to the left, acitons in [0.5,1] push right.
     """
     def __init__(   self,
-                    maxActionsPerEpisode : int = 500,
+                    maxStepsPerEpisode : int = 500,
                     render : bool = False,
                     stepLength_sec : float = 0.05,
                     simulatorController = None,
                     startSimulation : bool = False,
                     observation_noise_std : Tuple[float,float,float,float] = (0.03,0.03,0.05,0.05)):
-        super().__init__(   maxActionsPerEpisode = maxActionsPerEpisode,
+        super().__init__(   maxStepsPerEpisode = maxStepsPerEpisode,
                             render = render,
                             stepLength_sec = stepLength_sec,
                             simulatorController = simulatorController,

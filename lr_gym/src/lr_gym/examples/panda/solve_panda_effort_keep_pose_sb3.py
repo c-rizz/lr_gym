@@ -103,7 +103,7 @@ def load(model, filename : str, env : lr_gym.envs.BaseEnv.BaseEnv) -> None:
 def main(fileToLoad : str = None):
 
     env = GymEnvWrapper(PandaEffortKeepPoseEnv( goalPose = (0.4,0.4,0.6, 1,0,0,0),
-                                                maxActionsPerEpisode = 300,
+                                                maxStepsPerEpisode = 300,
                                                 stepLength_sec = 0.01,
                                                 startSimulation = True))
     #setup seeds for reproducibility

@@ -32,7 +32,7 @@ class CartpoleEnv(ControlledEnv):
     metadata = {'render.modes': ['rgb_array']}
 
     def __init__(   self,
-                    maxActionsPerEpisode : int = 500,
+                    maxStepsPerEpisode : int = 500,
                     render : bool = False,
                     stepLength_sec : float = 0.05,
                     simulatorController = None,
@@ -43,7 +43,7 @@ class CartpoleEnv(ControlledEnv):
 
         Parameters
         ----------
-        maxActionsPerEpisode : int
+        maxStepsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -62,7 +62,7 @@ class CartpoleEnv(ControlledEnv):
 
         self._wall_sim_speed = wall_sim_speed
         self.seed(seed)
-        super().__init__(maxActionsPerEpisode = maxActionsPerEpisode,
+        super().__init__(maxStepsPerEpisode = maxStepsPerEpisode,
                          stepLength_sec = stepLength_sec,
                          environmentController = simulatorController,
                          startSimulation = startSimulation,
@@ -103,7 +103,7 @@ class CartpoleEnv(ControlledEnv):
         else:
             done = False
 
-        self._success = self._actionsCounter>=self._maxActionsPerEpisode
+        self._success = self._actionsCounter>=self._maxStepsPerEpisode
 
         return done
 

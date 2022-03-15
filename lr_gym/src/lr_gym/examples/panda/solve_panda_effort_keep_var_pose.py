@@ -111,7 +111,7 @@ def main(fileToLoad : str = None, usePlugin : bool = False):
     folderName = "./solve_panda_effort_keep_var_tensorboard/"+run_id
     os.makedirs(folderName)
 
-    env = ToGoalEnvWrapper( PandaEffortKeepVarPoseEnv(maxActionsPerEpisode = 50,
+    env = ToGoalEnvWrapper( PandaEffortKeepVarPoseEnv(maxStepsPerEpisode = 50,
                                                       environmentController = envController,
                                                       maxTorques = [87, 87, 87, 87, 12, 12, 12],
                                                       stepLength_sec = stepLength_sec,

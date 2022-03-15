@@ -36,13 +36,13 @@ class GymToLr(BaseEnv):
 
         Parameters
         ----------
-        maxActionsPerEpisode : int
+        maxStepsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
 
         """
 
-        super().__init__(   maxActionsPerEpisode = 0,
+        super().__init__(   maxStepsPerEpisode = 0,
                             startSimulation = True,
                             simulationBackend = "OpenAiGym",
                             verbose = False,
@@ -69,11 +69,12 @@ class GymToLr(BaseEnv):
 
 
     def checkEpisodeEnded(self, previousState, state) -> bool:
-        super().checkEpisodeEnded(previousState, state)
         if self._lastDone is not None:
-            return self._lastDone
+            ended = self._lastDone
         else:
-            return False
+            ended = False
+        ended = ended or super().checkEpisodeEnded(previousState, state)
+        return ended
 
 
     def computeReward(self, previousState, state, action) -> float:
@@ -93,6 +94,7 @@ class GymToLr(BaseEnv):
 
 
     def performStep(self) -> None:
+        super().performStep()
         self._previousObservation = self._lastObservation
         self._stepCount += 1
         # time.sleep(1)
@@ -120,7 +122,7 @@ class GymToLr(BaseEnv):
 
     def getMaxStepsPerEpisode(self):
         """Get the maximum number of frames of one episode, as set by the constructor."""
-        return self._maxActionsPerEpisode
+        return self._maxStepsPerEpisode
 
     def setGoalInState(self, state, goal):
         """To be implemented in subclass.

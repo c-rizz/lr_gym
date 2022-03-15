@@ -45,7 +45,7 @@ class PointPositionReachingEnv(BaseEnv):
 
     def __init__(   self,
                     goalPoseSamplFunc : Callable[[],NDArray[(7,), np.float32]],
-                    maxActionsPerEpisode : int = 500,
+                    maxStepsPerEpisode : int = 500,
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 0.0175*5,
                     operatingArea = np.array([[-1, -1, 0], [1, 1, 1.5]]),
@@ -56,7 +56,7 @@ class PointPositionReachingEnv(BaseEnv):
         ----------
         goalPoseSamplFunc : Tuple[float,float,float,float,float,float,float]
             end-effector pose to reach (x,y,z, qx,qy,qz,qw)
-        maxActionsPerEpisode : int
+        maxStepsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         goalTolerancePosition : float
@@ -67,7 +67,7 @@ class PointPositionReachingEnv(BaseEnv):
 
         """
 
-        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, startSimulation = False)
+        super().__init__( maxStepsPerEpisode = maxStepsPerEpisode, startSimulation = False)
 
         self._goalPoseSamplFunc = goalPoseSamplFunc
         self._goalTolerancePosition = goalTolerancePosition
@@ -122,6 +122,7 @@ class PointPositionReachingEnv(BaseEnv):
             Why the exception is raised.
 
         """
+        super().performStep()
         self._simTime += 1
         if self._checkGoalReached(self.getState()):
             ggLog.info("Goal Reached")

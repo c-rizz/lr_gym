@@ -206,6 +206,8 @@ class GymEnvWrapper(gym.Env):
             info = {}
             info.update(self._ggEnv.getInfo(state=self._getStateCached()))
             self._lastStepEndSimTimeFromStart = self._ggEnv.getSimTimeFromEpStart()
+            info["simTime"] = self._lastStepEndSimTimeFromStart
+            info["timed_out"] = self._ggEnv.reachedTimeout()
             info.update(self._info)
             return (observation, reward, done, info)
 
@@ -239,7 +241,8 @@ class GymEnvWrapper(gym.Env):
         observation = self._ggEnv.getObservation(state)
         info = {"gz_gym_base_env_reached_state" : state,
                 "gz_gym_base_env_previous_state" : previousState,
-                "gz_gym_base_env_action" : action}
+                "gz_gym_base_env_action" : action,
+                "timed_out" : self._ggEnv.reachedTimeout()}
         ggInfo = self._ggEnv.getInfo(state=state)
         if done:
             if "success_ratio" in ggInfo:

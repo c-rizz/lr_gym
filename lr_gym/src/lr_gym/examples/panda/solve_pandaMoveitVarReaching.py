@@ -125,12 +125,12 @@ def main(fileToLoad : str = None, real : bool = False, robot_ip : str = None) ->
     print("Setting up environment...")
     if not real:
         ggEnv = PandaMoveitVarReachingEnv(  goalPoseSamplFunc=sampleGoal,
-                                            maxActionsPerEpisode = 30,
+                                            maxStepsPerEpisode = 30,
                                             operatingArea = np.array([[0, -1, 0.1], [1, 1, 1.35]]),
                                             startJointPose = [0,0,0,-1,0,2.57,0])
     else:
         ggEnv = PandaMoveitVarReachingEnv(  goalPoseSamplFunc=sampleGoal,
-                                            maxActionsPerEpisode = 30,
+                                            maxStepsPerEpisode = 30,
                                             operatingArea = np.array([[0, -1, 0.1], [1, 1, 1.35]]),
                                             startJointPose = [0,0,0,-1,0,2.57,0],
                                             backend="real",

@@ -27,7 +27,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
 
 
     def __init__(   self,
-                    maxActionsPerEpisode : int = 500,
+                    maxStepsPerEpisode : int = 500,
                     stepLength_sec : float = 0.05,
                     simulatorController = None,
                     startSimulation : bool = False,
@@ -41,7 +41,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
 
         Parameters
         ----------
-        maxActionsPerEpisode : int
+        maxStepsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -77,7 +77,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         self._img_crop_rel_bottom = 0.62500 # 150px at 240p 150.0/240.0
         self._success = False
 
-        super(CartpoleEnv, self).__init__(  maxActionsPerEpisode = maxActionsPerEpisode,
+        super(CartpoleEnv, self).__init__(  maxStepsPerEpisode = maxStepsPerEpisode,
                                             stepLength_sec = stepLength_sec,
                                             environmentController = simulatorController,
                                             startSimulation = startSimulation,
@@ -201,6 +201,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
     def performStep(self) -> None:
         for i in range(self._frame_stacking_size):
             #ggLog.info(f"Stepping {i}")
+            super(CartpoleEnv, self).performStep()
             self._environmentController.step()
             img = self._environmentController.getRenderings(["camera"])[0]
             if img is None:
@@ -208,7 +209,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
                 img = np.zeros([self._obs_img_height, self._obs_img_width,3])
             img = self._reshapeFrame(img)
             self._stackedImg[i] = img
-            self._intendedSimTime += self._stepLength_sec
+            self._estimatedSimTime += self._stepLength_sec
 
 
 
@@ -216,7 +217,6 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         #ggLog.info("PerformReset")
         super().performReset()
         self._environmentController.resetWorld()
-        self._intendedSimTime = 0
         self.initializeEpisode()
         img = self._environmentController.getRenderings(["camera"])[0]
         if img is None:

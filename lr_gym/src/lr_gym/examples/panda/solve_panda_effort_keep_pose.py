@@ -108,7 +108,7 @@ def main(fileToLoad : str = None):
     folderName = "./solve_panda_effort_keep_tensorboard/"+run_id
 
     env = GymEnvWrapper(PandaEffortKeepPoseEnv( goalPose = (0.4,0.4,0.6, 1,0,0,0),
-                                                maxActionsPerEpisode = 300,
+                                                maxStepsPerEpisode = 300,
                                                 stepLength_sec = 0.01,
                                                 startSimulation = True),
                         episodeInfoLogFile = folderName+"/GymEnvWrapper_log.0.csv")

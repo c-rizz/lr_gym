@@ -95,13 +95,20 @@ class MultiMasterRosLauncher:
         os.environ["ROSCONSOLE_FORMAT"] = '['+str(self._rosMasterPort)+'][${severity}] [${time}]: ${message}'
 
         def run_in_thread():
-                self._popen_obj = subprocess.Popen(["roslaunch", self._launchFile]+self._cli_args)
-                self._popen_obj.wait()
-                if self._popen_obj.returncode != 0:
-                    ggLog.error("Roslaunch failed with code "+str(self._popen_obj.returncode))
-                else:
-                    ggLog.info("Roslaunch exited.")
-                return
+            # print("Strarting subprocess")
+            # time.sleep(10)
+            self._popen_obj = subprocess.Popen(["roslaunch", self._launchFile]+self._cli_args,
+                                                start_new_session=True,
+                                                # stdin=open(os.devnull, 'rb'),
+                                                # stdout=open(os.devnull, 'wb'),
+                                                # stderr=open(os.devnull, 'wb')
+                                                ) # start_new_session and stdin are to prevent signal propagation
+            self._popen_obj.wait()
+            if self._popen_obj.returncode != 0:
+                ggLog.error("Roslaunch failed with code "+str(self._popen_obj.returncode))
+            else:
+                ggLog.info("Roslaunch exited.")
+            return
         thread = threading.Thread(target=run_in_thread, daemon=True) #Daemon=True makes it so that the thread is terminated (ungracefully) if the main thread crashes
         thread.start()
         # time.sleep(10) #TODO: Ugly, need a better way to ensure the roslaunch has launched everyting

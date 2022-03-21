@@ -42,6 +42,7 @@ class GymEnvWrapper(gym.Env):
     action_space = None
     observation_space = None
     metadata = None # e.g. {'render.modes': ['rgb_array']}
+    spec = None
 
     def __init__(self,
                  env : BaseEnv,
@@ -59,6 +60,8 @@ class GymEnvWrapper(gym.Env):
         self.action_space = env.action_space
         self.observation_space = env.observation_space
         self.metadata = env.metadata
+        self.spec = gym.envs.registration.EnvSpec(id=f"GymEnvWrapper-env-v0", max_episode_steps = env.getMaxStepsPerEpisode())
+        self._max_episode_steps = self.spec.max_episode_steps # For compatibility, some libraries read this instead of spec
 
         self._verbose = verbose
         self._quiet = quiet

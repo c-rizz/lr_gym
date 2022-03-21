@@ -80,7 +80,7 @@ class BaseEnv(ABC):
         """
         If maxStepsPerEpisode is reached. Usually not supposed to be subclassed.
         """
-        return self.getMaxStepsPerEpisode()>0 and self._stepsCounter >= self.getMaxStepsPerEpisode()
+        return self.getMaxStepsPerEpisode()>0 and self._stepCounter >= self.getMaxStepsPerEpisode()
 
     @abstractmethod
     def checkEpisodeEnded(self, previousState, state) -> bool:
@@ -171,7 +171,7 @@ class BaseEnv(ABC):
         It is called after submitAction and before getting the state observation
 
         """
-        self._stepCounter+=0
+        self._stepCounter+=1
         return
 
     @abstractmethod
@@ -208,7 +208,6 @@ class BaseEnv(ABC):
         """Get the maximum number of frames of one episode, as set by the constructor."""
         return self._maxStepsPerEpisode
 
-    @abstractmethod
     def setGoalInState(self, state, goal):
         """To be implemented in subclass.
 
@@ -217,7 +216,6 @@ class BaseEnv(ABC):
         """
         raise NotImplementedError()
 
-    @abstractmethod
     def getGoalFromState(self, state):
         """To be implemented in subclass.
 
@@ -225,7 +223,6 @@ class BaseEnv(ABC):
         """
         raise NotImplementedError()
 
-    @abstractmethod
     def getAchievedGoalFromState(self, state):
         """To be implemented in subclass.
 
@@ -233,7 +230,6 @@ class BaseEnv(ABC):
         """
         raise NotImplementedError()
 
-    @abstractmethod
     def getPureObservationFromState(self, state):
         """To be implemented in subclass.
 

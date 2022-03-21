@@ -31,7 +31,7 @@ class GymToLr(BaseEnv):
     observation_space = None
     metadata = None # e.g. {'render.modes': ['rgb_array']}
 
-    def __init__(self, openaiGym_env : gym.Env, stepSimDuration_sec : float = 1):
+    def __init__(self, openaiGym_env : gym.Env, stepSimDuration_sec : float = 1, maxStepsPerEpisode = None):
         """Short summary.
 
         Parameters
@@ -42,7 +42,15 @@ class GymToLr(BaseEnv):
 
         """
 
-        super().__init__(   maxStepsPerEpisode = 0,
+        if maxStepsPerEpisode is None:
+            if openaiGym_env.spec is not None:
+                maxStepsPerEpisode = openaiGym_env.spec.max_episode_steps
+            if maxStepsPerEpisode is None and hasattr(openaiGym_env,"_max_episode_steps"):
+                maxStepsPerEpisode = openaiGym_env._max_episode_steps
+            if maxStepsPerEpisode is None:
+                raise RuntimeError("Cannot determine maxStepsPerEpisode from openaiGym_env env, you need to specify it manually")
+
+        super().__init__(   maxStepsPerEpisode = maxStepsPerEpisode,
                             startSimulation = True,
                             simulationBackend = "OpenAiGym",
                             verbose = False,

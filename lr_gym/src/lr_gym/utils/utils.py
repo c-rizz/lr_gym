@@ -271,22 +271,48 @@ class LinkState:
 
 
 sigint_received = False
+sigint_counter = 0
+sigint_max = 10
+original_sigint_handler = None
 
 def setupSigintHandler():
-    prevHandler = signal.getsignal(signal.SIGINT)
+    global original_sigint_handler
+    original_sigint_handler = signal.getsignal(signal.SIGINT)
 
     def sigint_handler(signal, stackframe):
-        try:
-            prevHandler(signal,stackframe)
-        except KeyboardInterrupt:
-            pass #If it was the original one, doesn't do anything, if it was something else it got executed
-
         global sigint_received
+        global sigint_counter
+        global sigint_max
+        global original_sigint_handler
         sigint_received = True
-
-        raise KeyboardInterrupt #Someday do something better
+        sigint_counter += 1
+        print(f"\n"+
+              f"-----------------------------------------------------------------------------------------------------\n"+
+              f"-----------------------------------------------------------------------------------------------------\n"+
+              f"Received sigint, will halt at first opportunity. ({sigint_max-sigint_counter} presses to hard SIGINT)\n"+
+              f"-----------------------------------------------------------------------------------------------------\n"+
+              f"-----------------------------------------------------------------------------------------------------\n\n")
+        if sigint_counter>sigint_max:
+            try:
+                original_sigint_handler(signal,stackframe)
+            except KeyboardInterrupt:
+                pass #If it was the original one, doesn't do anything, if it was something else it got executed
+            raise KeyboardInterrupt
 
     signal.signal(signal.SIGINT, sigint_handler)
+
+def haltOnSigintReceived():
+    global sigint_received
+    global sigint_counter
+    if sigint_received:
+        answer = input(f"SIGINT received. Press Enter to resume or type 'exit' to terminate:\n> ")
+        if answer == "exit":
+            original_sigint_handler(signal.SIGINT, None)
+            raise KeyboardInterrupt
+        print("Resuming...")
+        sigint_received = False
+        sigint_counter = 0
+
 
 
 def createSymlink(src, dst):

@@ -196,7 +196,7 @@ def makePlot(dfs : List[pd.DataFrame],
 
     if showLegend:
         # p.legend(loc='upper left')
-        p.legend(loc='lower right')
+        p.legend(loc='lower right',  prop={'size': 4})
     p.minorticks_on()
     #p.tick_params(axis='x', which='minor', bottom=False)
     p.grid(linestyle='dotted',which="both")
@@ -271,6 +271,7 @@ while not ctrl_c_received:
         csvfiles = args["csvfiles"]
         commonPath = os.path.commonpath([os.path.abspath(os.path.dirname(cf)) for cf in csvfiles])
         commonRealPath = os.path.realpath(commonPath) # absolute path without links
+        lastCommonPathElement = commonRealPath.split("/")[-1]
         title = args["title"]
         if title is None:
             crps = commonRealPath.split("/")
@@ -315,9 +316,12 @@ while not ctrl_c_received:
                 dfLabels = [None]*len(dfs)
                 i = 0
                 for csvfile in csvfiles:
-                    for f in csvfile.split("/"):
+                    dfLabels[i] = ""
+                    splitpath = os.path.realpath(csvfile).split("/")
+                    dfLabels[i] = splitpath[splitpath.index(lastCommonPathElement)+1]
+                    for f in splitpath:
                         if f.startswith("seed_"):
-                            dfLabels[i] = f[5:]
+                            dfLabels[i] += "/"+f[5:]
                     if dfLabels[i] is None:
                         dfLabels[i] = chr(65+i)
                     i+=1

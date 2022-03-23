@@ -210,7 +210,7 @@ class GymEnvWrapper(gym.Env):
             info.update(self._ggEnv.getInfo(state=self._getStateCached()))
             self._lastStepEndSimTimeFromStart = self._ggEnv.getSimTimeFromEpStart()
             info["simTime"] = self._lastStepEndSimTimeFromStart
-            info["timed_out"] = self._ggEnv.reachedTimeout()
+            info["TimeLimit.truncated"] = self._ggEnv.reachedTimeout()
             info.update(self._info)
             return (observation, reward, done, info)
 

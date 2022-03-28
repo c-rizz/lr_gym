@@ -157,6 +157,7 @@ def makePlot(dfs : List[pd.DataFrame],
 
     # palette = sns.color_palette("tab10")#"husl", len(dfs))
     palette = sns.color_palette("husl", len(dfs))
+    palette[-1] = [0 for e in palette[-1]]
     i = 0
     if raw:
         for df in dfs:
@@ -218,7 +219,6 @@ def signal_handler(sig, frame):
 ap = argparse.ArgumentParser()
 ap.add_argument("--csvfiles", nargs="+", required=True, type=str, help="Csv file(s) to read from")
 ap.add_argument("--nogui", default=True, action='store_true', help="Dont show the plot window, just save to file")
-ap.add_argument("--once", default=True, action='store_true', help="Plot only once")
 ap.add_argument("--noavg", default=False, action='store_true', help="Do not plot curve average")
 ap.add_argument("--avgfiles", default=False, action='store_true', help="Make an average pof the provided files instead of displaying all of them")
 ap.add_argument("--raw", default=False, action='store_true', help="Plot raw data")
@@ -226,7 +226,7 @@ ap.add_argument("--maxx", required=False, default=None, type=float, help="Maximu
 ap.add_argument("--minx", required=False, default=None, type=float, help="Minimum x value to plot")
 ap.add_argument("--maxy", required=False, default=None, type=float, help="Maximum y axis value")
 ap.add_argument("--miny", required=False, default=None, type=float, help="Minimum y axis value")
-ap.add_argument("--period", required=False, default=5, type=float, help="Seconds to wait between plot update")
+ap.add_argument("--period", required=False, default=-1, type=float, help="Seconds to wait between plot update")
 ap.add_argument("--out", required=False, default=None, type=str, help="Filename for the output plot")
 ap.add_argument("--ydataid", required=False, default=None, type=str, help="Data to put on the y axis")
 ap.add_argument("--xdataid", required=False, default="reset_count", type=str, help="Data to put on the x axis")
@@ -376,6 +376,6 @@ while not ctrl_c_received:
         print("No data...")
     except FileNotFoundError as e:
         print("File not present... e="+str(e))
-    if args["once"]:
+    if args["period"] <= 0:
         break
     plt.pause(args["period"])

@@ -21,6 +21,7 @@ import multiprocessing
 import csv
 from pynvml.smi import nvidia_smi
 import yaml
+import torch as th
 
 import lr_gym.utils.dbg.ggLog as ggLog
 
@@ -494,32 +495,25 @@ def evaluateSavedModels(files : List[str], evaluator : Callable[[str],Dict[str,U
 
 
 def getBestGpu():
-    nvsmi = nvidia_smi.getInstance()
-    query = nvsmi.DeviceQuery('memory.free, memory.total')
-    gpus_info = query["gpu"]
+    gpus_mem_info = []
+    for i in range(th.cuda.device_count()):
+        prevDev = th.cuda.current_device()
+        th.cuda.set_device(th.device(type="cuda", index=i))
+        gpus_mem_info.append(th.cuda.mem_get_info()) #Returns [free, total]
+        th.cuda.set_device(prevDev)
+        print(f"Got {gpus_mem_info[-1]}")
+
     bestRatio = 0
     bestGpu = None
-    for i in range(len(gpus_info)):
-        tot = gpus_info[i]["fb_memory_usage"]["total"]
-        free = gpus_info[i]["fb_memory_usage"]["free"]
+    for i in range(len(gpus_mem_info)):
+        tot = gpus_mem_info[i][1]
+        free = gpus_mem_info[i][0]
         ratio = free/tot
         if ratio > bestRatio:
             bestRatio = ratio
             bestGpu = i
     ggLog.info(f"Choosing GPU {bestGpu} with {bestRatio*100}% free memory")
     return bestGpu
-
-def getGpuMemUsage():
-    nvsmi = nvidia_smi.getInstance()
-    query = nvsmi.DeviceQuery('memory.free, memory.total')
-    gpus_info = query["gpu"]
-    s = ""
-    for i in range(len(gpus_info)):
-        tot = gpus_info[i]["fb_memory_usage"]["total"]
-        free = gpus_info[i]["fb_memory_usage"]["free"]
-        ratio = free/tot
-        s += f"GPU {i} mem usage = {tot-free}/{tot} ({(1-ratio)*100}%)\n"
-    return s
 
 
 def torch_selectBestGpu():

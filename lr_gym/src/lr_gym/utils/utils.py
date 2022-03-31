@@ -270,6 +270,7 @@ class LinkState:
         return self.__str__()
 
 
+did_initialize_sigint_handling = False
 sigint_received = False
 sigint_counter = 0
 sigint_max = 10
@@ -277,7 +278,9 @@ original_sigint_handler = None
 
 def setupSigintHandler():
     global original_sigint_handler
-    original_sigint_handler = signal.getsignal(signal.SIGINT)
+    global did_initialize_sigint_handling
+    if original_sigint_handler is None:
+        original_sigint_handler = signal.getsignal(signal.SIGINT)
 
     def sigint_handler(signal, stackframe):
         global sigint_received
@@ -300,8 +303,11 @@ def setupSigintHandler():
             raise KeyboardInterrupt
 
     signal.signal(signal.SIGINT, sigint_handler)
+    did_initialize_sigint_handling = True
 
 def haltOnSigintReceived():
+    if not did_initialize_sigint_handling:
+        return
     global sigint_received
     global sigint_counter
     if sigint_received:

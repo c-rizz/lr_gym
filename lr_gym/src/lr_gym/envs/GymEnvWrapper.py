@@ -315,14 +315,15 @@ class GymEnvWrapper(gym.Env):
                 for k,v in self._info.items():
                     ggLog.info(k," = ",v)
             elif not self._quiet:
-                msg =  (f"ep_reward = {self._info['ep_reward']:.3f}"+
-                        " steps = {:d}".format(self._info["ep_frames_count"])+
-                        " wall_fps = {:.3f}".format(self._info["wall_fps"])+
-                        " wall_fps_ftl = {:.3f}".format(self._info["wall_fps_first_to_last"])+
-                        " avg_env_step_wall_dur = {:f}".format(self._info["avg_env_step_wall_duration"])+
-                        " tstep_on_ttot_ftl = {:.2f}".format(self._info["ratio_time_spent_stepping_until_done"])+
-                        " tstep_on_ttot = {:.2f}".format(self._info["ratio_time_spent_stepping"])+
-                        " reset_cnt = {:d}".format(self._info["reset_count"]))
+                msg =  (f"ep_rwrd = {self._info['ep_reward']:.3f}"+
+                        " stps = {:d}".format(self._info["ep_frames_count"])+
+                        " wallFps = {:.3f}".format(self._info["wall_fps"])+
+                        " wallFpsFtl = {:.3f}".format(self._info["wall_fps_first_to_last"])+
+                        " avg_stpWallDur = {:f}".format(self._info["avg_env_step_wall_duration"])+
+                        " tstep/ttot_ftl = {:.2f}".format(self._info["ratio_time_spent_stepping_until_done"])+
+                        " tstep/ttot = {:.2f}".format(self._info["ratio_time_spent_stepping"])+
+                        " ep = {:d}".format(self._info["reset_count"])+
+                        " wallEpDur = {:.2f}".format(self._info["tot_ep_wall_duration"]))
                 if "success_ratio" in self._info.keys():
                         msg += f" succ_ratio = {self._info['success_ratio']:.2f}"
                 ggLog.info(msg)

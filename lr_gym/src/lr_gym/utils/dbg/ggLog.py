@@ -8,7 +8,8 @@ import datetime
 logger = logging.getLogger('GGLog')
 logger.setLevel(logging.DEBUG)
 # create file handler that logs debug and higher level messages
-fh = logging.FileHandler('ggLog_'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+'.log')
+os.makedirs("ggLogs", exist_ok=True)
+fh = logging.FileHandler('ggLogs/ggLog_'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')+'.log')
 fh.setLevel(logging.DEBUG)
 # create console handler with a higher log level
 ch = logging.StreamHandler()

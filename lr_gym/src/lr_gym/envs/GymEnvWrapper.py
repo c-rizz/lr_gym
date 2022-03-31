@@ -246,6 +246,7 @@ class GymEnvWrapper(gym.Env):
                 "gz_gym_base_env_previous_state" : previousState,
                 "gz_gym_base_env_action" : action,
                 "timed_out" : self._ggEnv.reachedTimeout()}
+        info["TimeLimit.truncated"] = self._ggEnv.reachedTimeout()
         ggInfo = self._ggEnv.getInfo(state=state)
         if done:
             if "success_ratio" in ggInfo:

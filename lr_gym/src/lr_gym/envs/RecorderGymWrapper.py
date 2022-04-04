@@ -48,6 +48,8 @@ class RecorderGymWrapper(gym.Wrapper):
         img = self.render(mode = "rgb_array")
         if img is not None:
             self._frameBuffer.append(img)
+        else:
+            self._frameBuffer.append(None)
         self._epReward += stepRet[1]
         return stepRet
 
@@ -59,7 +61,16 @@ class RecorderGymWrapper(gym.Wrapper):
             #outFile = self._outVideoFile+str(self._episodeCounter).zfill(9)
             if not outFilename.endswith(".avi"):
                 outFilename+=".avi"
-            in_resolution_wh = (imgs[0].shape[1], imgs[0].shape[0]) # npimgs are hwc
+            in_resolution_wh = None
+            goodImg = None
+            for npimg in imgs:
+                if npimg is not None:
+                    goodImg = npimg
+                    break
+            in_resolution_wh = (goodImg.shape[1], goodImg.shape[0]) # npimgs are hwc
+            if in_resolution_wh is None:
+                ggLog.warn("RecorderGymWrapper: No valid images in framebuffer, will not write video")
+                return
             height = in_resolution_wh[1]
             minheight = 360
             if height<minheight:
@@ -78,6 +89,8 @@ class RecorderGymWrapper(gym.Wrapper):
                                 "-pix_fmt" : "yuv420p"} 
             writer = WriteGear(output_filename=outFilename, logging=False, **output_params)
             for npimg in imgs:
+                if npimg is None:
+                    npimg = np.zeros_like(goodImg)
                 npimg = cv2.resize(npimg,dsize=out_resolution_wh,interpolation=cv2.INTER_NEAREST)
                 npimg = self._preproc_frame(npimg)
                 for _ in range(self._frameRepeat):

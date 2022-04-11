@@ -30,7 +30,8 @@ class BaseEnv(ABC):
                  startSimulation : bool = False,
                  simulationBackend : str = "gazebo",
                  verbose : bool = False,
-                 quiet : bool = False):
+                 quiet : bool = False,
+                 is_time_limited : bool = True):
         """Short summary.
 
         Parameters
@@ -46,6 +47,7 @@ class BaseEnv(ABC):
         self._maxStepsPerEpisode = maxStepsPerEpisode
         self._backend = simulationBackend
         self._envSeed : int = 0
+        self._is_time_limited = is_time_limited
 
         if startSimulation:
             self.buildSimulation(backend=simulationBackend)
@@ -201,7 +203,7 @@ class BaseEnv(ABC):
 
         This method is called by the step method. The values returned by it will be appended in the info variable returned bby step
         """
-        return {"timed_out" : self._actionsCounter >= self._maxStepsPerEpisode and self._maxStepsPerEpisode>0}
+        return {"timed_out" : self.reachedTimeout()}
 
 
     def getMaxStepsPerEpisode(self):
@@ -266,3 +268,6 @@ class BaseEnv(ABC):
         if seed is not None:
             self._envSeed = seed
         return [self._envSeed]
+
+    def is_time_limited(self):
+        return self._is_time_limited

@@ -5,6 +5,7 @@ import rospy
 from cv_bridge import CvBridge
 import sensor_msgs.msg
 import lr_gym.utils.dbg.ggLog as ggLog
+import traceback
 
 class DbgImg:
     _publishers = {}
@@ -61,6 +62,6 @@ class DbgImg:
                 rosMsg.encoding = pubEnc
                 self._publishers[streamName].publish(rosMsg)
         except Exception as e:
-            ggLog.error("Ignored exception "+str(e))
+            ggLog.error("Ignored exception "+str(e)+"\n"+traceback.format_exc())
 
 helper = DbgImg()

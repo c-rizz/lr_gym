@@ -35,7 +35,8 @@ class ControlledEnv(BaseEnv):
                  stepLength_sec : float = 0.05,
                  environmentController = None,
                  startSimulation : bool = False,
-                 simulationBackend : str = "gazebo"):
+                 simulationBackend : str = "gazebo",
+                 is_time_limited : bool = True):
         """Short summary.
 
         Parameters
@@ -66,7 +67,8 @@ class ControlledEnv(BaseEnv):
 
         super().__init__(maxStepsPerEpisode = maxStepsPerEpisode,
                          startSimulation = startSimulation,
-                         simulationBackend = simulationBackend)
+                         simulationBackend = simulationBackend,
+                         is_time_limited=is_time_limited)
 
         self._estimatedSimTime = 0.0 # Estimated from the results of each environmentController.step()
         self._intendedStepLength_sec = stepLength_sec

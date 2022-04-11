@@ -60,8 +60,9 @@ class GymEnvWrapper(gym.Env):
         self.action_space = env.action_space
         self.observation_space = env.observation_space
         self.metadata = env.metadata
-        self.spec = gym.envs.registration.EnvSpec(id=f"GymEnvWrapper-env-v0", max_episode_steps = env.getMaxStepsPerEpisode())
-        self._max_episode_steps = self.spec.max_episode_steps # For compatibility, some libraries read this instead of spec
+        if self._ggEnv.is_time_limited:
+            self.spec = gym.envs.registration.EnvSpec(id=f"GymEnvWrapper-env-v0", max_episode_steps = self._ggEnv.getMaxStepsPerEpisode())
+            self._max_episode_steps = self.spec.max_episode_steps # For compatibility, some libraries read this instead of spec
 
         self._verbose = verbose
         self._quiet = quiet
@@ -210,7 +211,8 @@ class GymEnvWrapper(gym.Env):
             info.update(self._ggEnv.getInfo(state=self._getStateCached()))
             self._lastStepEndSimTimeFromStart = self._ggEnv.getSimTimeFromEpStart()
             info["simTime"] = self._lastStepEndSimTimeFromStart
-            info["TimeLimit.truncated"] = self._ggEnv.reachedTimeout()
+            if not self._ggEnv.is_time_limited():
+                info["TimeLimit.truncated"] = self._ggEnv.reachedTimeout()
             info.update(self._info)
             return (observation, reward, done, info)
 
@@ -244,9 +246,10 @@ class GymEnvWrapper(gym.Env):
         observation = self._ggEnv.getObservation(state)
         info = {"gz_gym_base_env_reached_state" : state,
                 "gz_gym_base_env_previous_state" : previousState,
-                "gz_gym_base_env_action" : action,
-                "timed_out" : self._ggEnv.reachedTimeout()}
-        info["TimeLimit.truncated"] = self._ggEnv.reachedTimeout()
+                "gz_gym_base_env_action" : action}
+        if not self._ggEnv.is_time_limited():
+            info["TimeLimit.truncated"] = self._ggEnv.reachedTimeout()
+            info["timed_out"] = self._ggEnv.reachedTimeout()
         ggInfo = self._ggEnv.getInfo(state=state)
         if done:
             if "success_ratio" in ggInfo:

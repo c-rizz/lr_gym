@@ -161,7 +161,9 @@ class CartpoleEnv(ControlledEnv):
             raise NotImplementedError("Backend "+backend+" not supported")
 
         self._mmRosLauncher = lr_gym_utils.ros_launch_utils.MultiMasterRosLauncher(rospkg.RosPack().get_path("lr_gym")+"/launch/cartpole_gazebo_sim.launch",
-                                                                                       cli_args=["gui:=false","gazebo_seed:="+str(self._envSeed),"wall_sim_speed:="+str(self._wall_sim_speed)])
+                                                                                       cli_args=["gui:=false",
+                                                                                                "gazebo_seed:="+str(self._envSeed),
+                                                                                                "wall_sim_speed:="+str(self._wall_sim_speed)])
         self._mmRosLauncher.launchAsync()
 
         # ggLog.info("Launching Gazebo env...")

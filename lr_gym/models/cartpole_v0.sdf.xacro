@@ -1,0 +1,168 @@
+<?xml version='1.0'?>
+
+
+
+
+<sdf version="1.4" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="box_inertial" params="mass x y z pose">
+    <inertial>
+      <pose>${pose}</pose>
+      <mass>${mass}</mass>
+      <inertia>
+        <ixx>${0.083 * mass * (y*y + z*z)}</ixx>
+        <ixy>0.0</ixy>
+        <ixz>0.0</ixz>
+        <iyy>${0.083 * mass * (x*x + z*z)}</iyy>
+        <iyz>0.0</iyz>
+        <izz>${0.083 * mass * (x*x + y*y)}</izz>
+      </inertia>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:property name="bar_width" value="0.05" />
+  <xacro:property name="bar_length" value="0.05" />
+  <xacro:property name="bar_height" value="0.8" />
+  <xacro:property name="bar_pose" value="0 0 0.4 0 0 0" />
+  <xacro:arg name="bar_color" default="1 0.5088 0.0468 1" /> <!-- Orange -->
+  <xacro:property name="base_width" value="0.4" />
+  <xacro:property name="base_length" value="0.2" />
+  <xacro:property name="base_height" value="0.2" />
+  <xacro:property name="base_pose" value="0 0 0.2 0 0 0" />
+  <xacro:arg name="base_color" default="0 0 0 1" /> <!-- Black -->
+
+  <model name="my_model">
+    <static>false</static>
+    
+    <link name="bar_link">
+      <xacro:box_inertial mass="1" x="${bar_width}" y="${bar_length}" z="${bar_height}" pose="${bar_pose}"/>
+      <collision name="collision">
+        <pose>${bar_pose}</pose>
+        <geometry>
+          <box>
+            <size>${bar_width} ${bar_length} ${bar_height}</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="visual">
+        <pose>${bar_pose}</pose>
+        <geometry>
+          <box>
+            <size>${bar_width} ${bar_length} ${bar_height}</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>$(arg bar_color)</ambient>
+          <diffuse>$(arg bar_color)</diffuse>
+          <!--
+          <specular>1 0 0 1</specular>
+          <emissive>1 0 0 1</emissive>
+          -->
+        </material>
+      </visual>
+    </link>
+
+    <link name="base_link">
+      <xacro:box_inertial mass="2.5" x="${base_width}" y="${base_length}" z="${base_height}" pose="${base_pose}"/>
+      <collision name="collision">
+        <pose>${base_pose}</pose>
+        <geometry>
+          <box>
+            <size>${base_width} ${base_length} ${base_height}</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="visual">
+        <pose>${base_pose}</pose>
+        <geometry>
+          <box>
+            <size>${base_width} ${base_length} ${base_height}</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>$(arg base_color)</ambient>
+          <diffuse>$(arg base_color)</diffuse>
+          <!--
+          <specular>1 0 0 1</specular>
+          <emissive>1 0 0 1</emissive>
+          -->
+        </material>
+      </visual>
+    </link>
+    <joint name="cartpole_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>bar_link</child>
+      <pose>0 0 0.50 0 0 0</pose>
+      <axis>
+        <xyz>0 1 0</xyz>
+        <dynamics>
+          <damping>0.0</damping>
+          <friction>0.1</friction>
+        </dynamics>
+        <limit>
+          <lower>-1.57</lower>
+          <upper>1.57</upper>
+          <effort>1</effort>
+          <velocity>100</velocity>
+        </limit>
+      </axis>
+    </joint>
+  </model>
+
+
+
+  <model name='camera'>
+    <static>true</static>
+    <link name='link'>
+      <visual name='visual'>
+        <geometry>
+          <box>
+            <size>0.1 0.1 0.1</size>
+          </box>
+        </geometry>
+      </visual>
+      <sensor name='camera' type='camera'>
+        <camera name='__default__'>
+          <horizontal_fov>1.047</horizontal_fov>
+          <image>
+            <width>$(arg camera_width)</width>
+            <height>$(arg camera_height)</height>
+          </image>
+          <clip>
+            <near>0.1</near>
+            <far>100</far>
+          </clip>
+          <distortion>
+            <k1>-0.25</k1>
+            <k2>0.12</k2>
+            <k3>0</k3>
+            <p1>-0.00028</p1>
+            <p2>-5e-05</p2>
+            <center>0.5 0.5</center>
+          </distortion>
+        </camera>
+        <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+          <alwaysOn>true</alwaysOn>
+          <updateRate>0.0</updateRate>
+          <cameraName>fixed_camera_world/camera</cameraName>
+          <imageTopicName>image_raw</imageTopicName>
+          <cameraInfoTopicName>camera_info</cameraInfoTopicName>
+          <frameName>camera_link</frameName>
+          <hackBaseline>0.07</hackBaseline>
+          <distortionK1>0.0</distortionK1>
+          <distortionK2>0.0</distortionK2>
+          <distortionK3>0.0</distortionK3>
+          <distortionT1>0.0</distortionT1>
+          <distortionT2>0.0</distortionT2>
+        </plugin>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+        <visualize>1</visualize>
+      </sensor>
+      <self_collide>0</self_collide>
+      <enable_wind>0</enable_wind>
+      <kinematic>0</kinematic>
+    </link>
+    <pose frame=''>0.0 -3.0 0.25 0 0 1.57</pose>
+  </model>
+</sdf>

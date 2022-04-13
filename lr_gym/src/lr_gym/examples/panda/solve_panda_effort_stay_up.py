@@ -13,7 +13,7 @@ import datetime
 import numpy as np
 
 import lr_gym
-from lr_gym.envs.PandaEffortStayUpEnv import PandaEffortStayUpEnv
+from lr_gym.envs.panda.PandaEffortStayUpEnv import PandaEffortStayUpEnv
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper
 
 def run(env : gym.Env, model : stable_baselines.common.base_class.BaseRLModel, numEpisodes : int = -1):

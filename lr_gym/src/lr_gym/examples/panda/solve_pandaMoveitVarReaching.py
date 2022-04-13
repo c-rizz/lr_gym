@@ -12,7 +12,7 @@ import stable_baselines
 import datetime
 
 import lr_gym
-from lr_gym.envs.PandaMoveitVarReachingEnv import PandaMoveitVarReachingEnv
+from lr_gym.envs.panda.PandaMoveitVarReachingEnv import PandaMoveitVarReachingEnv
 from lr_gym.envs.ToGoalEnvWrapper import ToGoalEnvWrapper
 from stable_baselines.common.callbacks import CheckpointCallback
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper

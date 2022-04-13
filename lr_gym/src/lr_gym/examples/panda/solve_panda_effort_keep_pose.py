@@ -15,7 +15,7 @@ import datetime
 import numpy as np
 
 import lr_gym
-from lr_gym.envs.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
+from lr_gym.envs.panda.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper
 from stable_baselines.common.callbacks import CheckpointCallback
 

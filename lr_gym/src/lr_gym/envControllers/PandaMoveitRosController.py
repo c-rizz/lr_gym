@@ -81,7 +81,10 @@ class PandaMoveitRosController(MoveitRosController):
             if tries > max_tries:
                 lr_gym.utils.beep.boop()
                 ggLog.error("Panda arm failed to recover automatically. Please try to put it back into a working pose manually and press Enter.")
-                input("Press Enter when done.")
+                try:
+                    input("Press Enter when done.")
+                except EOFError as e:
+                    ggLog.error("Error getting input: "+str(e))
                 tries=0
 
     def resetWorld(self):
@@ -117,7 +120,10 @@ class PandaMoveitRosController(MoveitRosController):
                 if tries > max_tries:
                     lr_gym.utils.beep.boop()
                     ggLog.error("Panda arm failed to recover automatically. Please try to put it back into a working pose manually and press Enter.")
-                    input("Press Enter when done.")
+                    try:
+                        input("Press Enter when done.")
+                    except EOFError as e:
+                        ggLog.error("Error getting input: "+str(e))
                     tries=0
                     a = ""
                     while a!='y' and a!='n':

@@ -24,7 +24,7 @@ def main(real : bool, robot_ip : str) -> None:
     print("Setting up environment...")
     if not real:
         ggEnv = PandaMoveitPickEnv( #goalPose=[0.3,-0.3,0.5,-1,0,0,0],
-                                    maxActionsPerEpisode = 30,
+                                    maxStepsPerEpisode = 30,
                                     backend="gazebo")
     else:
         environmentController = MoveitRosController(jointsOrder =  [("panda","panda_joint1"),
@@ -46,7 +46,7 @@ def main(real : bool, robot_ip : str) -> None:
                                                     gripperActionTopic = "/franka_gripper/gripper_action",
                                                     gripperInitialWidth = 0.08)
         ggEnv = PandaMoveitPickEnv( #goalPose=[0.3,-0.3,0.5,-1,0,0,0],
-                                    maxActionsPerEpisode = 30,
+                                    maxStepsPerEpisode = 30,
                                     backend="real",
                                     real_robot_ip=robot_ip,
                                     environmentController = environmentController)

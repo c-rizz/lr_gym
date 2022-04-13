@@ -55,7 +55,7 @@ class PandaMoveitVarReachingEnv(ControlledEnv):
 
     def __init__(   self,
                     goalPoseSamplFunc : Callable[[],lr_gym.utils.utils.Pose],
-                    maxActionsPerEpisode : int = 30,
+                    maxStepsPerEpisode : int = 30,
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 5*3.14159/180,
                     operatingArea = np.array([[-1, -1, 0], [1, 1, 1.5]]),
@@ -70,7 +70,7 @@ class PandaMoveitVarReachingEnv(ControlledEnv):
         ----------
         goalPoseSamplFunc : Callable[[],Tuple[NDArray[(3,), np.float32], np.quaternion]]
             function that samples an end-effector pose to reach ([x,y,z], quaternion)
-        maxActionsPerEpisode : int
+        maxStepsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         goalTolerancePosition : float
@@ -103,7 +103,7 @@ class PandaMoveitVarReachingEnv(ControlledEnv):
         else:
             self._environmentController = environmentController
         
-        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, 
+        super().__init__( maxStepsPerEpisode = maxStepsPerEpisode, 
                         startSimulation = startSimulation,
                         environmentController=self._environmentController,
                         simulationBackend=backend)
@@ -203,7 +203,7 @@ class PandaMoveitVarReachingEnv(ControlledEnv):
             Why the exception is raised.
 
         """
-        self._environmentController.step()
+        super().performStep()
         if self._checkGoalReached(self.getState()):
             ggLog.info("Goal Reached")
 

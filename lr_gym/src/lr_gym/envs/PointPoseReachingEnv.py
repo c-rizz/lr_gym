@@ -53,7 +53,7 @@ class PointPoseReachingEnv(BaseEnv):
 
     def __init__(   self,
                     goalPoseSamplFunc : Callable[[],lr_gym.utils.utils.Pose],
-                    maxActionsPerEpisode : int = 30,
+                    maxStepsPerEpisode : int = 30,
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 5*3.14159/180,
                     operatingArea = np.array([[-1, -1, 0], [1, 1, 1.5]]),
@@ -64,7 +64,7 @@ class PointPoseReachingEnv(BaseEnv):
         ----------
         goalPoseSamplFunc : Callable[[],Tuple[NDArray[(3,), np.float32], np.quaternion]]
             function that samples an end-effector pose to reach ([x,y,z], quaternion)
-        maxActionsPerEpisode : int
+        maxStepsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         goalTolerancePosition : float
@@ -75,7 +75,7 @@ class PointPoseReachingEnv(BaseEnv):
 
         """
 
-        super().__init__( maxActionsPerEpisode = maxActionsPerEpisode, startSimulation = False)
+        super().__init__( maxStepsPerEpisode = maxStepsPerEpisode, startSimulation = False)
 
         self._goalPoseSamplFunc = goalPoseSamplFunc
         self._goalTolerancePosition = goalTolerancePosition
@@ -134,6 +134,7 @@ class PointPoseReachingEnv(BaseEnv):
             Why the exception is raised.
 
         """
+        super().performStep()
         self._simTime += 1
         dbg_pose.helper.publish("current_pose", Pose( self._currentPosition[0],
                                                             self._currentPosition[1],

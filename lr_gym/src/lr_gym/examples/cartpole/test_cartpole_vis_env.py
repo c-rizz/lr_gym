@@ -19,7 +19,7 @@ from lr_gym.envControllers.PyBulletController import PyBulletController
 import random
 import numpy as np
 
-def main(saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength : float = 0, parallelEnvsNum : int = 1) -> None:
+def main(saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength : float = 0, parallelEnvsNum : int = 1, randomize = False) -> None:
     """Run the gazebo cartpole environment with a simple hard-coded policy.
 
     Parameters
@@ -50,7 +50,9 @@ def main(saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength :
                                                         stepLength_sec = stepLength_sec,
                                                         obs_img_height_width = (img_height,img_width),
                                                         imgEncoding = "int",
-                                                        continuousActions = True),
+                                                        continuousActions = True,
+                                                        randomize=randomize,
+                                                        randomize_at_reset=randomize),
                             episodeInfoLogFile = os.path.basename(__file__)+"/GymEnvWrapper_log."+str(i)+".csv")
         return env
     env = stable_baselines3.common.vec_env.SubprocVecEnv([lambda i=i: constructEnv(i) for i in range(parallelEnvsNum)])
@@ -120,9 +122,9 @@ def main(saveFrames : bool = False, stepLength_sec : float = 0.05, sleepLength :
             imgName = framesNames[i]
             img = np.transpose(img, (1,2,0))
             img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-            img = img*255
+            # img = img*255
             
-            print(f"imgCv has shape {img.shape}")
+            # print(f"imgCv has shape {img.shape}")
             if saveFrames and img.size!=0:
                 r = cv2.imwrite(imagesOutFolder+"/"+imgName+".png",img)
                 if not r:
@@ -148,6 +150,7 @@ if __name__ == "__main__":
     ap.add_argument("--sleeplength", required=False, default=0, type=float, help="How much to sleep at the end of each frame execution")
     ap.add_argument("--envsNum", required=False, default=1, type=int, help="Number of environments to run in parallel")
     ap.add_argument("--xvfb", default=False, action='store_true', help="Run with xvfb")
+    ap.add_argument("--randomize", default=False, action='store_true', help="Randomize env")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
 
@@ -159,7 +162,8 @@ if __name__ == "__main__":
     main(saveFrames=args["saveframes"],
          stepLength_sec=args["steplength"],
          sleepLength = args["sleeplength"],
-         parallelEnvsNum = args["envsNum"])
+         parallelEnvsNum = args["envsNum"],
+         randomize = args["randomize"])
 
     if args["xvfb"]:    
         disp.stop()

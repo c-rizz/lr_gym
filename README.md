@@ -77,18 +77,9 @@ catkin workspace src folder, be careful about using the correct branch and corre
 
 You will also need to install some python3 modules, preferably in a python virtual
 environment. You can use the build_virtualenv.sh helper script in the lr_gym folder.
-However you need to have python3.7 (stable_baselines 2 requires tensorflow 1.15, which requires
-python<=3.7). (Currently other python versions have not been tested, even if you use pytorch)
 
-You can install python 3.7 with the following:
 
-```
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt update
-sudo apt install python3.7 python3.7-venv python3.7-dev
-```
-
-At this point you can create the virtual python environment with the following helper
+You can create the virtual python environment with the following helper
 script:
 
 ```
@@ -131,6 +122,17 @@ will need to install the following system dependencies (however you will not hav
 sudo apt install xvfb xserver-xephyr tigervnc-standalone-server xfonts-base
 ```
 
+### Installation issues
+
+#### CUDA error: no kernel image is available for execution on device
+You may get this error if you are using a relatively new card (or maybe a very old one). I had this problem on an RTX3060 and on an RTX A6000.
+This is due to your pytorch installation not being compiled for the architecture of your gpu (e.g for sm_86).
+You can get a build that includes your device from pytorch.org, but you need to select the correct torch/torchvision version and the correct CUDA version. You can get torch and torchvision from requirements_sb3.txt in the lr_gym folder. I believe you should use the CUDA version that appears in nvidia-smi, but that exact one may not be available on pytorch.org, so choose a similar one. I for example had CUDA 11.5, but installed pytorch for CUDA 11.3, and everything worked. You can find the list of the builds at https://download.pytorch.org/whl/torch_stable.html
+You can then install with the following (replace the versions according to your needs):
+
+```
+pip install --pre torch==1.10.1+cu113 torchvision==0.11.2+cu113 -f https://download.pytorch.org/whl/torch_stable.html
+```
 
 ## Examples - Cartpole hardcoded
 

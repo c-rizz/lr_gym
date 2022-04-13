@@ -2,6 +2,7 @@ from collections.abc import Callable
 import multiprocessing
 from multiprocessing import Pipe
 import cloudpickle
+import pickle
 from typing import Sequence, Dict, Any, Tuple
 import lr_gym
 import numpy as np
@@ -24,9 +25,10 @@ class CloudpickleWrapper(object):
     def __setstate__(self, obs):
         self.var = cloudpickle.loads(obs)
 
-def worker(child_connection, env_fn_wrapper):
-    env = env_fn_wrapper.var()
-    print("######################## Worker pid = "+str(os.getpid()))
+def worker(child_connection, pickledFunc):
+    envBuilder = pickle.loads(pickledFunc)
+    env = envBuilder()
+    # print("######################## Worker pid = "+str(os.getpid()))
     while True:
         try:
             cmd, data = child_connection.recv()
@@ -104,7 +106,8 @@ class SubProcGazeboEnvWrapper(lr_gym.envs.BaseEnv.BaseEnv):
         ctx = multiprocessing.get_context(start_method)
         parent_conn, child_conn = Pipe()
         self._parentConnection = parent_conn
-        self._process = ctx.Process(target=worker, args=(child_conn, CloudpickleWrapper(constructEnvFunction)), daemon=True)
+        pickledFunc = cloudpickle.dumps(constructEnvFunction)
+        self._process = ctx.Process(target=worker, args=(child_conn, pickledFunc), daemon=True)
         self._process.start()
         child_conn.close()
 

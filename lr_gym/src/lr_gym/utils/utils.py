@@ -20,6 +20,8 @@ import random
 import multiprocessing
 import csv
 from pynvml.smi import nvidia_smi
+import yaml
+import torch as th
 
 import lr_gym.utils.dbg.ggLog as ggLog
 
@@ -269,23 +271,55 @@ class LinkState:
         return self.__str__()
 
 
+did_initialize_sigint_handling = False
 sigint_received = False
+sigint_counter = 0
+sigint_max = 10
+original_sigint_handler = None
 
 def setupSigintHandler():
-    prevHandler = signal.getsignal(signal.SIGINT)
+    global original_sigint_handler
+    global did_initialize_sigint_handling
+    if original_sigint_handler is None:
+        original_sigint_handler = signal.getsignal(signal.SIGINT)
 
     def sigint_handler(signal, stackframe):
-        try:
-            prevHandler(signal,stackframe)
-        except KeyboardInterrupt:
-            pass #If it was the original one, doesn't do anything, if it was something else it got executed
-
         global sigint_received
+        global sigint_counter
+        global sigint_max
+        global original_sigint_handler
         sigint_received = True
-
-        raise KeyboardInterrupt #Someday do something better
+        sigint_counter += 1
+        print(f"\n"+
+              f"-----------------------------------------------------------------------------------------------------\n"+
+              f"-----------------------------------------------------------------------------------------------------\n"+
+              f"Received sigint, will halt at first opportunity. ({sigint_max-sigint_counter} presses to hard SIGINT)\n"+
+              f"-----------------------------------------------------------------------------------------------------\n"+
+              f"-----------------------------------------------------------------------------------------------------\n\n")
+        if sigint_counter>sigint_max:
+            try:
+                original_sigint_handler(signal,stackframe)
+            except KeyboardInterrupt:
+                pass #If it was the original one, doesn't do anything, if it was something else it got executed
+            raise KeyboardInterrupt
 
     signal.signal(signal.SIGINT, sigint_handler)
+    did_initialize_sigint_handling = True
+
+def haltOnSigintReceived():
+    if not did_initialize_sigint_handling:
+        return
+    global sigint_received
+    global sigint_counter
+    if sigint_received:
+        answer = input(f"SIGINT received. Press Enter to resume or type 'exit' to terminate:\n> ")
+        if answer == "exit":
+            original_sigint_handler(signal.SIGINT, None)
+            raise KeyboardInterrupt
+        print("Resuming...")
+        sigint_received = False
+        sigint_counter = 0
+
 
 
 def createSymlink(src, dst):
@@ -299,7 +333,7 @@ def createSymlink(src, dst):
         except:
             pass
 
-def setupLoggingForRun(file : str, currentframe, run_id_prefix : str = "", folderName : str = None):
+def setupLoggingForRun(file : str, currentframe = None, run_id_prefix : str = "", folderName : str = None):
     """Sets up a logging output folder for a training run.
         It creates the folder, saves the current main script file for reference
 
@@ -331,14 +365,16 @@ def setupLoggingForRun(file : str, currentframe, run_id_prefix : str = "", folde
         args, _, _, values = inspect.getargvalues(currentframe)
     else:
         args, values = ([],{})
-    inputargs = [(i, values[i]) for i in args]
-    with open(folderName+"/input_args.txt", "w") as input_args_file:
-        print(str(inputargs), file=input_args_file)
+    # inputargs = [(i, values[i]) for i in args]
+    # with open(folderName+"/input_args.txt", "w") as input_args_file:
+    #     print(str(inputargs), file=input_args_file)
+    with open(folderName+"/input_args.yaml", "w") as input_args_yamlfile:
+        yaml.dump(values,input_args_yamlfile, default_flow_style=None)
     return folderName
 
 
     
-def lr_gym_startup(main_file_path : str, currentframe, using_pytorch : bool = True, run_id_prefix : str = "", folderName : str = None) -> str:
+def lr_gym_startup(main_file_path : str, currentframe = None, using_pytorch : bool = True, run_id_prefix : str = "", folderName : str = None) -> str:
     logFolder = setupLoggingForRun(main_file_path, currentframe, run_id_prefix=run_id_prefix, folderName=folderName)
     ggLog.addLogFile(logFolder+"/gglog.log")
     setupSigintHandler()
@@ -465,14 +501,19 @@ def evaluateSavedModels(files : List[str], evaluator : Callable[[str],Dict[str,U
 
 
 def getBestGpu():
-    nvsmi = nvidia_smi.getInstance()
-    query = nvsmi.DeviceQuery('memory.free, memory.total')
-    gpus_info = query["gpu"]
+    gpus_mem_info = []
+    for i in range(th.cuda.device_count()):
+        prevDev = th.cuda.current_device()
+        th.cuda.set_device(th.device(type="cuda", index=i))
+        gpus_mem_info.append(th.cuda.mem_get_info()) #Returns [free, total]
+        th.cuda.set_device(prevDev)
+        print(f"Got {gpus_mem_info[-1]}")
+
     bestRatio = 0
     bestGpu = None
-    for i in range(len(gpus_info)):
-        tot = gpus_info[i]["fb_memory_usage"]["total"]
-        free = gpus_info[i]["fb_memory_usage"]["free"]
+    for i in range(len(gpus_mem_info)):
+        tot = gpus_mem_info[i][1]
+        free = gpus_mem_info[i][0]
         ratio = free/tot
         if ratio > bestRatio:
             bestRatio = ratio
@@ -480,19 +521,9 @@ def getBestGpu():
     ggLog.info(f"Choosing GPU {bestGpu} with {bestRatio*100}% free memory")
     return bestGpu
 
-def getGpuMemUsage():
-    nvsmi = nvidia_smi.getInstance()
-    query = nvsmi.DeviceQuery('memory.free, memory.total')
-    gpus_info = query["gpu"]
-    s = ""
-    for i in range(len(gpus_info)):
-        tot = gpus_info[i]["fb_memory_usage"]["total"]
-        free = gpus_info[i]["fb_memory_usage"]["free"]
-        ratio = free/tot
-        s += f"GPU {i} mem usage = {tot-free}/{tot} ({(1-ratio)*100}%)\n"
-    return s
-
 
 def torch_selectBestGpu():
     import torch as th
-    th.cuda.set_device(getBestGpu())
+    bestGpu = getBestGpu()
+    th.cuda.set_device(bestGpu)
+    return th.device('cuda:'+str(bestGpu))

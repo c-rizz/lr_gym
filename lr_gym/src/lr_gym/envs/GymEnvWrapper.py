@@ -42,13 +42,13 @@ class GymEnvWrapper(gym.Env):
     action_space = None
     observation_space = None
     metadata = None # e.g. {'render.modes': ['rgb_array']}
+    spec = None
 
     def __init__(self,
                  env : BaseEnv,
                  verbose : bool = False,
                  quiet : bool = False,
-                 episodeInfoLogFile : str = None,
-                 outVideoFile : str = None):
+                 episodeInfoLogFile : str = None):
         """Short summary.
 
         Parameters
@@ -60,16 +60,14 @@ class GymEnvWrapper(gym.Env):
         self.action_space = env.action_space
         self.observation_space = env.observation_space
         self.metadata = env.metadata
+        if self._ggEnv.is_time_limited:
+            self.spec = gym.envs.registration.EnvSpec(id=f"GymEnvWrapper-env-v0", max_episode_steps = self._ggEnv.getMaxStepsPerEpisode())
+            self._max_episode_steps = self.spec.max_episode_steps # For compatibility, some libraries read this instead of spec
 
         self._verbose = verbose
         self._quiet = quiet
         self._episodeInfoLogFile = episodeInfoLogFile
         self._logEpisodeInfo = self._episodeInfoLogFile is not None
-        self._outVideoFile = outVideoFile
-        if self._outVideoFile is not None and not self._outVideoFile.endswith(".mp4"):
-            self._outVideoFile += ".mp4"
-        self._saveVideo = self._outVideoFile is not None
-        self._videoWriter = None
 
         self._framesCounter = 0
         self._lastStepStartEnvTime = -1
@@ -212,6 +210,9 @@ class GymEnvWrapper(gym.Env):
             info = {}
             info.update(self._ggEnv.getInfo(state=self._getStateCached()))
             self._lastStepEndSimTimeFromStart = self._ggEnv.getSimTimeFromEpStart()
+            info["simTime"] = self._lastStepEndSimTimeFromStart
+            if not self._ggEnv.is_time_limited():
+                info["TimeLimit.truncated"] = self._ggEnv.reachedTimeout()
             info.update(self._info)
             return (observation, reward, done, info)
 
@@ -246,6 +247,9 @@ class GymEnvWrapper(gym.Env):
         info = {"gz_gym_base_env_reached_state" : state,
                 "gz_gym_base_env_previous_state" : previousState,
                 "gz_gym_base_env_action" : action}
+        if not self._ggEnv.is_time_limited():
+            info["TimeLimit.truncated"] = self._ggEnv.reachedTimeout()
+            info["timed_out"] = self._ggEnv.reachedTimeout()
         ggInfo = self._ggEnv.getInfo(state=state)
         if done:
             if "success_ratio" in ggInfo:
@@ -273,18 +277,6 @@ class GymEnvWrapper(gym.Env):
         if not self._done:
             self._lastValidStepWallTime = time.monotonic()
         self._done = done
-
-        if self._saveVideo:
-            img = self._ggEnv.getUiRendering()[0]
-            if self._videoWriter is None:
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                if isinstance(self._ggEnv, ControlledEnv):
-                    fps = 1/self._ggEnv.getIntendedStepLength_sec()
-                else:
-                    fps = 1
-                self._videoWriter=cv2.VideoWriter(self._outVideoFile, fourcc, fps,(img.shape[1], img.shape[0]))
-            self._videoWriter.write(img) #TODO: put this in another process
-
 
         stepDuration = time.monotonic() - t0
         self._envStepDurationAverage.addValue(newValue = stepDuration)
@@ -327,14 +319,15 @@ class GymEnvWrapper(gym.Env):
                 for k,v in self._info.items():
                     ggLog.info(k," = ",v)
             elif not self._quiet:
-                msg =  (f"ep_reward = {self._info['ep_reward']:.3f}"+
-                        " steps = {:d}".format(self._info["ep_frames_count"])+
-                        " wall_fps = {:.3f}".format(self._info["wall_fps"])+
-                        " wall_fps_ftl = {:.3f}".format(self._info["wall_fps_first_to_last"])+
-                        " avg_env_step_wall_dur = {:f}".format(self._info["avg_env_step_wall_duration"])+
-                        " tstep_on_ttot_ftl = {:.2f}".format(self._info["ratio_time_spent_stepping_until_done"])+
-                        " tstep_on_ttot = {:.2f}".format(self._info["ratio_time_spent_stepping"])+
-                        " reset_cnt = {:d}".format(self._info["reset_count"]))
+                msg =  (f"ep_rwrd = {self._info['ep_reward']:.3f}"+
+                        " stps = {:d}".format(self._info["ep_frames_count"])+
+                        " wallFps = {:.3f}".format(self._info["wall_fps"])+
+                        " wallFpsFtl = {:.3f}".format(self._info["wall_fps_first_to_last"])+
+                        " avg_stpWallDur = {:f}".format(self._info["avg_env_step_wall_duration"])+
+                        " tstep/ttot_ftl = {:.2f}".format(self._info["ratio_time_spent_stepping_until_done"])+
+                        " tstep/ttot = {:.2f}".format(self._info["ratio_time_spent_stepping"])+
+                        " ep = {:d}".format(self._info["reset_count"])+
+                        " wallEpDur = {:.2f}".format(self._info["tot_ep_wall_duration"]))
                 if "success_ratio" in self._info.keys():
                         msg += f" succ_ratio = {self._info['success_ratio']:.2f}"
                 ggLog.info(msg)
@@ -436,8 +429,6 @@ class GymEnvWrapper(gym.Env):
         if self._logEpisodeInfo and self._logFileCsvWriter is not None:
             self._logFile.close()
         self._ggEnv.close()
-        if self._saveVideo:
-            self._videoWriter.release()
 
 
 

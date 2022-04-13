@@ -4,6 +4,9 @@ import os
 import time
 import lr_gym.utils.dbg.ggLog as ggLog
 import numpy as np
+from vidgear.gears import WriteGear
+import math
+
 class RecorderGymWrapper(gym.Wrapper):
     """Wraps the environment to allow a modular transformation.
     This class is the base class for all wrappers. The subclass could override
@@ -17,7 +20,11 @@ class RecorderGymWrapper(gym.Wrapper):
                         saveFrequency_ep = 1,
                         saveFrequency_step = -1):
         super().__init__(env)
-        self._videoFps = fps
+        self._outFps = fps
+        self._frameRepeat = 1
+        if fps < 30:
+            self._frameRepeat = int(math.ceil(30/fps))
+            self._outFps = fps*self._frameRepeat
         self._frameBuffer = []
         self._episodeCounter = 0
         self._outFolder = outFolder
@@ -41,31 +48,58 @@ class RecorderGymWrapper(gym.Wrapper):
         img = self.render(mode = "rgb_array")
         if img is not None:
             self._frameBuffer.append(img)
+        else:
+            self._frameBuffer.append(None)
         self._epReward += stepRet[1]
         return stepRet
 
+
+
+    def _writeVideo(self, outFilename : str, imgs):
+        if len(imgs)>0:
+            ggLog.info(f"RecorderGymWrapper saving {len(imgs)} frames video to "+outFilename)
+            #outFile = self._outVideoFile+str(self._episodeCounter).zfill(9)
+            if not outFilename.endswith(".avi"):
+                outFilename+=".avi"
+            in_resolution_wh = None
+            goodImg = None
+            for npimg in imgs:
+                if npimg is not None:
+                    goodImg = npimg
+                    break
+            in_resolution_wh = (goodImg.shape[1], goodImg.shape[0]) # npimgs are hwc
+            if in_resolution_wh is None:
+                ggLog.warn("RecorderGymWrapper: No valid images in framebuffer, will not write video")
+                return
+            height = in_resolution_wh[1]
+            minheight = 360
+            if height<minheight:
+                height = minheight
+            out_resolution_wh = [int(height/in_resolution_wh[1]*in_resolution_wh[0]), height]
+            if out_resolution_wh[0] % 2 != 0:
+                out_resolution_wh[0] += 1
+                
+            output_params = {   "-c:v": "libx264",
+                                "-crf": 23,
+                                "-profile:v":
+                                "baseline",
+                                "-input_framerate":self._outFps,
+                                "-disable_force_termination" : True,
+                                "-level" : 3.0,
+                                "-pix_fmt" : "yuv420p"} 
+            writer = WriteGear(output_filename=outFilename, logging=False, **output_params)
+            for npimg in imgs:
+                if npimg is None:
+                    npimg = np.zeros_like(goodImg)
+                npimg = cv2.resize(npimg,dsize=out_resolution_wh,interpolation=cv2.INTER_NEAREST)
+                npimg = self._preproc_frame(npimg)
+                for _ in range(self._frameRepeat):
+                    writer.write(npimg)
+            writer.close()
+
     def _saveLastEpisode(self, filename : str):
-        if len(self._frameBuffer)>0:
-            if not filename.endswith(".avi"):
-                filename = filename+".avi"
-            pf0 = self._preproc_frame(self._frameBuffer[0])
-            shape_whc = pf0.shape
-            shape_wh = (pf0.shape[1], pf0.shape[0])
-            videoWriter = cv2.VideoWriter(  filename,
-                                            cv2.VideoWriter_fourcc(*'MPEG'), #FFV1 is too heavy, mp4 is somehow broken, it just shows grey and green squares on the top left
-                                            self._videoFps,
-                                            shape_wh)
-            i = 0
-            for img in self._frameBuffer:
-                # ggLog.info(f"img {i} has shape {img.shape}")
-                img = self._preproc_frame(img)
-                videoWriter.write(img)
-                if img.shape != shape_whc:
-                    ggLog.warn(f"RecorderGymEnvWrapper: frame {i} has shape {img.shape}, but frame 0 had shape {shape_whc}")
-                i+=1
-            videoWriter.release()
-            ggLog.info(f"RecorderGymEnvWrapper: saved video of {len(self._frameBuffer)} frames at {filename}")
-            # time.sleep(10)
+        self._writeVideo(filename,self._frameBuffer)
+        
 
     def _preproc_frame(self, img_hwc):
         # ggLog.info(f"raw frame shape = {img_whc.shape}")

@@ -46,7 +46,7 @@ def main(usePyBullet : bool = False,
         if saveVideo:
             env = GymEnvWrapper(HopperEnv(  simulatorController = simulatorController,
                                             stepLength_sec = stepLength_sec,
-                                            maxActionsPerEpisode = 20/stepLength_sec,
+                                            maxStepsPerEpisode = 20/stepLength_sec,
                                             useMjcfFile = useMjcfFile,
                                             simulationBackend = ("bullet" if usePyBullet else "gazebo"),
                                             render = True),
@@ -55,7 +55,7 @@ def main(usePyBullet : bool = False,
         else:
             env = GymEnvWrapper(HopperEnv(  simulatorController = simulatorController,
                                             stepLength_sec = stepLength_sec,
-                                            maxActionsPerEpisode = 20/stepLength_sec,
+                                            maxStepsPerEpisode = 20/stepLength_sec,
                                             useMjcfFile = useMjcfFile,
                                             simulationBackend = ("bullet" if usePyBullet else "gazebo")),
                                 episodeInfoLogFile = folderName+"/GymEnvWrapper_log.csv")

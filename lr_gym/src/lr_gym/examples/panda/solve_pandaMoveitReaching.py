@@ -27,10 +27,10 @@ def main(trainIterations : int, real : bool, robot_ip : str) -> None:
     print("Setting up environment...")
     if not real:
         ggEnv = PandaMoveitReachingEnv( goalPose=[0.3,-0.3,0.5,-1,0,0,0],
-                                        maxActionsPerEpisode = 30)
+                                        maxStepsPerEpisode = 30)
     else:
         ggEnv = PandaMoveitReachingEnv( goalPose=[0.3,-0.3,0.5,-1,0,0,0],
-                                        maxActionsPerEpisode = 30,
+                                        maxStepsPerEpisode = 30,
                                         backend="real",
                                         real_robot_ip=robot_ip)
 

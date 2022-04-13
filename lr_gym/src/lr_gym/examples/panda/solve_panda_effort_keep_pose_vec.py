@@ -117,7 +117,7 @@ def main(fileToLoad : str = None):
 
     def constructEnv(i):
         return GymEnvWrapper(PandaEffortKeepPoseEnv( goalPose = (0.4,0.4,0.6, 1,0,0,0),
-                                                     maxActionsPerEpisode = maxStepsPerEpisode,
+                                                     maxStepsPerEpisode = maxStepsPerEpisode,
                                                      stepLength_sec = stepLength_sec,
                                                      startSimulation = True,
                                                      maxTorques=[0.1*i for i in frankaMaxTorques]),

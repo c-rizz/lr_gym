@@ -48,7 +48,7 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
     observation_space = gym.spaces.Box(-observation_space_high, observation_space_high)
 
     def __init__(   self,
-                    maxActionsPerEpisode : int = 500,
+                    maxStepsPerEpisode : int = 500,
                     render : bool = False,
                     goalTolerancePosition : float = 0.05,
                     goalToleranceOrientation_rad : float = 0.0175*5,
@@ -60,7 +60,7 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
 
         Parameters
         ----------
-        maxActionsPerEpisode : int
+        maxStepsPerEpisode : int
             maximum number of frames per episode. The step() function will return
             done=True after being called this number of times
         render : bool
@@ -77,7 +77,7 @@ class PandaEffortKeepVarPoseEnv(PandaEffortKeepPoseEnv):
 
         """
 
-        super().__init__(   maxActionsPerEpisode = maxActionsPerEpisode,
+        super().__init__(   maxStepsPerEpisode = maxStepsPerEpisode,
                             render = render,
                             goalTolerancePosition = goalTolerancePosition,
                             goalToleranceOrientation_rad = goalToleranceOrientation_rad,

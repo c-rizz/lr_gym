@@ -76,7 +76,7 @@ class PandaMoveitRosController(MoveitRosController):
             else:
                 ggLog.warn("Failed to execute Panda arm recovery action.")
             fs = self._getNewFrankaState()
-            rospy.sleep(1.0)
+            rospy.sleep(0.5)
             tries += 1
             if tries > max_tries:
                 lr_gym.utils.beep.boop()
@@ -105,7 +105,7 @@ class PandaMoveitRosController(MoveitRosController):
         self._checkArmErrorAndRecover()
         done = False
         tries = 0
-        max_tries = 50
+        max_tries = 10
         while not done:
             try:
                 function()

@@ -81,7 +81,7 @@ def trainOrLoad(env : lr_gym.envs.BaseEnv.BaseEnv, trainIterations : int, episod
 def main(fileToLoad : str = None):
 
     episodeLength = 5000
-    env = GymEnvWrapper(PandaEffortStayUpEnv(maxActionsPerEpisode = episodeLength,
+    env = GymEnvWrapper(PandaEffortStayUpEnv(maxStepsPerEpisode = episodeLength,
                                              maxTorques = [87, 87, 87, 87, 12, 12, 12],
                                              startSimulation = True))
     model = trainOrLoad(env,1000000, fileToLoad = fileToLoad, episodeLength = episodeLength)

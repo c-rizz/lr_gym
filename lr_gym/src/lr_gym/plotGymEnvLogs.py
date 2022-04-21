@@ -138,7 +138,8 @@ def makePlot(dfs : List[pd.DataFrame],
              ylabel : str = None,
              raw : bool = False,
              dfLabels : List[str] = None,
-             cummax : bool = False):
+             cummax : bool = False,
+             showLegend : bool = True):
 
     plt.clf()
 
@@ -146,7 +147,6 @@ def makePlot(dfs : List[pd.DataFrame],
     for df in dfs:
         df.reset_index(drop = True, inplace=True)
         # print(df.head())
-    showLegend = True
     if dfLabels is None:
         dfLabels = [None]*len(dfs)
         showLegend = False
@@ -198,6 +198,8 @@ def makePlot(dfs : List[pd.DataFrame],
     if showLegend:
         # p.legend(loc='upper left')
         p.legend(loc='lower right',  prop={'size': 4})
+    else:
+        p.legend().remove()
     p.minorticks_on()
     #p.tick_params(axis='x', which='minor', bottom=False)
     p.grid(linestyle='dotted',which="both")
@@ -242,6 +244,7 @@ ap.add_argument("--loadprepped", default=False, action='store_true', help="load 
 ap.add_argument("--deparallelize", default=False, action='store_true', help="Transform data collected in parallel in sequential data")
 ap.add_argument("--parallelsims", required=False, default=1, type=int, help="Number of parallel simulators per run")
 ap.add_argument("--legend", nargs="+", required=False, default=None, type=str, help="List of the labels to put in the legend")
+ap.add_argument("--nolegend", default=False, action='store_true', help="Hide legend")
 ap.add_argument("--cummax", default=False, action='store_true', help="Plot cumulative maximum")
 ap.add_argument("--nostd", default=False, action='store_true', help="Dont plot std")
 ap.add_argument("--outfname", required=False, default=None, type=str, help="Name of the output file (without path)")
@@ -348,7 +351,8 @@ while not ctrl_c_received:
                     ylabel = args["ylabel"],
                     raw = args["raw"],
                     dfLabels=dfLabels,
-                    cummax=args["cummax"])
+                    cummax=args["cummax"],
+                    showLegend=not args["nolegend"])
             if args["out"] is not None:
                 path = args["out"]
             else:

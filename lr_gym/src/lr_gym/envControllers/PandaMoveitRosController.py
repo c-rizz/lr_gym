@@ -14,6 +14,7 @@ import lr_gym_utils
 import lr_gym
 from lr_gym.envControllers.MoveitRosController import MoveFailError
 import lr_gym.utils.beep
+from actionlib_msgs.msg import GoalStatus
 
 class PandaMoveitRosController(MoveitRosController):
     """This class allows to control the execution of a ROS-based environment.
@@ -69,12 +70,11 @@ class PandaMoveitRosController(MoveitRosController):
         while fs.robot_mode != franka_msgs.msg.FrankaState.ROBOT_MODE_MOVE:
             ggLog.warn(f"Panda arm is in robot_mode {fs.robot_mode}.\n Franka state = {fs}\n Trying to recover (retries = {tries}).")
             goal = franka_msgs.msg.ErrorRecoveryGoal()
-            self._errorRecoveryActionClient.send_goal(goal)
-            r = self._errorRecoveryActionClient.wait_for_result()
-            if r:
-                ggLog.info("Panda arm recovery action completed.")
+            goal_state = self._errorRecoveryActionClient.send_goal_and_wait(goal, rospy.Duration(10.0), rospy.Duration(10.0))
+            if goal_state != GoalStatus.SUCCEEDED:
+                ggLog.warn(f"Failed to execute Panda arm recovery action. State = {goal_state}")
             else:
-                ggLog.warn("Failed to execute Panda arm recovery action.")
+                ggLog.info("Panda arm recovery action completed.")
             fs = self._getNewFrankaState()
             rospy.sleep(0.5)
             tries += 1

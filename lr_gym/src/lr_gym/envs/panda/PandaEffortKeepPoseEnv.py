@@ -9,7 +9,7 @@ from nptyping import NDArray
 import quaternion
 import math
 
-from lr_gym.envs.PandaEffortBaseEnv import PandaEffortBaseEnv
+from lr_gym.envs.panda.PandaEffortBaseEnv import PandaEffortBaseEnv
 import lr_gym
 
 class PandaEffortKeepPoseEnv(PandaEffortBaseEnv):

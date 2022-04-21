@@ -13,7 +13,7 @@ import stable_baselines
 import datetime
 
 import lr_gym
-from lr_gym.envs.PandaEffortKeepVarPoseEnv import PandaEffortKeepVarPoseEnv
+from lr_gym.envs.panda.PandaEffortKeepVarPoseEnv import PandaEffortKeepVarPoseEnv
 from lr_gym.envs.ToGoalEnvWrapper import ToGoalEnvWrapper
 from stable_baselines.common.callbacks import CheckpointCallback
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper

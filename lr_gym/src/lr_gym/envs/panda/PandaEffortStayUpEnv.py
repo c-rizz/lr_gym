@@ -5,7 +5,7 @@
 import numpy as np
 from nptyping import NDArray
 
-from lr_gym.envs.PandaEffortBaseEnv import PandaEffortBaseEnv
+from lr_gym.envs.panda.PandaEffortBaseEnv import PandaEffortBaseEnv
 import lr_gym
 
 

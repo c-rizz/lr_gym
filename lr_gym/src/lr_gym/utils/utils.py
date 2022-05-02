@@ -508,7 +508,7 @@ def getBestGpu():
         th.cuda.set_device(th.device(type="cuda", index=i))
         gpus_mem_info.append(th.cuda.mem_get_info()) #Returns [free, total]
         th.cuda.set_device(prevDev)
-        print(f"Got {gpus_mem_info[-1]}")
+        # print(f"Got {gpus_mem_info[-1]}")
 
     bestRatio = 0
     bestGpu = None

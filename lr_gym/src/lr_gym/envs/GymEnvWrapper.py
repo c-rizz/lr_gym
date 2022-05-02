@@ -90,7 +90,8 @@ class GymEnvWrapper(gym.Env):
         self._lastStepEndSimTimeFromStart = 0
         self._lastValidStepWallTime = -1
         self._timeSpentStepping_ep = 0
-        self._successRatio = -1
+        self._success_ratio = 0.0
+        self._successes = [0]*50
         self._last_ep_succeded = False
         self._logFileCsvWriter = None
         self._info = {}
@@ -139,7 +140,7 @@ class GymEnvWrapper(gym.Env):
         self._info["total_steps"] = self._totalSteps
         self._info["wall_fps_first_to_last"] = wall_fps_first_to_last
         self._info["ratio_time_spent_stepping_first_to_last"] = ratio_time_spent_stepping_first_to_last
-        self._info["success_ratio"] = self._successRatio
+        self._info["success_ratio"] = self._success_ratio
         self._info["success"] = self._last_ep_succeded
 
         self._info.update(self._ggEnv.getInfo(self._getStateCached()))
@@ -161,7 +162,7 @@ class GymEnvWrapper(gym.Env):
                         lastRow = row
                     self._resetCount += int(lastRow[columns.index("reset_count")])
                     self._totalSteps += int(lastRow[columns.index("total_steps")])
-                    self._successRatio += float(lastRow[columns.index("success_ratio")])
+                    self._success_ratio += float(lastRow[columns.index("success_ratio")])
                     self._setInfo()
             self._logFile = open(self._episodeInfoLogFile, "a")
             self._logFileCsvWriter = csv.writer(self._logFile, delimiter = ",")
@@ -252,11 +253,11 @@ class GymEnvWrapper(gym.Env):
             info["timed_out"] = self._ggEnv.reachedTimeout()
         ggInfo = self._ggEnv.getInfo(state=state)
         if done:
-            if "success_ratio" in ggInfo:
-                self._successRatio = ggInfo["success_ratio"]
             if "success" in ggInfo:
                 self._last_ep_succeded = ggInfo["success"]
-        info.update(ggInfo)
+                self._successes[self._resetCount%len(self._successes)] = float(self._last_ep_succeded)
+                self._success_ratio = sum(self._successes)/len(self._successes)
+            info.update(ggInfo)
         info.update(self._info)
                 
         # ggLog.debug(" s="+str(previousState)+"\n a="+str(action)+"\n s'="+str(state) +"\n r="+str(reward))

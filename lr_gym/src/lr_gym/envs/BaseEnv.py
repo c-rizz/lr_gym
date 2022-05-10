@@ -22,6 +22,8 @@ class BaseEnv(ABC):
 
     action_space = None
     observation_space = None
+    pure_observation_space = None
+    goal_observation_space = None
     reward_space = gym.spaces.Box(low=np.array([float("-inf")]), high=np.array([float("+inf")]), dtype=np.float32)
     metadata = None # e.g. {'render.modes': ['rgb_array']}
 
@@ -218,7 +220,8 @@ class BaseEnv(ABC):
         """
         raise NotImplementedError()
 
-    def getGoalFromState(self, state):
+    @staticmethod
+    def getGoalFromState(state):
         """To be implemented in subclass.
 
         Get the goal for the provided state. Useful for goal-oriented environments, especially when using HER.

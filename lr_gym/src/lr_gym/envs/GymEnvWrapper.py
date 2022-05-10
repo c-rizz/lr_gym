@@ -29,9 +29,9 @@ import lr_gym.utils.dbg.ggLog as ggLog
 import cv2
 
 from lr_gym.envs.ControlledEnv import ControlledEnv
+import multiprocessing as mp
 
-
-class GymEnvWrapper(gym.Env):
+class GymEnvWrapper(gym.GoalEnv):
     """This class is a wrapper to convert lr_gym environments in OpenAI Gym environments.
 
     It also implements a simple cache for the state of the environment and keeps track
@@ -481,3 +481,35 @@ class GymEnvWrapper(gym.Env):
         # This is only called when the object is garbage-collected, so users should
         # still call close themselves, we don't know when garbage collection will happen
         self.close()
+
+
+    def _compute_reward_nonbatch(self, achieved_goal, desired_goal, info, ggEnvClass):
+        # The step function in BaseEnv fills the info up with the actual state and action
+        reachedState = info["gz_gym_base_env_reached_state"]
+        previousState = info["gz_gym_base_env_previous_state"]
+        action = info["gz_gym_base_env_action"]
+
+        ggEnvClass.setGoalInState(previousState, desired_goal)
+        ggEnvClass.setGoalInState(reachedState, desired_goal)
+        reward = ggEnvClass.computeReward(previousState, reachedState, action)
+        print("Computed reward")
+        return reward
+
+    def compute_reward(self, achieved_goal, desired_goal, info):
+
+        if isinstance(info,dict):
+            return self._compute_reward_nonbatch(achieved_goal,desired_goal,info)
+        else:
+            rewards = []
+            #assume its a batch
+            # batch_size = desired_goal.shape[0]
+            # for i in range(batch_size):
+            #     rewards.append(self._compute_reward_nonbatch(achieved_goal[i], desired_goal[i], info[i]))
+            
+
+            with mp.Pool(mp.cpu_count()-1) as p:
+                print("Starting map")
+                rewards = p.starmap(self._compute_reward_nonbatch, zip(achieved_goal, desired_goal, info, type(self._ggEnv)))
+            reward= np.array(rewards, dtype=np.float64)
+            
+        return reward

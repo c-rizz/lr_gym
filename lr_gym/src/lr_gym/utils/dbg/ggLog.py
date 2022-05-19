@@ -23,15 +23,26 @@ logger.addHandler(ch)
 logger.addHandler(fh)
 logger.propagate = False
 
-def _addRosMasterUri(msg):
-    ros_master_uri = os.environ['ROS_MASTER_URI'].split(":")[-1]
-    if ros_master_uri is None:
-        return "[] "+msg
-    else:
-        return "["+str(ros_master_uri)+"] "+msg
+runid = ""
+
+def setId(id : str):
+    global runid
+    runid = id
+
+def getId():
+    return runid
+
+
+def _addId(msg):
+    # ros_master_uri = os.environ['ROS_MASTER_URI'].split(":")[-1]
+    # if ros_master_uri is None:
+    #     return "[] "+msg
+    # else:
+    #     return "["+str(ros_master_uri)+"] "+msg
+    return f"[{runid}] "+msg
 
 def debug(msg, *args, **kwargs):
-    msg = _addRosMasterUri(msg)
+    msg = _addId(msg)
     try:
         logger.debug(msg, *args, **kwargs)
     except Exception as e:
@@ -39,7 +50,7 @@ def debug(msg, *args, **kwargs):
         print(msg,*args,**kwargs)
 
 def info(msg, *args, **kwargs):
-    msg = _addRosMasterUri(msg)
+    msg = _addId(msg)
     try:
         logger.info(msg, *args, **kwargs)
     except Exception as e:
@@ -47,7 +58,7 @@ def info(msg, *args, **kwargs):
         print(msg,*args,**kwargs)
 
 def warn(msg, *args, **kwargs):
-    msg = _addRosMasterUri(msg)
+    msg = _addId(msg)
     try:
         logger.warning(msg, *args, **kwargs)
     except Exception as e:
@@ -55,7 +66,7 @@ def warn(msg, *args, **kwargs):
         print(msg,*args,**kwargs)
 
 def error(msg, *args, **kwargs):
-    msg = _addRosMasterUri(msg)
+    msg = _addId(msg)
     try:
         logger.error(msg, *args, **kwargs)
     except Exception as e:
@@ -63,7 +74,7 @@ def error(msg, *args, **kwargs):
         print(msg,*args,**kwargs)
 
 def critical(msg, *args, **kwargs):
-    msg = _addRosMasterUri(msg)
+    msg = _addId(msg)
     try:
         logger.critical(msg, *args, **kwargs)
     except Exception as e:
@@ -71,7 +82,7 @@ def critical(msg, *args, **kwargs):
         print(msg,*args,**kwargs)
 
 def exception(msg, *args, **kwargs):
-    msg = _addRosMasterUri(msg)
+    msg = _addId(msg)
     try:
         logger.exception(msg, *args, **kwargs)
     except Exception as e:

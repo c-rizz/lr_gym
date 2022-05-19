@@ -45,20 +45,29 @@ def prepData(csvfiles : List[str],
     out_dfs = {}
     file_labels = labelsFromFiles(csvfiles)
     for df in in_dfs:
-        df[y_data_ids] = df[y_data_ids]*yscalings
+        # df[y_data_ids] = df[y_data_ids]*yscalings
         if "success" in df:
             df["success"].fillna(value=-1,inplace=True)
             df["success"] = df["success"].astype(float) # boolean to 0-1
         df[x_data_id] = df[x_data_id] * xscaling
         df = df.loc[df[x_data_id] < max_x]
+
+
+    yid_mean_idx = [yid+"_mean" for yid in y_data_ids]
+    yid_std_idx = [yid+"_std" for yid in y_data_ids]
+    yid_var_idx = [yid+"_var" for yid in y_data_ids]
+    yid_mean_cummax_idx = [yid+"_mean_cummax" for yid in y_data_ids]
+    
     if not avgFiles:
+        # Compute mean and std for each df
         for i in range(len(in_dfs)):
             df = in_dfs[i]
             rdf = pd.DataFrame()
             rdf[y_data_ids] = df[y_data_ids]
-            rdf[[yid+"_mean" for yid in y_data_ids]] = df[y_data_ids].rolling(avglen, center=True).mean()
-            rdf[[yid+"_std"  for yid in y_data_ids]] = df[y_data_ids].rolling(avglen, center=True).std()
+            rdf[yid_mean_idx] = df[y_data_ids].rolling(avglen, center=True).mean()
+            rdf[yid_std_idx] = df[y_data_ids].rolling(avglen, center=True).std()
             rdf[x_data_id] = df[x_data_id]
+            rdf[yid_mean_cummax_idx] = rdf[yid_mean_idx].cummax()
             count = rdf[x_data_id].count()
             if count < 30:
                 print(f"file {csvfiles[i]} only has {count} samples")
@@ -69,6 +78,11 @@ def prepData(csvfiles : List[str],
             mx = df[x_data_id].max()
             if mx < max_x:
                 max_x = mx
+        cut_dfs = []
+        for df in in_dfs:
+            cut_dfs.append(df[df[x_data_id] < max_x])
+        in_dfs = cut_dfs
+
         if deparallelize:
             raise NotImplementedError()
             i = 0
@@ -80,73 +94,53 @@ def prepData(csvfiles : List[str],
                     df[x_data_id] = df[x_data_id]*parallelsims
             parallelsims = 1
     
-        yid_mean_idx = [yid+"_mean" for yid in y_data_ids]
-        yid_std_idx = [yid+"_std" for yid in y_data_ids]
         
-        if cummax:
-            yid_cummax_mean_idx = [yid+"_cummax_mean" for yid in y_data_ids]
-            # Running average along each run
-            for df in in_dfs:
-                df[[x_data_id]+yid_mean_idx] = df[[x_data_id]+y_data_ids].rolling(on=x_data_id, window=avglen, center=True).mean()
-                # df[[x_data_id]+yid_std_idx] = df[[x_data_id]+y_data_ids].rolling(on=x_data_id, window=avglen, center=True).std()
-                df[[x_data_id]+yid_cummax_mean_idx] = df[[x_data_id]+yid_mean_idx].cummax()
-            
-            concatdf = pd.concat(in_dfs)
-            concatdf = concatdf.sort_values(x_data_id)
-            by_x = concatdf.groupby(x_data_id)[y_data_ids]
-
-            # mean across runs
-            concatdf[yid_mean_idx] = by_x.mean()
-            # concatdf[yid_std_idx] = by_x.std()
-
-
-            def get_mean_cummax_mean(row):
-                # print("row="+str(row))
-                last_cummaxes = []
-                for df in in_dfs:
-                    lim = row[x_data_id]
-                    # print("lim="+str(lim))
-                    df_uptonow = df.loc[df[x_data_id] < lim]
-                    # print("df_uptonow="+str(df_uptonow))
-                    if len(df_uptonow) > 0:
-                        latest = df_uptonow[x_data_id].idxmax
-                        last_cummax = df_uptonow.iloc[latest]["mean_cummax"]
-                        last_cummaxes.append(last_cummax)
-                    else:
-                        last_cummaxes.append(0)
-                mean_cummax_mean = sum(last_cummaxes)/len(last_cummaxes)
-                mean_cummax_std = math.sqrt(sum([lc*lc for lc in last_cummaxes])/len(last_cummaxes) - mean_cummax_mean*mean_cummax_mean)
-                return mean_cummax_mean, mean_cummax_std
-            # This is so inefficient
-            print("Computing mean cumulative mean max...")
-            for df in in_dfs:
-                df[["mean_cummax_mean","mean_cummax_std"]] = df.apply(get_mean_cummax_mean, axis = 1, result_type="expand")
-            print("Done.")
-
-            rdf["mean"] = concatdf["mean_cummax_mean"]
-            if not nostd:
-                rdf["std"] = concatdf["mean_cummax_std"]
-            print("cumulative maximum mean performance: "+str(rdf["mean"].max()))
-        else:
-            concatdf = pd.concat(in_dfs)
-            concatdf = concatdf.sort_values(x_data_id)
-            by_x = concatdf.groupby(x_data_id)[y_data_ids]
-
-
-            # mean across runs
-            concatdf[yid_mean_idx] = by_x.mean()
-            concatdf[yid_std_idx] = by_x.std()
-            # mean across window
-            concatdf[[x_data_id]+yid_mean_idx] = concatdf[[x_data_id]+yid_mean_idx].rolling(on=x_data_id, window=avglen, center=True).mean()
-            concatdf[[x_data_id]+yid_std_idx] = concatdf[[x_data_id]+yid_std_idx].pow(2).rolling(on=x_data_id, window=avglen, center=True).mean().pow(0.5)
-            
-            concatdf.reset_index(drop=True)
+        per_run_dfs = {}
+        for i in range(len(in_dfs)):
+            df = in_dfs[i]
             rdf = pd.DataFrame()
-            rdf[[x_data_id]+y_data_ids+yid_mean_idx+yid_std_idx] = concatdf[[x_data_id]+y_data_ids+yid_mean_idx+yid_std_idx]
-
-            print(f"maximum mean performance: {rdf[yid_mean_idx].max()} at {rdf[yid_mean_idx].idxmax()}")
-            out_dfs["all"] = concatdf
+            rdf[y_data_ids] = df[y_data_ids]
+            rdf[yid_mean_idx] = df[y_data_ids].rolling(avglen, center=True).mean()
+            rdf[yid_std_idx] = df[y_data_ids].rolling(avglen, center=True).std()
+            rdf[yid_var_idx] = df[y_data_ids].rolling(avglen, center=True).std().pow(2)
+            rdf[x_data_id] = df[x_data_id]
+            rdf[yid_mean_cummax_idx] = rdf[yid_mean_idx].cummax()
+            count = rdf[x_data_id].count()
+            if count < 30:
+                print(f"file {csvfiles[i]} only has {count} samples")
+            print(f"{file_labels[i]} has {count} samples")
+            per_run_dfs[file_labels[i]] = rdf
         
+        concatdf = pd.concat(per_run_dfs)
+        concatdf = concatdf.sort_values(x_data_id)
+        mean_df = concatdf.groupby(x_data_id, as_index=False).mean()
+        cummax_df = mean_df[yid_mean_cummax_idx]
+
+            
+        concatdf = pd.concat(in_dfs)
+        concatdf = concatdf.sort_values(x_data_id)
+        by_x = concatdf.groupby(x_data_id)
+
+
+        # mean across runs
+        concatdf[yid_mean_idx] = by_x[y_data_ids].mean()
+        concatdf[yid_std_idx] = by_x[y_data_ids].std()
+        # mean across window
+        concatdf[yid_mean_idx] = concatdf[yid_mean_idx].rolling(window=avglen, center=True).mean()
+        concatdf[yid_std_idx] = concatdf[yid_std_idx].pow(2).rolling(window=avglen, center=True).mean().pow(0.5)
+        
+        concatdf.reset_index(drop=True)
+        rdf = pd.DataFrame()
+        rdf[[x_data_id]+y_data_ids+yid_mean_idx+yid_std_idx] = concatdf[[x_data_id]+y_data_ids+yid_mean_idx+yid_std_idx]
+
+        concatdf[yid_mean_cummax_idx] = cummax_df
+        print(f"maximum mean performance: {rdf[yid_mean_idx].max()} at {rdf[yid_mean_idx].idxmax()}")
+        out_dfs["all"] = concatdf
+        
+
+    for df in out_dfs.values():
+        for yids in [y_data_ids , yid_mean_idx , yid_std_idx , yid_mean_cummax_idx]:
+            df[yids] = df[yids]*yscalings
     return out_dfs
 
 
@@ -168,6 +162,7 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
 
     plt.clf()
 
+    print(f"{title}")
     print(f"Plotting {len(dfs_dict.keys())} dfs")
     dfs_count = dfs_dict.keys()
     for k, df in dfs_dict.items():
@@ -226,6 +221,16 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
                     c = [(e+1)/2 for e in c]
                     p.fill_between(df[x_data_id],cis[0],cis[1], color=c, alpha = 0.5)
                 i+=1
+    i = 0
+    if cummax:
+        for k, df in dfs_dict.items():
+            for yid in y_data_ids:
+                c = palette[color_ids[i]]
+                c = [a*0.75 for a in c]
+                print(f"plotting cummax {df[yid+'_mean_cummax']}")
+                p = sns.lineplot(x=df[x_data_id],y=df[yid+"_mean_cummax"], color=c, label=f"{k}/{yid}", ci=None, linewidth=0.5) #, ax = ax) #
+                i+=1
+                
     #plt.legend(loc='lower right', labels=names)
     # pathSplitted = os.path.dirname(csvfile).split("/")
     # plt.title(pathSplitted[-2]+"/"+pathSplitted[-1]+"/"+os.path.basename(csvfile))

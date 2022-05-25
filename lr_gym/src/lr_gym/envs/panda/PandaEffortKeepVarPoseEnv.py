@@ -8,7 +8,7 @@ import gym
 import quaternion
 import math
 
-from lr_gym.envs.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
+from lr_gym.envs.panda.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
 import lr_gym
 from nptyping import NDArray
 import random

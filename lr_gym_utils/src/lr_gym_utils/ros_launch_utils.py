@@ -82,6 +82,11 @@ class MultiMasterRosLauncher:
         os.environ["ROS_MASTER_URI"] = "http://"+self._ros_master_ip+":"+str(self._rosMasterPort)
         os.environ["GAZEBO_MASTER_URI"] = "http://127.0.0.1:"+str(self._gazeboPort)
 
+        previd = ggLog.getId()
+        if len(previd)>0:
+            ggLog.setId(f"{previd}-{self._rosMasterPort}")
+        else:
+            ggLog.setId(self._rosMasterPort)
         
         delay = self._rosMasterPort-self._baseRosPort #Very ugly way to avoid potential race conditions
         for i in range(delay):

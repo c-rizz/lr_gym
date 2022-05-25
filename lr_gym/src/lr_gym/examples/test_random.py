@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 
-import rospy
 import time
 import argparse
 import gym
 import importlib
-import lr_gym
 import lr_gym.utils.dbg.dbg_img as dbg_img
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper
-import cv2
 
 def runRandom(env : gym.Env, numEpisodes : int, pubRender : bool, fps : float) -> None:
     """Run the provided environment with a random agent."""
@@ -47,20 +44,25 @@ def runRandom(env : gym.Env, numEpisodes : int, pubRender : bool, fps : float) -
         totDuration = time.time() - t0
         print("Ran for "+str(totDuration)+"s \t Reward: "+str(episodeReward))
 
-def main(envClassPath : str, pubRender : bool, fps : float):
+def main(env, pubRender : bool, fps : float):
     #rospy.init_node('test_random', anonymous=True)
-    envClassName = envClassPath.split(".")[-1]
-    envModule = importlib.import_module(envClassPath)
-    envClass = getattr(envModule, envClassName)
-
-    env = GymEnvWrapper(envClass(startSimulation=True))
+    
     runRandom(env,100, pubRender, fps)
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--env", type=str, help="environment class to use")
+    ap.add_argument("--envClass", type=str, help="environment class to use")
+    ap.add_argument("--build_env", type=str, default = None, help="Just type here the code to build the env (this is both horrible and beautiful)")
     ap.add_argument("--pub_render", default=False, action='store_true', help="Publish on ros topic the environment rendering")
     ap.add_argument("--fps", default=1.0, type=float, help="Execution rate in fps")
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
-    main(args["env"], pubRender = args["pub_render"], fps = args["fps"])
+    if args["envClass"] is not None:
+        envClassName = args["envClass"].split(".")[-1]
+        envModule = importlib.import_module(args["envClass"])
+        envClass = getattr(envModule, envClassName)
+        env = GymEnvWrapper(envClass(startSimulation=True))
+    else:
+        AttributeError("Not env build method given")
+    main(env, pubRender = args["pub_render"], fps = args["fps"])

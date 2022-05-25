@@ -15,8 +15,7 @@ from std_srvs.srv import Empty
 from lr_gym.envControllers.RosEnvController import RosEnvController
 from lr_gym.envControllers.JointEffortEnvController import JointEffortEnvController
 from lr_gym.envControllers.SimulatedEnvController import SimulatedEnvController 
-from lr_gym.utils.utils import JointState
-from lr_gym.utils.utils import LinkState
+from lr_gym.utils.utils import JointState, LinkState, RequestFailError
 import os
 import lr_gym.utils.dbg.ggLog as ggLog
 
@@ -302,10 +301,11 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
 
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
         #ggLog.info("GazeboControllerNoPlugin.getJointsState() called")
-        ret = {}
-        for i in range(len(requestedJoints)):
-            jointName = requestedJoints[i][1]
-            modelName = requestedJoints[i][0]
+        gottenJoints = {}
+        missingJoints = []
+        for joint in requestedJoints:
+            jointName = joint[1]
+            modelName = joint[0]
 
             gotit = False
             tries = 0
@@ -314,39 +314,54 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
                 #ggLog.info("Got joint prop for "+jointName+" = "+str(jointProp))
                 gotit = jointProp.success
                 tries+=1
-            if not gotit:
-                err = "GazeboControllerNoPlugin: Failed to get state for joint '"+str(jointName)+"' of model '"+str(modelName)+"'"
-                ggLog.error(err)
-                raise RuntimeError(err)
-            jointState = JointState(list(jointProp.position), list(jointProp.rate), None) #NOTE: effort is not returned by the gazeoo service
-            ret[(modelName,jointName)] = jointState
+            if gotit:
+                jointState = JointState(list(jointProp.position), list(jointProp.rate), None) #NOTE: effort is not returned by the gazeoo service
+                gottenJoints[(modelName,jointName)] = jointState
+            else:
+                missingJoints.append(joint)
+                # err = "GazeboControllerNoPlugin: Failed to get state for joint '"+str(jointName)+"' of model '"+str(modelName)+"'"
+                # ggLog.error(err)
+                # raise RuntimeError(err)
 
-        return ret
+        if len(missingJoints)>0:
+            err = f"Failed to get state for joints {missingJoints}. requested {requestedJoints}"
+            # rospy.logerr(err)
+            raise RequestFailError(message=err, partialResult=gottenJoints)
+
+
+        return gottenJoints
 
 
 
     def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],LinkState]:
-        ret = {}
+        gottenLinks = {}
+        missingLinks = []
         for link in requestedLinks:
             linkName = link[0]+"::"+link[1]
             resp = self._getLinkStateService.call(link_name=linkName)
 
-            if not resp.success:
-                err = f"Failed to get Link state for link {linkName}: resp = {resp}"
-                ggLog.error(err)
-                world_props = rospy.ServiceProxy("/gazebo/get_world_properties", gazebo_msgs.srv.GetWorldProperties)()
-                ggLog.error(f"World properties are: {world_props}")
-                model_props = rospy.ServiceProxy("/gazebo/get_model_properties", gazebo_msgs.srv.GetModelProperties)(model_name=link[0])
-                ggLog.error(f"Model '{link[0]}' properties are: {model_props}")
-                raise RuntimeError(err)                
+            if resp.success:
+                linkState = LinkState(  position_xyz = (resp.link_state.pose.position.x, resp.link_state.pose.position.y, resp.link_state.pose.position.z),
+                                        orientation_xyzw = (resp.link_state.pose.orientation.x, resp.link_state.pose.orientation.y, resp.link_state.pose.orientation.z, resp.link_state.pose.orientation.w),
+                                        pos_velocity_xyz = (resp.link_state.twist.linear.x, resp.link_state.twist.linear.y, resp.link_state.twist.linear.z),
+                                        ang_velocity_xyz = (resp.link_state.twist.angular.x, resp.link_state.twist.angular.y, resp.link_state.twist.angular.z))
 
-            linkState = LinkState(  position_xyz = (resp.link_state.pose.position.x, resp.link_state.pose.position.y, resp.link_state.pose.position.z),
-                                    orientation_xyzw = (resp.link_state.pose.orientation.x, resp.link_state.pose.orientation.y, resp.link_state.pose.orientation.z, resp.link_state.pose.orientation.w),
-                                    pos_velocity_xyz = (resp.link_state.twist.linear.x, resp.link_state.twist.linear.y, resp.link_state.twist.linear.z),
-                                    ang_velocity_xyz = (resp.link_state.twist.angular.x, resp.link_state.twist.angular.y, resp.link_state.twist.angular.z))
-
-            ret[link] = linkState
-        return ret
+                gottenLinks[link] = linkState
+            else:
+                # err = f"Failed to get Link state for link {linkName}: resp = {resp}"
+                # ggLog.warn(err)
+                # world_props = rospy.ServiceProxy("/gazebo/get_world_properties", gazebo_msgs.srv.GetWorldProperties)()
+                # ggLog.error(f"World properties are: {world_props}")
+                # model_props = rospy.ServiceProxy("/gazebo/get_model_properties", gazebo_msgs.srv.GetModelProperties)(model_name=link[0])
+                # ggLog.error(f"Model '{link[0]}' properties are: {model_props}")
+                missingLinks.append(link)       
+        
+        if len(missingLinks)>0:
+            err = f"Failed to get state for links {missingLinks}. requested {requestedLinks}"
+            # rospy.logerr(err)
+            raise RequestFailError(message=err, partialResult=gottenLinks)
+       
+        return gottenLinks
 
     def getEnvSimTimeFromStart(self) -> float:
         return rospy.get_time()

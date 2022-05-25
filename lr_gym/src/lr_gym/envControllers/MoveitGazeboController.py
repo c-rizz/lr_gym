@@ -132,21 +132,21 @@ class MoveitGazeboController(MoveitRosController, SimulatedEnvController):
 
     def getJointsState(self, requestedJoints : List[Tuple[str,str]]) -> Dict[Tuple[str,str],JointState]:
         try:
-            js = super().getJointsState(requestedJoints=requestedJoints)
+            js = self._gazeboController.getJointsState(requestedJoints=requestedJoints)
         except RequestFailError as e:
             missing_jonts = [jr for jr in requestedJoints if jr not in e.partialResult]
-            js = self._gazeboController.getJointsState(requestedJoints=missing_jonts)
+            js = super().getJointsState(requestedJoints=missing_jonts)
             js.update(e.partialResult)
         return js
 
     def getLinksState(self, requestedLinks : List[Tuple[str,str]]) -> Dict[Tuple[str,str],LinkState]:
         try:
-            ls = super().getLinksState(requestedLinks=requestedLinks)
+            ls =  self._gazeboController.getLinksState(requestedLinks=requestedLinks) # WARNING! These may not be the same frames as the urdf unes!
             # ggLog.info("Got link state from ros")
         except RequestFailError as e:
             # This allows to get the pose of links that are not tracked by ros e.g. manipulated objects
             missing_links = [rl for rl in requestedLinks if rl not in e.partialResult]
-            ls =  self._gazeboController.getLinksState(requestedLinks=missing_links) # WARNING! These may not be the same frames as the urdf unes!
+            ls = super().getLinksState(requestedLinks=missing_links)
             # ggLog.info(f"Got link state for {ls.keys()} from gazebo plugin and link state for {e.partialResult.keys()} from ros")
             ls.update(e.partialResult)
         

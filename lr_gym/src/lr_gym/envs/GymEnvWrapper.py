@@ -29,9 +29,9 @@ import lr_gym.utils.dbg.ggLog as ggLog
 import cv2
 
 from lr_gym.envs.ControlledEnv import ControlledEnv
+import multiprocessing as mp
 
-
-class GymEnvWrapper(gym.Env):
+class GymEnvWrapper(gym.GoalEnv):
     """This class is a wrapper to convert lr_gym environments in OpenAI Gym environments.
 
     It also implements a simple cache for the state of the environment and keeps track
@@ -90,7 +90,8 @@ class GymEnvWrapper(gym.Env):
         self._lastStepEndSimTimeFromStart = 0
         self._lastValidStepWallTime = -1
         self._timeSpentStepping_ep = 0
-        self._successRatio = -1
+        self._success_ratio = 0.0
+        self._successes = [0]*50
         self._last_ep_succeded = False
         self._logFileCsvWriter = None
         self._info = {}
@@ -139,7 +140,7 @@ class GymEnvWrapper(gym.Env):
         self._info["total_steps"] = self._totalSteps
         self._info["wall_fps_first_to_last"] = wall_fps_first_to_last
         self._info["ratio_time_spent_stepping_first_to_last"] = ratio_time_spent_stepping_first_to_last
-        self._info["success_ratio"] = self._successRatio
+        self._info["success_ratio"] = self._success_ratio
         self._info["success"] = self._last_ep_succeded
 
         self._info.update(self._ggEnv.getInfo(self._getStateCached()))
@@ -161,7 +162,7 @@ class GymEnvWrapper(gym.Env):
                         lastRow = row
                     self._resetCount += int(lastRow[columns.index("reset_count")])
                     self._totalSteps += int(lastRow[columns.index("total_steps")])
-                    self._successRatio += float(lastRow[columns.index("success_ratio")])
+                    self._success_ratio += float(lastRow[columns.index("success_ratio")])
                     self._setInfo()
             self._logFile = open(self._episodeInfoLogFile, "a")
             self._logFileCsvWriter = csv.writer(self._logFile, delimiter = ",")
@@ -252,11 +253,11 @@ class GymEnvWrapper(gym.Env):
             info["timed_out"] = self._ggEnv.reachedTimeout()
         ggInfo = self._ggEnv.getInfo(state=state)
         if done:
-            if "success_ratio" in ggInfo:
-                self._successRatio = ggInfo["success_ratio"]
             if "success" in ggInfo:
                 self._last_ep_succeded = ggInfo["success"]
-        info.update(ggInfo)
+                self._successes[self._resetCount%len(self._successes)] = float(self._last_ep_succeded)
+                self._success_ratio = sum(self._successes)/len(self._successes)
+            info.update(ggInfo)
         info.update(self._info)
                 
         # ggLog.debug(" s="+str(previousState)+"\n a="+str(action)+"\n s'="+str(state) +"\n r="+str(reward))
@@ -480,3 +481,35 @@ class GymEnvWrapper(gym.Env):
         # This is only called when the object is garbage-collected, so users should
         # still call close themselves, we don't know when garbage collection will happen
         self.close()
+
+
+    def _compute_reward_nonbatch(self, achieved_goal, desired_goal, info, ggEnvClass):
+        # The step function in BaseEnv fills the info up with the actual state and action
+        reachedState = info["gz_gym_base_env_reached_state"]
+        previousState = info["gz_gym_base_env_previous_state"]
+        action = info["gz_gym_base_env_action"]
+
+        ggEnvClass.setGoalInState(previousState, desired_goal)
+        ggEnvClass.setGoalInState(reachedState, desired_goal)
+        reward = ggEnvClass.computeReward(previousState, reachedState, action)
+        print("Computed reward")
+        return reward
+
+    def compute_reward(self, achieved_goal, desired_goal, info):
+
+        if isinstance(info,dict):
+            return self._compute_reward_nonbatch(achieved_goal,desired_goal,info)
+        else:
+            rewards = []
+            #assume its a batch
+            # batch_size = desired_goal.shape[0]
+            # for i in range(batch_size):
+            #     rewards.append(self._compute_reward_nonbatch(achieved_goal[i], desired_goal[i], info[i]))
+            
+
+            with mp.Pool(mp.cpu_count()-1) as p:
+                print("Starting map")
+                rewards = p.starmap(self._compute_reward_nonbatch, zip(achieved_goal, desired_goal, info, type(self._ggEnv)))
+            reward= np.array(rewards, dtype=np.float64)
+            
+        return reward

@@ -14,7 +14,7 @@ import datetime
 import numpy as np
 
 import lr_gym
-from lr_gym.envs.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
+from lr_gym.envs.panda.PandaEffortKeepPoseEnv import PandaEffortKeepPoseEnv
 from lr_gym.envs.GymEnvWrapper import GymEnvWrapper
 from stable_baselines.common.callbacks import CheckpointCallback
 from lr_gym.utils.subproc_vec_env_no_reset import SubprocVecEnv_noReset

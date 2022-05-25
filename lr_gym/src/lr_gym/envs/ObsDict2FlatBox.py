@@ -54,17 +54,19 @@ class ObsDict2FlatBox(LrWrapper):
             raise AttributeError("Input env observation_space is not a dict")
         
         self.observation_space = dict2box(env.observation_space)
+        if self.pure_observation_space is not None:
+            self.pure_observation_space = dict2box(env.pure_observation_space)
         self.action_space = env.action_space
         self.metadata = env.metadata
         ggLog.info(f"observation_space = {self.observation_space}")
 
 
-    def _dict2box_obs(self, obs):
-        ret = np.empty(shape=self.observation_space.shape, dtype = self.observation_space.dtype)
+    def _dict2box_obs(self, obs, obs_space):
+        ret = np.empty(shape=obs_space.shape, dtype = obs_space.dtype)
         pos = 0
         for key, value in obs.items():
             if isinstance(value, dict) or isinstance(value, OrderedDict):
-                value = self._dict2box_obs(value)
+                value = self._dict2box_obs(value, obs_space)
             if type(value) == np.ndarray:
                 subobs_size = np.prod(value.shape)
                 ret[pos:pos+subobs_size] = value.flatten()
@@ -75,6 +77,10 @@ class ObsDict2FlatBox(LrWrapper):
 
     def getObservation(self, state):
         obs = self.env.getObservation(state)
-        obs =  self._dict2box_obs(obs)
-        # ggLog.info(f"obs = {obs}")
+        obs =  self._dict2box_obs(obs, self.observation_space)
+        return obs
+
+    def getPureObservationFromState(self, state):
+        obs = self.env.getPureObservationFromState(state)
+        obs =  self._dict2box_obs(obs, self.pure_observation_space)
         return obs

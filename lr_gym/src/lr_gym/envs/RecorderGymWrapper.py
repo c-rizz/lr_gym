@@ -18,7 +18,8 @@ class RecorderGymWrapper(gym.Wrapper):
     def __init__(self, env : gym.Env, fps : float, outFolder : str,
                         saveBestEpisodes = False, 
                         saveFrequency_ep = 1,
-                        saveFrequency_step = -1):
+                        saveFrequency_step = -1,
+                        vec_obs_key = None):
         super().__init__(env)
         self._outFps = fps
         self._frameRepeat = 1
@@ -26,6 +27,7 @@ class RecorderGymWrapper(gym.Wrapper):
             self._frameRepeat = int(math.ceil(30/fps))
             self._outFps = fps*self._frameRepeat
         self._frameBuffer = []
+        self._vecBuffer = []
         self._episodeCounter = 0
         self._outFolder = outFolder
         self._saveBestEpisodes = saveBestEpisodes
@@ -34,6 +36,7 @@ class RecorderGymWrapper(gym.Wrapper):
         self._bestReward = float("-inf")
         self._epReward = 0
         self._last_saved_ep_steps = -1
+        self._vec_obs_key = vec_obs_key
         try:
             os.makedirs(self._outFolder)
         except FileExistsError:
@@ -50,6 +53,10 @@ class RecorderGymWrapper(gym.Wrapper):
             self._frameBuffer.append(img)
         else:
             self._frameBuffer.append(None)
+        if self._vec_obs_key is not None:
+            self._vecBuffer.append(stepRet[0][self._vec_obs_key])
+        else:
+            self._vecBuffer.append(stepRet[0])
         self._epReward += stepRet[1]
         return stepRet
 
@@ -97,8 +104,14 @@ class RecorderGymWrapper(gym.Wrapper):
                     writer.write(npimg)
             writer.close()
 
+    def _writeVecs(self, outFilename : str, vecs):
+        with open(outFilename+".txt", 'a') as f:
+            for vec in vecs:
+                f.write(f"{vec}\n")
+
     def _saveLastEpisode(self, filename : str):
         self._writeVideo(filename,self._frameBuffer)
+        self._writeVecs(filename,self._vecBuffer)
         
 
     def _preproc_frame(self, img_hwc):
@@ -139,6 +152,7 @@ class RecorderGymWrapper(gym.Wrapper):
         self._epReward = 0
         self._episodeCounter +=1
         self._frameBuffer = []
+        self._vecBuffer = []
         img = self.render(mode = "rgb_array")
         if img is not None:
             self._frameBuffer.append(img)

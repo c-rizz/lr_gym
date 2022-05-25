@@ -189,14 +189,14 @@ def buildPoseStamped(position_xyz, orientation_xyzw, frame_id):
     pose.pose.orientation.w = orientation_xyzw[3]
     return pose
 
-def pyTorch_makeDeterministic():
+def pyTorch_makeDeterministic(seed):
     """ Make pytorch as deterministic as possible.
         Still, DOES NOT ENSURE REPRODUCIBILTY ACROSS DIFFERENT TORCH/CUDA BUILDS AND
         HARDWARE ARCHITECTURES
     """
     import torch as th
-    th.manual_seed(0)
-    np.random.seed(0)
+    th.manual_seed(seed)
+    np.random.seed(seed)
     th.backends.cudnn.benchmark = False
     th.use_deterministic_algorithms(True)
     # Following may make things better, see https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
@@ -374,13 +374,17 @@ def setupLoggingForRun(file : str, currentframe = None, run_id_prefix : str = ""
 
 
     
-def lr_gym_startup(main_file_path : str, currentframe = None, using_pytorch : bool = True, run_id_prefix : str = "", folderName : str = None) -> str:
+def lr_gym_startup(main_file_path : str, currentframe = None, using_pytorch : bool = True, run_id_prefix : str = "", folderName : str = None, seed = None) -> str:
     logFolder = setupLoggingForRun(main_file_path, currentframe, run_id_prefix=run_id_prefix, folderName=folderName)
     ggLog.addLogFile(logFolder+"/gglog.log")
+    if seed is None:
+        raise AttributeError("You must specify the run seed")
+    ggLog.setId(str(seed))
+    np.set_printoptions(edgeitems=10,linewidth=180)
     setupSigintHandler()
     if using_pytorch:
         import torch as th
-        pyTorch_makeDeterministic()
+        pyTorch_makeDeterministic(seed)
         # th.autograd.set_detect_anomaly(True) # Detect NaNs
         if th.cuda.is_available():
             ggLog.info(f"CUDA AVAILABLE: device = {th.cuda.get_device_name()}")
@@ -507,7 +511,7 @@ def getBestGpu():
         th.cuda.set_device(th.device(type="cuda", index=i))
         gpus_mem_info.append(th.cuda.mem_get_info()) #Returns [free, total]
         th.cuda.set_device(prevDev)
-        print(f"Got {gpus_mem_info[-1]}")
+        # print(f"Got {gpus_mem_info[-1]}")
 
     bestRatio = 0
     bestGpu = None
@@ -527,3 +531,8 @@ def torch_selectBestGpu():
     bestGpu = getBestGpu()
     th.cuda.set_device(bestGpu)
     return th.device('cuda:'+str(bestGpu))
+
+class RequestFailError(Exception):
+    def __init__(self, message, partialResult):            
+        super().__init__(message)
+        self.partialResult = partialResult

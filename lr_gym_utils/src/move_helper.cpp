@@ -1,5 +1,6 @@
 #include <stdexcept>
 #include <chrono>
+#include <cmath>
 
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
@@ -119,8 +120,17 @@ int executeMoveToEePoseCartesian(moveit::planning_interface::MoveGroupInterface&
   move_group.setEndEffectorLink(eeLink);
   move_group.setPoseReferenceFrame("world");
 
+  geometry_msgs::PoseStamped startpose = moveGroupInt->getCurrentPose(eeLink);
+  std::vector<double> diff = {startpose.pose.position.x - targetPose.pose.position.x,
+                              startpose.pose.position.y - targetPose.pose.position.y,
+                              startpose.pose.position.z - targetPose.pose.position.z};
+  double distance = sqrt(diff[0]*diff[0] + diff[1]*diff[1] + diff[2]*diff[2]);
+
+
   const double jump_threshold = 1.5; // No joint-space jump contraint (see moveit_msgs/GetCartesianPath)
-  const double eef_step = 0.001;
+  double eef_step = 0.001;
+  if (distance/eef_step < 15)
+    eef_step = distance/15;
 
   moveit_msgs::RobotTrajectory robotTraj;
   std::vector<geometry_msgs::Pose> waypoints;

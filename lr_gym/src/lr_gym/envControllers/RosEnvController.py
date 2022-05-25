@@ -7,7 +7,7 @@ import sensor_msgs
 import gazebo_msgs.msg
 from threading import Lock
 
-from lr_gym.utils.utils import JointState, LinkState
+from lr_gym.utils.utils import JointState, LinkState, RequestFailError
 from lr_gym.envControllers.EnvironmentController import EnvironmentController
 from lr_gym_utils.msg import LinkStates
 
@@ -20,10 +20,6 @@ import lr_gym.utils.utils
 import lr_gym.utils.beep
 
 
-class RequestFailError(Exception):
-    def __init__(self, message, partialResult):            
-        super().__init__(message)
-        self.partialResult = partialResult
 
 class RosEnvController(EnvironmentController):
     """This class allows to control the execution of a ROS-based environment.
@@ -221,7 +217,7 @@ class RosEnvController(EnvironmentController):
                 ggLog.warn(f"Waiting for images since {rospy.get_time()-call_time}s. Still missing: {camerasMissing}")
                 lr_gym.utils.beep.beep()
                 lastErrTime = rospy.get_time()
-            self.freerun(0.1)
+            self.freerun(0.01)
 
         waitTime = rospy.get_time() - call_time
         self._cameraMsgWaitAvg.addValue(waitTime)
@@ -271,7 +267,7 @@ class RosEnvController(EnvironmentController):
                     missingJoints.append(j)
             if len(missingJoints) == 0 or not self._blocking_observation:
                 break
-            self.freerun(0.1)
+            self.freerun(0.01)
 
             if rospy.get_time() - lastErrTime > 10:
                 ggLog.warn(f"Waiting for joints since {rospy.get_time()-call_time}s. Still missing: {missingJoints}")
@@ -345,7 +341,7 @@ class RosEnvController(EnvironmentController):
                     missingLinks.append(lnm)
             if len(missingLinks) == 0 or not self._blocking_observation:
                 break
-            self.freerun(0.1)
+            self.freerun(0.01)
 
             if rospy.get_time() - lastErrTime > 10:
                 ggLog.warn(f"Waiting for links since {rospy.get_time()-call_time}s. Still missing: {missingLinks}")

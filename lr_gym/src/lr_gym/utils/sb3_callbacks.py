@@ -22,31 +22,79 @@ class CheckpointCallbackRB(BaseCallback):
     :param save_path: Path to the folder where the model will be saved.
     :param name_prefix: Common prefix to the saved models
     :param verbose:
-    :param replay_buffer_save_freq:
     """
 
     def __init__(self, save_freq: int, save_path: str, name_prefix: str = "rl_model", verbose: int = 0,
-                       replay_buffer_save_freq : int = None):
+                       save_replay_buffer : bool = False,
+                       save_freq_ep : int = None,
+                       save_best = True):
         super(CheckpointCallbackRB, self).__init__(verbose)
         self.save_freq = save_freq
         self.save_path = save_path
         self.name_prefix = name_prefix
-        self.replay_buffer_save_freq = replay_buffer_save_freq
-        if self.replay_buffer_save_freq is not None:
-            if self.replay_buffer_save_freq % self.save_freq != 0:
-                raise AttributeError("replay_buffer_save_freq is not a multiple of save_freq, you probably don't want to do this.")
+        self.save_replay_buffer = save_replay_buffer
+        self.save_freq_ep = save_freq_ep
         self._last_saved_replay_buffer_path = None
 
         self._step_last_model_checkpoint = 0
         self._step_last_replay_buffer_checkpoint = 0
+        self._episode_counter = 0
+        self._save_best = save_best
+
+        self._successes = [0]*50
+        self._success_ratio = 0.0
+        self._best_success_ratio = 0
+        self._ep_last_model_checkpoint = 0
+
 
     def _init_callback(self) -> None:
         # Create folder if needed
         if self.save_path is not None:
             os.makedirs(self.save_path, exist_ok=True)
 
-    def _on_step(self) -> bool:
+    def _on_step(self):
+        # ggLog.info(f"AutoencodingSAC_VideoSaver: on_step, locals = {self.locals}")
+        if self.locals["dones"][0]:
+            self._episode_counter += 1
+            info = self.locals["infos"][0]
+            if "success" in info:
+                ep_succeded = info["success"]
+            else:
+                ep_succeded = False
+            self._successes[self._episode_counter%len(self._successes)] = float(ep_succeded)
+            self._success_ratio = sum(self._successes)/len(self._successes)
         return True
+
+    def _save_model(self, is_best, count_ep):
+        self._best_success_ratio = max(self._best_success_ratio, self._success_ratio)
+        if is_best:
+            path = os.path.join(self.save_path, f"best_{self.name_prefix}_{self._episode_counter}_{self.model.num_timesteps}_{int(self._success_ratio*100)}_steps")
+        else:
+            path = os.path.join(self.save_path, f"{self.name_prefix}_{self._episode_counter}_{self.model.num_timesteps}_{int(self._success_ratio*100)}_steps")
+        self.model.save(path)
+        if not is_best:
+            if count_ep:
+                self._ep_last_model_checkpoint = self._episode_counter
+            else:
+                self._step_last_model_checkpoint = self.model.num_timesteps
+        if self.verbose > 1:
+            print(f"Saved model checkpoint to {path}")
+        
+        if self.save_replay_buffer:
+            self._save_replay_buffer()
+
+    def _save_replay_buffer(self):
+        path = os.path.join(self.save_path, f"{self.name_prefix}_replay_buffer_{self._episode_counter}_{self.model.num_timesteps}_steps")+".pkl"
+        t0 = time.monotonic()
+        ggLog.debug(f"Saving replay buffer with transitions {self.model.replay_buffer.size()}/{self.model.replay_buffer.buffer_size}...")
+        self.model.save_replay_buffer(path)
+        filesize_mb = os.path.getsize(path)/1024/1024
+        if self._last_saved_replay_buffer_path is not None:
+            os.remove(self._last_saved_replay_buffer_path) 
+        t1 = time.monotonic()
+        self._last_saved_replay_buffer_path = path
+        self._step_last_replay_buffer_checkpoint = self.model.num_timesteps
+        ggLog.debug(f"Saved replay buffer checkpoint to {path}, size = {filesize_mb}MB, transitions = {self.model.replay_buffer.size()}, took {t1-t0}s")
 
     def _on_rollout_end(self) -> bool:
 
@@ -55,26 +103,12 @@ class CheckpointCallbackRB(BaseCallback):
         #     raise RuntimeError("Only non-vectorized envs are supported.")
         # done = done_array.item()
         envsteps = self.model.num_timesteps
-    
-        if int(envsteps / self.save_freq) != int(self._step_last_model_checkpoint / self.save_freq):
-            path = os.path.join(self.save_path, f"{self.name_prefix}_{self.model.num_timesteps}_steps")
-            self.model.save(path)
-            self._step_last_model_checkpoint = envsteps
-            if self.verbose > 1:
-                print(f"Saved model checkpoint to {path}")
-        if self.replay_buffer_save_freq is not None:
-            if int(envsteps / self.replay_buffer_save_freq) != int(self._step_last_replay_buffer_checkpoint / self.replay_buffer_save_freq):
-                path = os.path.join(self.save_path, f"{self.name_prefix}_replay_buffer_{self.model.num_timesteps}_steps")+".pkl"
-                t0 = time.monotonic()
-                ggLog.debug(f"Saving replay buffer with transitions {self.model.replay_buffer.size()}/{self.model.replay_buffer.buffer_size}...")
-                self.model.save_replay_buffer(path)
-                filesize_mb = os.path.getsize(path)/1024/1024
-                if self._last_saved_replay_buffer_path is not None:
-                    os.remove(self._last_saved_replay_buffer_path) 
-                t1 = time.monotonic()
-                self._last_saved_replay_buffer_path = path
-                self._step_last_replay_buffer_checkpoint = envsteps
-                ggLog.debug(f"Saved replay buffer checkpoint to {path}, size = {filesize_mb}MB, transitions = {self.model.replay_buffer.size()}, took {t1-t0}s")
+        if self._success_ratio > self._best_success_ratio and self._save_best:
+            self._save_model(is_best=True, count_ep=False)
+        if self.save_freq is not None and int(self.model.num_timesteps / self.save_freq) != int(self._step_last_model_checkpoint / self.save_freq):
+            self._save_model(is_best=False, count_ep=False)
+        if self.save_freq_ep is not None and int(self._episode_counter / self.save_freq_ep) != int(self._ep_last_model_checkpoint / self.save_freq_ep):
+            self._save_model(is_best=False, count_ep=True)
         return True
 
 

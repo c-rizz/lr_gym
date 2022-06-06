@@ -368,7 +368,8 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
             try:
                 callback()
             except Exception as e:
-                ggLog.info(f"Moveit action failed to complete (this is not necessarily a bad thing). step_count ={self._step_count} exception = "+str(e))
+                ggLog.info(f"Moveit action failed to complete (this is not necessarily a bad thing). step_count ={self._step_count}")
+                ggLog.debug(f"Exception = "+str(e))
                 actionFailed+=1
                 #time.sleep(5)
         self._waitOnStepCallbacks.clear()

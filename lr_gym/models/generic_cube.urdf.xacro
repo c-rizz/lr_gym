@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="cube">
+
+  <xacro:include filename="$(find lr_gym)/models/generic_cube.xacro" />
+
+
+  <xacro:arg name="mass" default="1" />
+  <xacro:property name="mass" value="$(arg mass)" />
+  <xacro:arg name="red" default="0.05" />
+  <xacro:property name="red" value="$(arg red)" />
+  <xacro:arg name="green" default="0.05" />
+  <xacro:property name="green" value="$(arg green)" />
+  <xacro:arg name="blue" default="0.05" />
+  <xacro:property name="blue" value="$(arg blue)" />
+  <xacro:generic_cube mass="${mass}"
+                      red="${red}"
+                      green="${green}"
+                      blue="${blue}"/>
+
+
+</robot>

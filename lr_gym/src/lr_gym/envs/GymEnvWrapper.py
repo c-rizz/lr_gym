@@ -469,6 +469,7 @@ class GymEnvWrapper(gym.GoalEnv):
 
         """
         if self._framesCounter != self._lastStepGotState:
+            # ggLog.info("State cache miss")
             self._lastStepGotState = self._framesCounter
             self._lastState = self._ggEnv.getState()
 

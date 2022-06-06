@@ -13,7 +13,7 @@ fh = logging.FileHandler('ggLogs/ggLog_'+datetime.datetime.now().strftime('%Y%m%
 fh.setLevel(logging.DEBUG)
 # create console handler with a higher log level
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
+ch.setLevel(logging.INFO)
 # create formatter and add it to the handlers
 formatter = logging.Formatter('[%(asctime)s.%(msecs)03d][%(levelname)s] %(message)s', datefmt='%Y%m%d,%H:%M:%S')
 ch.setFormatter(formatter)

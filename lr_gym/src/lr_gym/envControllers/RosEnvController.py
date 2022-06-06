@@ -239,49 +239,49 @@ class RosEnvController(EnvironmentController):
                 raise RuntimeError("Requested joint that was not requested in setJointsToObserve")
 
 
-        self._jointStatesMutex.acquire()
 
-        # ggLog.info("RosEnvController.getJointsState() called")
+            # ggLog.info("RosEnvController.getJointsState() called")
 
-        call_time = rospy.get_time()
-        gottenJoints = {}
+            call_time = rospy.get_time()
+            gottenJoints = {}
 
-        lastErrTime = call_time
-        while True:
-            jointStatesMsg = self._lastJointStatesReceived
-            if jointStatesMsg is not None:
-                msgAge = call_time - jointStatesMsg.header.stamp.to_sec()
-                if msgAge < self._maxObsAge or self._maxObsAge == float("+inf"):
-                    for j in requestedJoints:
-                        modelName = j[0]
-                        jointName = j[1]                    
-                        try:
-                            jointIndex = jointStatesMsg.name.index(jointName)
-                        except ValueError:
-                            jointIndex = None
-                        if jointIndex is not None:
-                            gottenJoints[j] = JointState([jointStatesMsg.position[jointIndex]], [jointStatesMsg.velocity[jointIndex]], [jointStatesMsg.effort[jointIndex]])
-            missingJoints = []
-            for j in requestedJoints:
-                if j not in gottenJoints:
-                    missingJoints.append(j)
-            if len(missingJoints) == 0 or not self._blocking_observation:
-                break
-            self.freerun(0.01)
+            lastErrTime = call_time
+            while True:
+                with self._jointStatesMutex:
+                    jointStatesMsg = self._lastJointStatesReceived
+                    if jointStatesMsg is not None:
+                        msgAge = call_time - jointStatesMsg.header.stamp.to_sec()
+                        # print(f"msgAge = {msgAge}")
+                        if msgAge < self._maxObsAge or self._maxObsAge == float("+inf"):
+                            for j in requestedJoints:
+                                modelName = j[0]
+                                jointName = j[1]                    
+                                try:
+                                    jointIndex = jointStatesMsg.name.index(jointName)
+                                except ValueError:
+                                    jointIndex = None
+                                if jointIndex is not None:
+                                    gottenJoints[j] = JointState([jointStatesMsg.position[jointIndex]], [jointStatesMsg.velocity[jointIndex]], [jointStatesMsg.effort[jointIndex]])
+                    else:
+                        msgAge = float("+inf")
+                missingJoints = []
+                for j in requestedJoints:
+                    if j not in gottenJoints:
+                        missingJoints.append(j)
+                if len(missingJoints) == 0 or not self._blocking_observation:
+                    break
+                self.freerun(0.01)
 
-            if rospy.get_time() - lastErrTime > 10:
-                ggLog.warn(f"Waiting for joints since {rospy.get_time()-call_time}s. Still missing: {missingJoints}")
-                lr_gym.utils.beep.beep()
-                
-                lastErrTime = rospy.get_time()
+                if rospy.get_time() - lastErrTime > 10:
+                    ggLog.warn(f"Waiting for joints since {rospy.get_time()-call_time}s. Still missing: {missingJoints}")
+                    lr_gym.utils.beep.beep()                
+                    lastErrTime = rospy.get_time()
 
 
-        msgAge = jointStatesMsg.header.stamp.to_sec() - rospy.get_time()
-        self._jointStateMsgAgeAvg.addValue(msgAge)
-        waitTime = rospy.get_time() - call_time
-        self._jointMsgWaitAvg.addValue(waitTime)
+            self._jointStateMsgAgeAvg.addValue(msgAge)
+            waitTime = rospy.get_time() - call_time
+            self._jointMsgWaitAvg.addValue(waitTime)
 
-        self._jointStatesMutex.release()
 
 
         if len(missingJoints)>0:
@@ -315,26 +315,25 @@ class RosEnvController(EnvironmentController):
         lastErrTime = call_time
         while True:
             for lnm in requestedLinks:
-                self._linkStatesMutex.acquire()
-                try:
-                    lsMsg = self._linkStates[lnm]
-                except KeyError as e:
-                    lsMsg = None
-                if lsMsg is not None:
-                    msgAge = call_time - lsMsg.header.stamp.to_sec()
-                    if msgAge < self._maxObsAge or self._maxObsAge == float("+inf"):
-                        self._linkStateMsgAgeAvg.addValue(msgAge)
+                with self._linkStatesMutex:
+                    try:
+                        lsMsg = self._linkStates[lnm]
+                    except KeyError as e:
+                        lsMsg = None
+                    if lsMsg is not None:
+                        msgAge = call_time - lsMsg.header.stamp.to_sec()
+                        if msgAge < self._maxObsAge or self._maxObsAge == float("+inf"):
+                            self._linkStateMsgAgeAvg.addValue(msgAge)
 
-                        # Add link state to return dict
-                        if lsMsg.pose.header.frame_id != "world":
-                            raise RuntimeError("Received link pose is not in world frame! This is not supported!")
-                        pose = lsMsg.pose.pose
-                        twist = lsMsg.twist
-                        gottenLinks[lnm] = LinkState( position_xyz     = (pose.position.x, pose.position.y, pose.position.z),
-                                            orientation_xyzw = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
-                                            pos_velocity_xyz = (twist.linear.x, twist.linear.y, twist.linear.z),
-                                            ang_velocity_xyz = (twist.angular.x, twist.angular.y, twist.angular.z))
-                self._linkStatesMutex.release()
+                            # Add link state to return dict
+                            if lsMsg.pose.header.frame_id != "world":
+                                raise RuntimeError("Received link pose is not in world frame! This is not supported!")
+                            pose = lsMsg.pose.pose
+                            twist = lsMsg.twist
+                            gottenLinks[lnm] = LinkState( position_xyz     = (pose.position.x, pose.position.y, pose.position.z),
+                                                orientation_xyzw = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
+                                                pos_velocity_xyz = (twist.linear.x, twist.linear.y, twist.linear.z),
+                                                ang_velocity_xyz = (twist.angular.x, twist.angular.y, twist.angular.z))
             missingLinks = []
             for lnm in requestedLinks:
                 if lnm not in gottenLinks:

@@ -423,7 +423,7 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
             resp = self._setLinkStateService(req)
             
             if not resp.success:
-                ggLog.error("Failed setting link state for link "+modelName+"::"+linkName+": "+res.status_message)
+                ggLog.error("Failed setting link state for link "+modelName+"::"+linkName+": "+resp.status_message)
             # else:
             #     ggLog.info("Successfully set Linkstate for link "+modelName+"::"+linkName)
         return ret

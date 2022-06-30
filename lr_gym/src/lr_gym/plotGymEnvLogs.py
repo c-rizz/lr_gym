@@ -206,7 +206,7 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
                 c = palette[color_ids[i]]
                 if doAvg:
                     c = [(e+1)/2 for e in c]
-                p = sns.lineplot(data=df,x=x_data_id,y=yid,color=c, alpha = 0.7, ci=None) #, ax = ax) #
+                p = sns.lineplot(data=df,x=x_data_id,y=yid,color=c, alpha = 0.7, ci=None, linewidth=0.5) #, ax = ax) #
                 i+=1
     i = 0
     if doAvg:                                

@@ -38,3 +38,7 @@ class SimulatedEnvController(ABC):
             Keys are in the format (model_name, link_name), the value is the link state to enforce
         """
         raise NotImplementedError()
+
+    @abstractmethod
+    def setupLight(self):
+        raise NotImplementedError()

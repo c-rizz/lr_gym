@@ -88,6 +88,8 @@ class MoveitGazeboController(MoveitRosController, SimulatedEnvController):
         """Delete a model from the environment"""
         self._gazeboController.deleteModel(model = model)
 
+    def setupLight(self, *args, **kwargs):
+        self._gazeboController.setupLight(*args, **kwargs)
 
     def setJointsStateDirect(self, jointStates : Dict[Tuple[str,str],JointState]):
         """Set the state for a set of joints

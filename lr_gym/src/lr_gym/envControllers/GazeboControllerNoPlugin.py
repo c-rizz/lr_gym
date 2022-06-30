@@ -18,6 +18,8 @@ from lr_gym.envControllers.SimulatedEnvController import SimulatedEnvController
 from lr_gym.utils.utils import JointState, LinkState, RequestFailError
 import os
 import lr_gym.utils.dbg.ggLog as ggLog
+from lr_gym.utils.utils import Pose
+from lr_gym.utils.gazebo_models_manager import delete_model, spawn_model
 
 
 class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, SimulatedEnvController):
@@ -74,7 +76,8 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
                         "unpause" : "/gazebo/unpause_physics",
                         "get_physics_properties" : "/gazebo/get_physics_properties",
                         "reset" : "/gazebo/reset_simulation",
-                        "setLinkState" : "/gazebo/set_link_state"}
+                        "setLinkState" : "/gazebo/set_link_state",
+                        "setLightProperties" : "/gazebo/set_light_properties"}
 
         timeout_secs = 30.0
         for serviceName in serviceNames.values():
@@ -98,6 +101,7 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
         self._getPhysicsProperties      = rospy.ServiceProxy(serviceNames["get_physics_properties"], gazebo_msgs.srv.GetPhysicsProperties, persistent=self._usePersistentConnections)
         self._resetGazeboService        = rospy.ServiceProxy(serviceNames["reset"], Empty, persistent=self._usePersistentConnections)
         self._setLinkStateService       = rospy.ServiceProxy(serviceNames["setLinkState"], gazebo_msgs.srv.SetLinkState, persistent=self._usePersistentConnections)
+        self._setLightPropertiesService = rospy.ServiceProxy(serviceNames["setLightProperties"], gazebo_msgs.srv.SetLightProperties, persistent=self._usePersistentConnections)
 
         #self._setGazeboPhysics = rospy.ServiceProxy(self._setGazeboPhysics, SetPhysicsProperties, persistent=self._usePersistentConnections)
 
@@ -370,15 +374,27 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
     def setRosMasterUri(self, rosMasterUri : str):
         self._rosMasterUri = rosMasterUri
 
-    def spawnModel(self):
+    def spawnModel(self, xacro_file_path : str,
+                        pose : Pose = Pose(0,0,0,0,0,0,1), 
+                        args : Dict[str,str] = {}, 
+                        model_name = "model", 
+                        robot_namespace = "", 
+                        reference_frame = "world",
+                        format = "urdf"):
         """Spawn a model in the environment, arguments depend on the type of SimulatedEnvController
         """
-        raise NotImplementedError()
+        spawn_model(xacro_file_path = xacro_file_path,
+                        pose = pose, 
+                        args = args, 
+                        model_name = model_name, 
+                        robot_namespace = robot_namespace, 
+                        reference_frame = reference_frame,
+                        format = format)
 
 
     def deleteModel(self, model : str):
         """Delete a model from the environment"""
-        raise NotImplementedError()
+        delete_model(model_name=model)
 
 
     def setJointsStateDirect(self, jointStates : Dict[Tuple[str,str],JointState]):
@@ -435,3 +451,11 @@ class GazeboControllerNoPlugin(RosEnvController, JointEffortEnvController, Simul
         rospy.sleep(duration_sec)
         if wasPaused:
             self.pauseSimulation()
+
+    
+    def setupLight(self, gz_req : gazebo_msgs.srv.SetLightPropertiesRequest):
+        res = self._setLightPropertiesService.call(gz_req)
+        if not res.success:
+            ggLog.error(f"GazeboControllerNoPlugin: failed to setup Light.\n req = {gz_req}\n res={res}")
+            return False
+        return True

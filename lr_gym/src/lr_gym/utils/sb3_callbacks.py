@@ -81,12 +81,15 @@ class CheckpointCallbackRB(BaseCallback):
             print(f"Saved model checkpoint to {path}")
         
         if self.save_replay_buffer:
-            self._save_replay_buffer()
+            self._save_replay_buffer(is_best)
 
-    def _save_replay_buffer(self):
-        path = os.path.join(self.save_path, f"{self.name_prefix}_replay_buffer_{self._episode_counter}_{self.model.num_timesteps}_steps")+".pkl"
+    def _save_replay_buffer(self, is_best):
+        if is_best:
+            path = os.path.join(self.save_path, f"best_{self.name_prefix}_replay_buffer_{self._episode_counter}_{self.model.num_timesteps}_steps")+".pkl"
+        else:
+            path = os.path.join(self.save_path, f"{self.name_prefix}_replay_buffer_{self._episode_counter}_{self.model.num_timesteps}_steps")+".pkl"
         t0 = time.monotonic()
-        ggLog.debug(f"Saving replay buffer with transitions {self.model.replay_buffer.size()}/{self.model.replay_buffer.buffer_size}...")
+        ggLog.info(f"Saving replay buffer with transitions {self.model.replay_buffer.size()}/{self.model.replay_buffer.buffer_size}...")
         self.model.save_replay_buffer(path)
         filesize_mb = os.path.getsize(path)/1024/1024
         if self._last_saved_replay_buffer_path is not None:

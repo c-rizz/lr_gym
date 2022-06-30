@@ -210,6 +210,8 @@ class GymEnvWrapper(gym.GoalEnv):
             done = True
             info = {}
             info.update(self._ggEnv.getInfo(state=self._getStateCached()))
+            if "success" in info:
+                info["is_success"] = info["success"]
             self._lastStepEndSimTimeFromStart = self._ggEnv.getSimTimeFromEpStart()
             info["simTime"] = self._lastStepEndSimTimeFromStart
             if not self._ggEnv.is_time_limited():
@@ -254,9 +256,10 @@ class GymEnvWrapper(gym.GoalEnv):
         ggInfo = self._ggEnv.getInfo(state=state)
         if done:
             if "success" in ggInfo:
+                ggInfo["is_success"] = ggInfo["success"]
                 self._last_ep_succeded = ggInfo["success"]
                 self._successes[self._resetCount%len(self._successes)] = float(self._last_ep_succeded)
-                self._success_ratio = sum(self._successes)/len(self._successes)
+                self._success_ratio = sum(self._successes)/min(len(self._successes), self._resetCount)
             info.update(ggInfo)
         info.update(self._info)
                 

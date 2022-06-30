@@ -41,10 +41,21 @@ def spawn_model(xacro_file_path : str,
                 args : Dict[str,str] = {}, 
                 model_name = "model", 
                 robot_namespace = "", 
-                reference_frame = "world"):
+                reference_frame = "world",
+                format = "urdf"):
     urdf_string = compile_xacro(xacro_file_path,args)
     gazebo_namespace = "gazebo"
-    spawn_urdf_model = waitService(gazebo_namespace+'/spawn_urdf_model', SpawnModel)
+    if format == "urdf":
+        spawn_model = waitService(gazebo_namespace+'/spawn_urdf_model', SpawnModel)
+    elif format=="sdf":
+        spawn_model = waitService(gazebo_namespace+'/spawn_sdf_model', SpawnModel)
+    else:
+        raise AttributeError(f"Unexpected format value '{format}'")
+
+
+    while rospy.Time().now() == 0: # Wait for time to be non-zero (https://github.com/ros-simulation/gazebo_ros_pkgs/pull/1024)
+        time.sleep(0.1)
+
 
     request = SpawnModelRequest()
     request.model_name = model_name
@@ -53,7 +64,7 @@ def spawn_model(xacro_file_path : str,
     request.initial_pose = pose.getPoseStamped(reference_frame).pose
     request.reference_frame = reference_frame
     
-    response = spawn_urdf_model.call(request)
+    response = spawn_model.call(request)
 
     if not response.success:
         raise RuntimeError(f"Failed to spawn model {xacro_file_path} with args {args}, response:\n  {response}")

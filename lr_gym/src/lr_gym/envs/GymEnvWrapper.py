@@ -486,17 +486,18 @@ class GymEnvWrapper(gym.GoalEnv):
         # still call close themselves, we don't know when garbage collection will happen
         self.close()
 
-
-    def _compute_reward_nonbatch(self, achieved_goal, desired_goal, info, ggEnvClass):
+    @staticmethod
+    def _compute_reward_nonbatch(achieved_goal, desired_goal, info, setGoalInState, computeReward):
         # The step function in BaseEnv fills the info up with the actual state and action
+        # print("Computing reward")
         reachedState = info["gz_gym_base_env_reached_state"]
         previousState = info["gz_gym_base_env_previous_state"]
         action = info["gz_gym_base_env_action"]
 
-        ggEnvClass.setGoalInState(previousState, desired_goal)
-        ggEnvClass.setGoalInState(reachedState, desired_goal)
-        reward = ggEnvClass.computeReward(previousState, reachedState, action)
-        print("Computed reward")
+        setGoalInState(previousState, desired_goal)
+        setGoalInState(reachedState, desired_goal)
+        reward = computeReward(previousState, reachedState, action)
+        # print("Computed reward")
         return reward
 
     def compute_reward(self, achieved_goal, desired_goal, info):
@@ -504,16 +505,20 @@ class GymEnvWrapper(gym.GoalEnv):
         if isinstance(info,dict):
             return self._compute_reward_nonbatch(achieved_goal,desired_goal,info)
         else:
-            rewards = []
+            batch_size = len(achieved_goal)
+            rewards = [None]*batch_size
             #assume its a batch
             # batch_size = desired_goal.shape[0]
             # for i in range(batch_size):
             #     rewards.append(self._compute_reward_nonbatch(achieved_goal[i], desired_goal[i], info[i]))
             
-
-            with mp.Pool(mp.cpu_count()-1) as p:
-                print("Starting map")
-                rewards = p.starmap(self._compute_reward_nonbatch, zip(achieved_goal, desired_goal, info, type(self._ggEnv)))
+            # with mp.Pool(mp.cpu_count()-1) as p:
+            #     # print(f"Starting map to compute {batch_size} rewards")
+            #     inputs = list(zip(achieved_goal, desired_goal, info, [type(self._ggEnv)]*batch_size))
+            #     print(f"inputs = {inputs}")
+            #     rewards = p.starmap(self._compute_reward_nonbatch, inputs)
+            for i in range(batch_size):
+                rewards[i] = self._compute_reward_nonbatch(achieved_goal[i], desired_goal[i], info[i], self._ggEnv.setGoalInState, self._ggEnv.computeReward)
             reward= np.array(rewards, dtype=np.float64)
             
         return reward

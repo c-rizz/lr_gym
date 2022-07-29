@@ -158,7 +158,8 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
              raw : bool = False,
              dfLabels : List[str] = None,
              cummax : bool = False,
-             showLegend : bool = True):
+             showLegend : bool = True,
+             yscalings_dict : Dict[str, float] = None):
 
     plt.clf()
 
@@ -214,7 +215,7 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
             for yid in y_data_ids:
                 c = palette[color_ids[i]]
                 print(f"Plotting {k}/{yid} mean, {len(df[x_data_id])} samples, max_avg = {df[yid+'_mean'].max()}, min_avg = {df[yid+'_mean'].min()}, max = {df[yid].max()}, min = {df[yid].min()}")
-                p = sns.lineplot(x=df[x_data_id],y=df[yid+"_mean"], color=c, label=f"{k}/{yid}", ci=None, linewidth=0.5) #, ax = ax) #
+                p = sns.lineplot(x=df[x_data_id],y=df[yid+"_mean"], color=c, label=f"{k}/{yid}×{yscalings_dict[yid]}", ci=None, linewidth=0.5) #, ax = ax) #
                 if not raw and yid+"_std" in df:
                     print(f"Plotting {k}/{yid} std")
                     cis = (df[yid+"_mean"] - df[yid+"_std"], df[yid+"_mean"] + df[yid+"_std"])
@@ -228,7 +229,7 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
                 c = palette[color_ids[i]]
                 c = [a*0.75 for a in c]
                 print(f"plotting cummax {df[yid+'_mean_cummax']}")
-                p = sns.lineplot(x=df[x_data_id],y=df[yid+"_mean_cummax"], color=c, label=f"{k}/{yid}", ci=None, linewidth=0.5) #, ax = ax) #
+                p = sns.lineplot(x=df[x_data_id],y=df[yid+"_mean_cummax"], color=c, label=f"{k}/{yid}×{yscalings_dict[yid]}", ci=None, linewidth=0.5) #, ax = ax) #
                 i+=1
                 
     #plt.legend(loc='lower right', labels=names)
@@ -399,6 +400,8 @@ def main():
                 else:
                     dfLabels = labelsFromFiles(csvfiles)
 
+                yscalings = args["yscalings"] if args["yscalings"] is not None else [1.0]*len(y_data_ids)
+                yscalings_dict = {y_data_ids[i] : args["yscalings"][i] for i in range(len(y_data_ids))}
                 makePlot(dfs,
                         x_data_id=args["xdataid"],
                         max_x = args["maxx"],
@@ -413,7 +416,8 @@ def main():
                         raw = args["raw"],
                         dfLabels=dfLabels,
                         cummax=args["cummax"],
-                        showLegend=not args["nolegend"])
+                        showLegend=not args["nolegend"],
+                        yscalings_dict=yscalings_dict)
                 if args["format"] == "png":
                     plt.savefig(out_path, dpi=600,bbox_inches='tight')
                 else:

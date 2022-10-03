@@ -30,6 +30,7 @@ import cv2
 
 from lr_gym.envs.ControlledEnv import ControlledEnv
 import multiprocessing as mp
+import signal
 
 class GymEnvWrapper(gym.GoalEnv):
     """This class is a wrapper to convert lr_gym environments in OpenAI Gym environments.
@@ -511,14 +512,20 @@ class GymEnvWrapper(gym.GoalEnv):
             # batch_size = desired_goal.shape[0]
             # for i in range(batch_size):
             #     rewards.append(self._compute_reward_nonbatch(achieved_goal[i], desired_goal[i], info[i]))
-            
-            # with mp.Pool(mp.cpu_count()-1) as p:
-            #     # print(f"Starting map to compute {batch_size} rewards")
-            #     inputs = list(zip(achieved_goal, desired_goal, info, [type(self._ggEnv)]*batch_size))
-            #     print(f"inputs = {inputs}")
-            #     rewards = p.starmap(self._compute_reward_nonbatch, inputs)
-            for i in range(batch_size):
-                rewards[i] = self._compute_reward_nonbatch(achieved_goal[i], desired_goal[i], info[i], self._ggEnv.setGoalInState, self._ggEnv.computeReward)
+            if not hasattr(self, "_compute_reward_pool"):
+                original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+                self._compute_reward_pool = mp.Pool(min(mp.cpu_count()-1, 8))
+                signal.signal(signal.SIGINT, original_sigint_handler)
+            # print(f"Starting map to compute {batch_size} rewards")
+            inputs = zip(  achieved_goal,
+                            desired_goal,
+                            info,
+                            [self._ggEnv.setGoalInState]*batch_size,
+                            [self._ggEnv.computeReward]*batch_size)
+            # print(f"input[0] = {inpu  ts[0]}")
+            rewards = self._compute_reward_pool.starmap(self._compute_reward_nonbatch, inputs)
+            # for i in range(batch_size):
+            #     rewards[i] = self._compute_reward_nonbatch(achieved_goal[i], desired_goal[i], info[i], self._ggEnv.setGoalInState, self._ggEnv.computeReward)
             reward= np.array(rewards, dtype=np.float64)
             
         return reward

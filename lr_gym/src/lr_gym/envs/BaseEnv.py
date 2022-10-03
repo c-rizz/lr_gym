@@ -86,7 +86,7 @@ class BaseEnv(ABC):
         """
         return self.getMaxStepsPerEpisode()>0 and self._stepCounter >= self.getMaxStepsPerEpisode()
 
-    @abstractmethod
+    
     def checkEpisodeEnded(self, previousState, state) -> bool:
         """To be implemented in subclass.
 
@@ -157,7 +157,6 @@ class BaseEnv(ABC):
         """
         raise NotImplementedError()
 
-    @abstractmethod
     def initializeEpisode(self) -> None:
         """To be implemented in subclass.
 
@@ -212,30 +211,29 @@ class BaseEnv(ABC):
         """Get the maximum number of frames of one episode, as set by the constructor."""
         return self._maxStepsPerEpisode
 
-    def setGoalInState(self, state, goal):
+    def setGoalInState(self, state_batch, goal_batch):
         """To be implemented in subclass.
 
         Update the provided state with the provided goal. Useful for goal-oriented environments, especially when using HER.
-        It's used by ToGoalEnvWrapper.
         """
         raise NotImplementedError()
 
     @staticmethod
-    def getGoalFromState(state):
+    def getGoalFromState(state_batch):
         """To be implemented in subclass.
 
         Get the goal for the provided state. Useful for goal-oriented environments, especially when using HER.
         """
         raise NotImplementedError()
 
-    def getAchievedGoalFromState(self, state):
+    def getAchievedGoalFromState(self, state_batch):
         """To be implemented in subclass.
 
         Get the currently achieved goal from the provided state. Useful for goal-oriented environments, especially when using HER.
         """
         raise NotImplementedError()
 
-    def getPureObservationFromState(self, state):
+    def getPureObservationFromState(self, state_batch):
         """To be implemented in subclass.
 
         Get the pure observation from the provided state. Pure observation means the observation without goal and achieved goal.

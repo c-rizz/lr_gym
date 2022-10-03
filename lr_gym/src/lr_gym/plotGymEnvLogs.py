@@ -2,6 +2,7 @@
 
 from cProfile import label
 from copyreg import pickle
+from curses import window
 from posixpath import abspath
 
 from numpy.lib.shape_base import split
@@ -16,7 +17,7 @@ import signal
 import os
 import math
 import numpy as np
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 def prepData(csvfiles : List[str],
              x_data_id : str,
@@ -29,14 +30,15 @@ def prepData(csvfiles : List[str],
              avglen : int  = 20,
              parallelsims : int = 1,
              cummax : bool = False,
-             nostd : bool = False):
+             nostd : bool = False,
+             xoffsets : float = 0.0,
+             centeravg : bool = True,
+             cutx = [float("-inf"), float("+inf")]):
 
     in_dfs = [pd.read_csv(csvfile) for csvfile in csvfiles]
     parallel_runs = int(len(in_dfs)/parallelsims)
     print(f"{len(in_dfs)} runs, {parallelsims} parallel sims")
 
-    if yscalings is None:
-        yscalings = [1.0]*len(y_data_ids)
     if max_x is None:
         max_x = float("+inf")
     if xscaling is None:
@@ -44,14 +46,21 @@ def prepData(csvfiles : List[str],
 
     out_dfs = {}
     file_labels = labelsFromFiles(csvfiles)
-    for df in in_dfs:
+    i = 0
+    for i in range(len(in_dfs)):
+        df = in_dfs[i]
         # df[y_data_ids] = df[y_data_ids]*yscalings
         if "success" in df:
             df["success"].fillna(value=-1,inplace=True)
             df["success"] = df["success"].astype(float) # boolean to 0-1
-        df[x_data_id] = df[x_data_id] * xscaling
+        df[x_data_id] = df[x_data_id] * xscaling + xoffsets[i]
         df = df.loc[df[x_data_id] < max_x]
-
+        # print(f"cutting {cutx}:\n{df[x_data_id] > cutx[0]}")
+        df = df.loc[df[x_data_id] > cutx[0]]
+        df = df.loc[df[x_data_id] < cutx[1]]
+        # print(f"{df}")
+        in_dfs[i] = df
+        i+=1
 
     yid_mean_idx = [yid+"_mean" for yid in y_data_ids]
     yid_std_idx = [yid+"_std" for yid in y_data_ids]
@@ -64,8 +73,8 @@ def prepData(csvfiles : List[str],
             df = in_dfs[i]
             rdf = pd.DataFrame()
             rdf[y_data_ids] = df[y_data_ids]
-            rdf[yid_mean_idx] = df[y_data_ids].rolling(avglen, center=True).mean()
-            rdf[yid_std_idx] = df[y_data_ids].rolling(avglen, center=True).std()
+            rdf[yid_mean_idx] = df[y_data_ids].rolling(avglen, center=centeravg, min_periods=avglen//2).mean()
+            rdf[yid_std_idx] = df[y_data_ids].rolling(avglen, center=centeravg, min_periods=avglen//2).std()
             rdf[x_data_id] = df[x_data_id]
             rdf[yid_mean_cummax_idx] = rdf[yid_mean_idx].cummax()
             count = rdf[x_data_id].count()
@@ -100,9 +109,9 @@ def prepData(csvfiles : List[str],
             df = in_dfs[i]
             rdf = pd.DataFrame()
             rdf[y_data_ids] = df[y_data_ids]
-            rdf[yid_mean_idx] = df[y_data_ids].rolling(avglen, center=True).mean()
-            rdf[yid_std_idx] = df[y_data_ids].rolling(avglen, center=True).std()
-            rdf[yid_var_idx] = df[y_data_ids].rolling(avglen, center=True).std().pow(2)
+            rdf[yid_mean_idx] = df[y_data_ids].rolling(avglen, center=centeravg).mean()
+            rdf[yid_std_idx] = df[y_data_ids].rolling(avglen, center=centeravg).std()
+            rdf[yid_var_idx] = df[y_data_ids].rolling(avglen, center=centeravg).std().pow(2)
             rdf[x_data_id] = df[x_data_id]
             rdf[yid_mean_cummax_idx] = rdf[yid_mean_idx].cummax()
             count = rdf[x_data_id].count()
@@ -117,31 +126,48 @@ def prepData(csvfiles : List[str],
         cummax_df = mean_df[yid_mean_cummax_idx]
 
             
-        concatdf = pd.concat(in_dfs)
-        concatdf = concatdf.sort_values(x_data_id)
-        by_x = concatdf.groupby(x_data_id)
+        in_dfs = [df.sort_values(x_data_id) for df in in_dfs]
 
-
-        # mean across runs
-        concatdf[yid_mean_idx] = by_x[y_data_ids].mean()
-        concatdf[yid_std_idx] = by_x[y_data_ids].std()
-        # mean across window
-        concatdf[yid_mean_idx] = concatdf[yid_mean_idx].rolling(window=avglen, center=True).mean()
-        concatdf[yid_std_idx] = concatdf[yid_std_idx].pow(2).rolling(window=avglen, center=True).mean().pow(0.5)
-        
-        concatdf.reset_index(drop=True)
+        # concatdf = pd.concat([in_dfs], axis=0, keys=list(range(len(in_dfs)))).sort_index(level=1).rolling(3, center=True).sum()
+        concatdf = pd.concat(in_dfs, axis=0, keys=list(range(len(in_dfs)))).sort_index(level=0).sort_index(level=1)
+        # print(concatdf[x_data_id])    
         rdf = pd.DataFrame()
-        rdf[[x_data_id]+y_data_ids+yid_mean_idx+yid_std_idx] = concatdf[[x_data_id]+y_data_ids+yid_mean_idx+yid_std_idx]
+        rdf[yid_mean_idx] = concatdf[y_data_ids].rolling(window=avglen*len(in_dfs), center=centeravg).mean()
+        rdf[yid_std_idx] = concatdf[y_data_ids].rolling(window=avglen*len(in_dfs), center=centeravg).std()
+        rdf[y_data_ids] = concatdf.groupby(x_data_id)[y_data_ids].mean()
+        rdf[x_data_id] = concatdf[x_data_id]
+        
+        # print(rdf)
 
-        concatdf[yid_mean_cummax_idx] = cummax_df
+        # concatdf = pd.concat(in_dfs)
+        # concatdf = concatdf.sort_values(x_data_id)
+        # by_x = concatdf.groupby(x_data_id)
+
+
+        # # mean across runs and then window
+        # concatdf[yid_mean_idx] = by_x[y_data_ids].mean().rolling(window=avglen, center=True).mean()
+        # concatdf[yid_std_idx] = by_x[y_data_ids].std()
+        
+        # concatdf[yid_std_idx] = concatdf[yid_std_idx].pow(2).rolling(window=avglen, center=True).mean().pow(0.5)
+        
+        # concatdf.reset_index(drop=True)
+        # rdf = pd.DataFrame()
+        # rdf[[x_data_id]+y_data_ids+yid_mean_idx+yid_std_idx] = concatdf[[x_data_id]+y_data_ids+yid_mean_idx+yid_std_idx]
+
+        rdf[yid_mean_cummax_idx] = cummax_df
         print(f"maximum mean performance: {rdf[yid_mean_idx].max()} at {rdf[yid_mean_idx].idxmax()}")
-        out_dfs["all"] = concatdf
+        out_dfs["all"] = rdf
         
 
     for df in out_dfs.values():
         for yids in [y_data_ids , yid_mean_idx , yid_std_idx , yid_mean_cummax_idx]:
             df[yids] = df[yids]*yscalings
     return out_dfs
+
+
+
+
+
 
 
 def makePlot(dfs_dict : Dict[str, pd.DataFrame],
@@ -159,7 +185,11 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
              dfLabels : List[str] = None,
              cummax : bool = False,
              showLegend : bool = True,
-             yscalings_dict : Dict[str, float] = None):
+             yscalings_dict : Dict[str, float] = None,
+             avglen : int = 1,
+             runs_number : int = 1,
+             palette : List[Tuple[float]] = None,
+             legendsize : float = 4):
 
     plt.clf()
 
@@ -171,9 +201,14 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
     for k, df in dfs_dict.items():
         df.reset_index(drop = True, inplace=True)
         # print(df.head())
+    i = 0
     if dfLabels is None:
-        dfLabels = dfs_dict.keys()
-        showLegend = False
+        dfLabels = []
+        for k, df in dfs_dict.items():
+            for yid in y_data_ids:
+                dfLabels.append(f"{k}/{yid}×{yscalings_dict[yid]}")
+                i+=1
+
 
 
     sns.set_theme(style="ticks") #"darkgrid")
@@ -198,7 +233,13 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
     # colors_num = len(y_data_ids)*len(dfs_dict.keys())
 
     # palette = sns.color_palette("tab10")#"husl", len(dfs))
-    palette = sns.color_palette("husl", colors_num)
+    extended_palette = False
+    if palette is None:
+        if colors_num < 10 or not extended_palette:
+            palette = sns.color_palette("husl", colors_num)
+        else:
+            palette = sns.color_palette("hls", int((colors_num+1)/2))
+            palette += [[e*0.7 for e in c] for c in sns.color_palette("hls", colors_num)]
     # palette[-1] = [0 for e in palette[-1]]
     i = 0
     if raw:
@@ -214,11 +255,13 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
         for k, df in dfs_dict.items():
             for yid in y_data_ids:
                 c = palette[color_ids[i]]
+                l = dfLabels[i]
                 print(f"Plotting {k}/{yid} mean, {len(df[x_data_id])} samples, max_avg = {df[yid+'_mean'].max()}, min_avg = {df[yid+'_mean'].min()}, max = {df[yid].max()}, min = {df[yid].min()}")
-                p = sns.lineplot(x=df[x_data_id],y=df[yid+"_mean"], color=c, label=f"{k}/{yid}×{yscalings_dict[yid]}", ci=None, linewidth=0.5) #, ax = ax) #
+                p = sns.lineplot(x=df[x_data_id],y=df[yid+"_mean"], color=c, label=l, ci=None, linewidth=0.5) #, ax = ax) #
                 if not raw and yid+"_std" in df:
                     print(f"Plotting {k}/{yid} std")
-                    cis = (df[yid+"_mean"] - df[yid+"_std"], df[yid+"_mean"] + df[yid+"_std"])
+                    ci_widths = 1.96*df[yid+"_std"]/(math.sqrt(avglen*runs_number))
+                    cis = (df[yid+"_mean"] - ci_widths, df[yid+"_mean"] + ci_widths)
                     c = [(e+1)/2 for e in c]
                     p.fill_between(df[x_data_id],cis[0],cis[1], color=c, alpha = 0.5)
                 i+=1
@@ -228,8 +271,9 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
             for yid in y_data_ids:
                 c = palette[color_ids[i]]
                 c = [a*0.75 for a in c]
+                l = dfLabels[i]
                 print(f"plotting cummax {df[yid+'_mean_cummax']}")
-                p = sns.lineplot(x=df[x_data_id],y=df[yid+"_mean_cummax"], color=c, label=f"{k}/{yid}×{yscalings_dict[yid]}", ci=None, linewidth=0.5) #, ax = ax) #
+                p = sns.lineplot(x=df[x_data_id],y=df[yid+"_mean_cummax"], color=c, label=l, ci=None, linewidth=0.5) #, ax = ax) #
                 i+=1
                 
     #plt.legend(loc='lower right', labels=names)
@@ -250,7 +294,7 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
 
     if showLegend:
         # p.legend(loc='upper left')
-        p.legend(prop={'size': 4}) #, loc='lower right')
+        p.legend(prop={'size': legendsize}) #, loc='lower right')
     else:
         p.legend().remove()
     p.minorticks_on()
@@ -330,12 +374,20 @@ def main():
     ap.add_argument("--cummax", default=False, action='store_true', help="Plot cumulative maximum")
     ap.add_argument("--nostd", default=False, action='store_true', help="Dont plot std")
     ap.add_argument("--outfname", required=False, default=None, type=str, help="Name of the output file (without path)")
+    ap.add_argument("--reorderfiles", nargs="+", required=False, default=None, type=int, help="Reorder the input files before processing")
+    ap.add_argument("-p","--palette", nargs="+", required=False, default=None, action='append', type=float, help="palette to use as -p <r> <g> <b> -p <r> <g> <b> ...")
+    ap.add_argument("--xoffsets", nargs="+", required=False, default=[0], type=int, help="Add this to x data")
+    ap.add_argument("--nocenteravg", default=False, action='store_true', help="Do not center the window averaging")
+    ap.add_argument("--legendsize", required=False, default=4, type=float, help="Size of the legend")
+    ap.add_argument("--cutx", nargs=2, required=False, default=[float("-inf"),float("+inf")], type=float, help="Cut samples to be in this x interval")
 
 
     ap.set_defaults(feature=True)
     args = vars(ap.parse_args())
     if not args["nogui"]:
         signal.signal(signal.SIGINT, signal_handler)
+
+    print(args["legend"])
 
     matplotlib.rcParams['figure.raise_window'] = False
     #matplotlib.use('Tkagg')
@@ -348,12 +400,21 @@ def main():
     else:
         y_data_ids=["ep_reward"]
 
+    yscalings = args["yscalings"] if args["yscalings"] is not None else [1.0]*len(y_data_ids)
+
+    if len(args["xoffsets"])==1:
+        args["xoffsets"] = args["xoffsets"] * len(args["csvfiles"])
 
     #fig, ax = plt.subplots(figsize=(11, 8.5))
     while not ctrl_c_received:
         #print("Plotting")
         try:
             csvfiles = args["csvfiles"]
+
+            if args["reorderfiles"] is not None:
+                csvfiles = [csvfiles[i] for i in args["reorderfiles"]]
+                
+            runs_num = len(csvfiles)
             commonPath = os.path.commonpath([os.path.abspath(os.path.dirname(cf)) for cf in csvfiles])
             commonRealPath = os.path.realpath(commonPath) # absolute path without links
             if args["out"] is not None:
@@ -383,13 +444,16 @@ def main():
                                 y_data_ids=y_data_ids,
                                 avgFiles=args["avgfiles"],
                                 xscaling=args["xscaling"],
-                                yscalings=args["yscalings"],
+                                yscalings=yscalings,
                                 max_x = args["maxx"],
                                 deparallelize = args["deparallelize"],
                                 avglen=args["avglen"],
                                 cummax = args["cummax"],
                                 parallelsims= args["parallelsims"],
-                                nostd=args["nostd"])
+                                nostd=args["nostd"],
+                                xoffsets = args["xoffsets"],
+                                centeravg=not args["nocenteravg"],
+                                cutx = args["cutx"])
             if args["savedfs"]:                
                 pickle.dump(dfs,out_path+".pkl")
             if not args["dontplot"]:
@@ -398,10 +462,9 @@ def main():
                 elif args["avgfiles"]:
                     dfLabels = None
                 else:
-                    dfLabels = labelsFromFiles(csvfiles)
+                    dfLabels = None # labelsFromFiles(csvfiles)
 
-                yscalings = args["yscalings"] if args["yscalings"] is not None else [1.0]*len(y_data_ids)
-                yscalings_dict = {y_data_ids[i] : args["yscalings"][i] for i in range(len(y_data_ids))}
+                yscalings_dict = {y_data_ids[i] : yscalings[i] for i in range(len(y_data_ids))}
                 makePlot(dfs,
                         x_data_id=args["xdataid"],
                         max_x = args["maxx"],
@@ -417,12 +480,16 @@ def main():
                         dfLabels=dfLabels,
                         cummax=args["cummax"],
                         showLegend=not args["nolegend"],
-                        yscalings_dict=yscalings_dict)
+                        yscalings_dict=yscalings_dict,
+                        avglen = args["avglen"],
+                        runs_number=runs_num,
+                        palette = args["palette"],
+                        legendsize = args["legendsize"])
                 if args["format"] == "png":
                     plt.savefig(out_path, dpi=600,bbox_inches='tight')
                 else:
                     plt.savefig(out_path,bbox_inches='tight')
-                print("Saved to "+out_path)
+                print("Saved to "+os.path.realpath(out_path))
 
                 #plt.show(block=True)
                 if not args["nogui"]:

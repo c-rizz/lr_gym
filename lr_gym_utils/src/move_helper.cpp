@@ -362,6 +362,7 @@ bool clearCollisionObjectsServiceCallback(lr_gym_utils::ClearCollisionObjects::R
   // planningSceneInt->applyCollisionObjects(collision_objects);
   // res.objects_count += collision_objects.size();
 
+  collision_objects_ids.clear();
 
   return true;
 }

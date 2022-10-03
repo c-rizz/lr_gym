@@ -197,6 +197,8 @@ def pyTorch_makeDeterministic(seed):
     import torch as th
     th.manual_seed(seed)
     np.random.seed(seed)
+    # print(f"Seed set to {seed}")
+    # time.sleep(10)
     th.backends.cudnn.benchmark = False
     th.use_deterministic_algorithms(True)
     # Following may make things better, see https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility

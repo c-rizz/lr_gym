@@ -67,8 +67,9 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
 
         """
 
+        self._first_reset = True
         self.seed(seed)
-        self._stepLength_sec = stepLength_sec
+        self._stacked_stepLength_sec = stepLength_sec
         self._wall_sim_speed = wall_sim_speed
         self._obs_img_height = obs_img_height_width[0]
         self._obs_img_width = obs_img_height_width[1]
@@ -85,7 +86,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         self._already_built_cartpole = False
 
         super(CartpoleEnv, self).__init__(  maxStepsPerEpisode = maxStepsPerEpisode,
-                                            stepLength_sec = stepLength_sec,
+                                            stepLength_sec = stepLength_sec/self._frame_stacking_size,
                                             environmentController = simulatorController,
                                             startSimulation = startSimulation,
                                             simulationBackend = "gazebo")
@@ -127,6 +128,7 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
                 action = -1
         
         self._environmentController.setJointsEffortCommand(jointTorques = [("cartpole_v0","foot_joint", action * 10)])
+        # ggLog.info(f"step = {self._actionsCounter} max = {self.getMaxStepsPerEpisode()}")
 
     def getObservation(self, state) -> np.ndarray:
         obs = state[1]
@@ -217,12 +219,43 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
                 img = np.zeros([self._obs_img_height, self._obs_img_width,3])
             img = self._reshapeFrame(img)
             self._stackedImg[i] = img
-            self._estimatedSimTime += self._stepLength_sec
+            self._estimatedSimTime += self._stacked_stepLength_sec
+        self._stepCounter -= self._frame_stacking_size-1 
 
+    def _build_entities(self):
+        roi_aspect = (self._img_crop_rel_right-self._img_crop_rel_left)/(self._img_crop_rel_bottom-self._img_crop_rel_top)
+        if roi_aspect>1:
+            roi_height = self._obs_img_height
+            roi_width = roi_height*roi_aspect
+        else:
+            roi_width = self._obs_img_width
+            roi_height = roi_width/roi_aspect
+
+        # ggLog.info(f"roi_width  = {roi_width}")
+        # ggLog.info(f"roi_height = {roi_height}")
+
+        sim_img_width  = roi_width/(self._img_crop_rel_right-self._img_crop_rel_left)*16/9
+        sim_img_height = roi_height/(self._img_crop_rel_bottom-self._img_crop_rel_top)
+
+        camera_args = { "camera_width": sim_img_width,
+                        "camera_height": sim_img_height}
+                      
+        gazebo_models_manager.spawn_model(  rospkg.RosPack().get_path("lr_gym")+"/models/camera.urdf.xacro",
+                                            pose=Pose(0,0,0,0,0,0,1),
+                                            model_name="camera",
+                                            args=camera_args) 
+        ggLog.info("Spawned camera")
+
+
+
+        self._rebuild_cartpole()
 
 
     def performReset(self):
         #ggLog.info("PerformReset")
+        if self._first_reset:
+            self._build_entities()
+            self._first_reset = False
         if self._randomize_at_reset:
             self._rebuild_cartpole()
 
@@ -315,30 +348,3 @@ class CartpoleContinuousVisualEnv(CartpoleEnv):
         if isinstance(self._environmentController, GazeboControllerNoPlugin):
             self._environmentController.setRosMasterUri(self._mmRosLauncher.getRosMasterUri())
 
-
-        roi_aspect = (self._img_crop_rel_right-self._img_crop_rel_left)/(self._img_crop_rel_bottom-self._img_crop_rel_top)
-        if roi_aspect>1:
-            roi_height = self._obs_img_height
-            roi_width = roi_height*roi_aspect
-        else:
-            roi_width = self._obs_img_width
-            roi_height = roi_width/roi_aspect
-
-        # ggLog.info(f"roi_width  = {roi_width}")
-        # ggLog.info(f"roi_height = {roi_height}")
-
-        sim_img_width  = roi_width/(self._img_crop_rel_right-self._img_crop_rel_left)*16/9
-        sim_img_height = roi_height/(self._img_crop_rel_bottom-self._img_crop_rel_top)
-
-        camera_args = { "camera_width": sim_img_width,
-                        "camera_height": sim_img_height}
-                      
-        gazebo_models_manager.spawn_model(  rospkg.RosPack().get_path("lr_gym")+"/models/camera.urdf.xacro",
-                                            pose=Pose(0,0,0,0,0,0,1),
-                                            model_name="camera",
-                                            args=camera_args) 
-        ggLog.info("Spawned camera")
-
-
-
-        self._rebuild_cartpole()

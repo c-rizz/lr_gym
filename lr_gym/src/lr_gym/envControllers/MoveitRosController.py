@@ -141,7 +141,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
         self._moveJointClient.send_goal(goal)
 
         def waitCallback():
-            r = self._moveJointClient.wait_for_result()
+            r = self._moveJointClient.wait_for_result(timeout = rospy.Duration(10.0))
             if r:
                 if self._moveJointClient.get_result().succeded:
                     return
@@ -199,7 +199,7 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
         def waitCallback():
             # ggLog.info("waiting cartesian....")
-            r = self._moveEeClient.wait_for_result()
+            r = self._moveEeClient.wait_for_result(timeout = rospy.Duration(10.0))
             if r:
                 if self._moveEeClient.get_result().succeded:
                     # ggLog.info("waited cartesian....")

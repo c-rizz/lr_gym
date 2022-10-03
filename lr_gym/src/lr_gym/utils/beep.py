@@ -18,22 +18,24 @@ def init():
     global initialized
     initialized = True
 
-def beep():
+def beep(send_msg = True):
     # ggLog.info("beep")
     if not initialized:
         init()
     try:
         playsound(os.path.abspath(os.path.dirname(os.path.abspath(__file__))+"/../../../assets/audio/beep.ogg"))
-        pub.publish("beep")
+        if send_msg:
+            pub.publish("beep")
     except:
         pass
 
-def boop():
+def boop(send_msg = True):
     # ggLog.info("boop")
     if not initialized:
         init()
     try:
         playsound(os.path.abspath(os.path.dirname(os.path.abspath(__file__))+"/../../../assets/audio/boop.ogg"))
-        pub.publish("boop")
+        if send_msg:
+            pub.publish("boop")
     except:
         pass

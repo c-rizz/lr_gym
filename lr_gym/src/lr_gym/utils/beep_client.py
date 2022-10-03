@@ -5,9 +5,9 @@ import lr_gym.utils.beep
 
 def callback(data):
     if data.data == "boop":
-        lr_gym.utils.beep.boop()
+        lr_gym.utils.beep.boop(send_msg=False)
     else:
-        lr_gym.utils.beep.beep()
+        lr_gym.utils.beep.beep(send_msg=False)
     
     
 def listener():

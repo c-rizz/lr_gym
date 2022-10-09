@@ -23,9 +23,9 @@ def beep(send_msg = True):
     if not initialized:
         init()
     try:
-        playsound(os.path.abspath(os.path.dirname(os.path.abspath(__file__))+"/../../../assets/audio/beep.ogg"))
         if send_msg:
             pub.publish("beep")
+        playsound(os.path.abspath(os.path.dirname(os.path.abspath(__file__))+"/../../../assets/audio/beep.ogg"))
     except:
         pass
 
@@ -34,8 +34,8 @@ def boop(send_msg = True):
     if not initialized:
         init()
     try:
-        playsound(os.path.abspath(os.path.dirname(os.path.abspath(__file__))+"/../../../assets/audio/boop.ogg"))
         if send_msg:
             pub.publish("boop")
+        playsound(os.path.abspath(os.path.dirname(os.path.abspath(__file__))+"/../../../assets/audio/boop.ogg"))
     except:
         pass

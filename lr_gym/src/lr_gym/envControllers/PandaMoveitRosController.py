@@ -63,10 +63,9 @@ class PandaMoveitRosController(MoveitRosController):
             time.sleep(0.01)
         return ret
 
-    def _checkArmErrorAndRecover(self):
+    def _checkArmErrorAndRecover(self, max_tries = 10, blocking = True):
         fs = self._getNewFrankaState()
         tries = 0
-        max_tries = 10
         while fs.robot_mode != franka_msgs.msg.FrankaState.ROBOT_MODE_MOVE:
             ggLog.warn(f"Panda arm is in robot_mode {fs.robot_mode}.\n Franka state = {fs}\n Trying to recover (retries = {tries}).")
             goal = franka_msgs.msg.ErrorRecoveryGoal()
@@ -79,13 +78,16 @@ class PandaMoveitRosController(MoveitRosController):
             rospy.sleep(0.5)
             tries += 1
             if tries > max_tries:
-                lr_gym.utils.beep.boop()
-                ggLog.error("Panda arm failed to recover automatically. Please try to put it back into a working pose manually and press Enter.")
-                try:
-                    input("Press Enter when done.")
-                except EOFError as e:
-                    ggLog.error("Error getting input: "+str(e))
-                tries=0
+                if blocking:
+                    lr_gym.utils.beep.boop()
+                    ggLog.error("Panda arm failed to recover automatically. Please try to put it back into a working pose manually and press Enter.")
+                    try:
+                        input("Press Enter when done.")
+                    except EOFError as e:
+                        ggLog.error("Error getting input: "+str(e))
+                    tries=0
+                else:
+                    break
 
     def resetWorld(self):
         self._checkArmErrorAndRecover()
@@ -101,11 +103,10 @@ class PandaMoveitRosController(MoveitRosController):
         except MoveFailError as e:
             ggLog.warn(f"Step failed. Will try to recover. exception = {e}")
 
-    def _runRecoveringBlocking(self, function, functionName : str):
+    def _runRecoveringBlocking(self, function, functionName : str, max_tries = 10, blocking = True, quiet = False):
         self._checkArmErrorAndRecover()
         done = False
         tries = 0
-        max_tries = 10
         while not done:
             try:
                 function()
@@ -113,39 +114,43 @@ class PandaMoveitRosController(MoveitRosController):
             except MoveFailError as e:
                 ggLog.warn(f"{functionName} failed. exception = {e}\n"+
                             f"Trying to recover (retries = {tries}).")
-                lr_gym.utils.beep.beep()
+                if not quiet:
+                    lr_gym.utils.beep.beep()
                 rospy.sleep(1.0)
                 self._checkArmErrorAndRecover()
                 tries += 1
                 if tries > max_tries:
-                    lr_gym.utils.beep.boop()
-                    ggLog.error("Panda arm failed to recover automatically. Please try to put it back into a working pose manually and press Enter.")
-                    try:
-                        input("Press Enter when done.")
-                    except EOFError as e:
-                        ggLog.error("Error getting input: "+str(e))
-                    tries=0
-                    a = ""
-                    while a!='y' and a!='n':
-                        a = input("Retry last movement? If not, the movement will be skipped (Y/n)")
-                    if a=="n":
-                        ggLog.error("Skipping movement")
-                        break
+                    if blocking:
+                        lr_gym.utils.beep.boop()
+                        ggLog.error("Panda arm failed to recover automatically. Please try to put it back into a working pose manually and press Enter.")
+                        try:
+                            input("Press Enter when done.")
+                        except EOFError as e:
+                            ggLog.error("Error getting input: "+str(e))
+                        tries=0
+                        a = ""
+                        while a!='y' and a!='n':
+                            a = input("Retry last movement? If not, the movement will be skipped (Y/n)")
+                        if a=="n":
+                            ggLog.error("Skipping movement")
+                            break
+                        else:
+                            ggLog.error("retrying movement")
                     else:
-                        ggLog.error("retrying movement")
+                        raise MoveFailError(f"Failed to move at {functionName} and blocking is False")
 
 
-    def moveToJointPoseSync(self, jointPositions : Dict[Tuple[str,str],float], velocity_scaling : float = None, acceleration_scaling : float = None) -> None:
+    def moveToJointPoseSync(self, jointPositions : Dict[Tuple[str,str],float], velocity_scaling : float = None, acceleration_scaling : float = None, blocking = True) -> None:
         def function():
             super(PandaMoveitRosController,self).moveToJointPoseSync(jointPositions, velocity_scaling, acceleration_scaling)
-        self._runRecoveringBlocking(function, "moveToJointPoseSync")
+        self._runRecoveringBlocking(function, "moveToJointPoseSync", blocking = blocking)
 
 
     def moveToEePoseSync(self,  pose : List[float], do_cartesian = False, velocity_scaling : float = None, acceleration_scaling : float = None,
-                                ee_link : str = None, reference_frame : str = None):
+                                ee_link : str = None, reference_frame : str = None, blocking = True):
         def function():
             super(PandaMoveitRosController,self).moveToEePoseSync(pose, do_cartesian, velocity_scaling, acceleration_scaling, ee_link, reference_frame)
-        self._runRecoveringBlocking(function, "moveToEePoseSync")
+        self._runRecoveringBlocking(function, "moveToEePoseSync", blocking = blocking)
                          
     def moveGripperSync(self, width : float, max_effort : float):
         def function():

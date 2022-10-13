@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 from cProfile import label
-from copyreg import pickle
+# from copyreg import pickle
 from curses import window
 from posixpath import abspath
+import pickle
 
 from numpy.lib.shape_base import split
 from pandas.core.reshape.concat import concat
@@ -63,7 +64,12 @@ def prepData(csvfiles : List[str],
         i+=1
 
     yid_mean_idx = [yid+"_mean" for yid in y_data_ids]
+    yid_min_idx = [yid+"_min" for yid in y_data_ids]
+    yid_max_idx = [yid+"_max" for yid in y_data_ids]
     yid_std_idx = [yid+"_std" for yid in y_data_ids]
+    yid_means_std_idx = [yid+"_means_std" for yid in y_data_ids]
+    yid_means_mean_ciw_idx = [yid+"_means_mean_ciw" for yid in y_data_ids]
+    yid_ciw_idx = [yid+"_ciw" for yid in y_data_ids] # confidence interval width
     yid_var_idx = [yid+"_var" for yid in y_data_ids]
     yid_mean_cummax_idx = [yid+"_mean_cummax" for yid in y_data_ids]
     
@@ -73,8 +79,9 @@ def prepData(csvfiles : List[str],
             df = in_dfs[i]
             rdf = pd.DataFrame()
             rdf[y_data_ids] = df[y_data_ids]
-            rdf[yid_mean_idx] = df[y_data_ids].rolling(avglen, center=centeravg, min_periods=avglen//2).mean()
-            rdf[yid_std_idx] = df[y_data_ids].rolling(avglen, center=centeravg, min_periods=avglen//2).std()
+            rdf[yid_mean_idx] = df[y_data_ids].rolling(avglen, center=centeravg).mean()
+            rdf[yid_std_idx] = df[y_data_ids].rolling(avglen, center=centeravg).std()
+            rdf[yid_ciw_idx] = 1.96*rdf[yid_std_idx]/math.sqrt(avglen)
             rdf[x_data_id] = df[x_data_id]
             rdf[yid_mean_cummax_idx] = rdf[yid_mean_idx].cummax()
             count = rdf[x_data_id].count()
@@ -123,20 +130,47 @@ def prepData(csvfiles : List[str],
         concatdf = pd.concat(per_run_dfs)
         concatdf = concatdf.sort_values(x_data_id)
         mean_df = concatdf.groupby(x_data_id, as_index=False).mean()
+        # print(f"concatdf {concatdf.iloc[1000:1010]}")
+        means_std_df = concatdf[yid_mean_idx+[x_data_id]].groupby(x_data_id, as_index=False).std()
+        # print(f"means_std_df {means_std_df.iloc[125]}\n\n")
         cummax_df = mean_df[yid_mean_cummax_idx]
 
-            
-        in_dfs = [df.sort_values(x_data_id) for df in in_dfs]
+        if False:   
+            in_dfs = [df.sort_values(x_data_id) for df in in_dfs]
 
-        # concatdf = pd.concat([in_dfs], axis=0, keys=list(range(len(in_dfs)))).sort_index(level=1).rolling(3, center=True).sum()
-        concatdf = pd.concat(in_dfs, axis=0, keys=list(range(len(in_dfs)))).sort_index(level=0).sort_index(level=1)
-        # print(concatdf[x_data_id])    
-        rdf = pd.DataFrame()
-        rdf[yid_mean_idx] = concatdf[y_data_ids].rolling(window=avglen*len(in_dfs), center=centeravg).mean()
-        rdf[yid_std_idx] = concatdf[y_data_ids].rolling(window=avglen*len(in_dfs), center=centeravg).std()
-        rdf[y_data_ids] = concatdf.groupby(x_data_id)[y_data_ids].mean()
-        rdf[x_data_id] = concatdf[x_data_id]
-        
+            # concatdf = pd.concat([in_dfs], axis=0, keys=list(range(len(in_dfs)))).sort_index(level=1).rolling(3, center=True).sum()
+            concatdf = pd.concat(in_dfs, axis=0, keys=list(range(len(in_dfs)))).sort_index(level=0).sort_index(level=1)
+            # print(concatdf[x_data_id])    
+            rdf = pd.DataFrame()
+            rdf[yid_mean_idx] = concatdf[y_data_ids].rolling(window=avglen*len(in_dfs), center=centeravg).mean()
+            rdf[yid_min_idx] = concatdf[y_data_ids].rolling(window=avglen*len(in_dfs), center=centeravg).min()
+            rdf[yid_max_idx] = concatdf[y_data_ids].rolling(window=avglen*len(in_dfs), center=centeravg).max()
+            rdf[yid_std_idx] = concatdf[y_data_ids].rolling(window=avglen*len(in_dfs), center=centeravg).std()
+            rdf[yid_ciw_idx] = 1.96*rdf[yid_std_idx]/(math.sqrt(avglen*len(in_dfs)))
+            rdf[y_data_ids] = concatdf.groupby(x_data_id)[y_data_ids].mean()
+            rdf[x_data_id] = concatdf[x_data_id]
+            
+            rdf[yid_means_std_idx] = means_std_df[yid_mean_idx] #compute the std between the rolling means of each run
+            rdf[yid_means_mean_ciw_idx] = 1.96*means_std_df[yid_mean_idx] /(math.sqrt(len(in_dfs)))
+        else:
+            rdf = pd.DataFrame()
+            rdf[yid_mean_idx] = mean_df[y_data_ids].rolling(window=avglen, center=centeravg).mean()
+            # rdf[yid_min_idx] = concatdf[y_data_ids].rolling(window=avglen, center=centeravg).min()
+            # rdf[yid_max_idx] = concatdf[y_data_ids].rolling(window=avglen, center=centeravg).max()
+            rdf[yid_std_idx] = concatdf.groupby(x_data_id)[yid_mean_idx].std()
+            rdf[yid_ciw_idx] = 1.96*rdf[yid_std_idx]/(math.sqrt(len(in_dfs)))
+            rdf[y_data_ids] = concatdf.groupby(x_data_id)[y_data_ids].mean()
+            # rdf[y_data_ids] = concatdf.groupby(x_data_id)[y_data_ids].mean()
+            rdf[x_data_id] = mean_df[x_data_id]
+            print(f"concatdf = {concatdf.iloc[800:810]}")
+            # print(f"concatdf = {concatdf.groupby(x_data_id)}")
+            print(f"mean_df = {mean_df.iloc[100:110]}")
+            print(f"rdf = {rdf.iloc[100:110]}")
+            
+        # print(f"means_std_df[yid_mean_idx] {means_std_df[yid_mean_idx].iloc[125]}")
+        # print(f"rdf[yid_means_std_idx] {rdf[yid_means_std_idx].iloc[125]}")
+        # print(f"yid_means_mean_ciw_idx {rdf[yid_means_mean_ciw_idx].iloc[125]}")
+
         # print(rdf)
 
         # concatdf = pd.concat(in_dfs)
@@ -189,7 +223,8 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
              avglen : int = 1,
              runs_number : int = 1,
              palette : List[Tuple[float]] = None,
-             legendsize : float = 4):
+             legendsize : float = 4,
+             minmax = False):
 
     plt.clf()
 
@@ -256,14 +291,17 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
             for yid in y_data_ids:
                 c = palette[color_ids[i]]
                 l = dfLabels[i]
-                print(f"Plotting {k}/{yid} mean, {len(df[x_data_id])} samples, max_avg = {df[yid+'_mean'].max()}, min_avg = {df[yid+'_mean'].min()}, max = {df[yid].max()}, min = {df[yid].min()}")
+                print(f"Plotting {k}/{yid} mean, {len(df[x_data_id])} samples, max_avg = {df[yid+'_mean'].max()}, min_avg = {df[yid+'_mean'].min()}, max = {df[yid].max()}, min = {df[yid].min()}, last_avg = {df[yid+'_mean'].iloc[-1]}, last = {df[yid].iloc[-1]}")
                 p = sns.lineplot(x=df[x_data_id],y=df[yid+"_mean"], color=c, label=l, ci=None, linewidth=0.5) #, ax = ax) #
-                if not raw and yid+"_std" in df:
+                if not raw and yid+"_std" in df and not minmax:
                     print(f"Plotting {k}/{yid} std")
-                    ci_widths = 1.96*df[yid+"_std"]/(math.sqrt(avglen*runs_number))
+                    ci_widths = df[yid+"_ciw"] #1.96*df[yid+"_std"]/(math.sqrt(avglen*runs_number))
                     cis = (df[yid+"_mean"] - ci_widths, df[yid+"_mean"] + ci_widths)
                     c = [(e+1)/2 for e in c]
                     p.fill_between(df[x_data_id],cis[0],cis[1], color=c, alpha = 0.5)
+                if minmax:
+                    c = [(e+1)/2 for e in c]
+                    p.fill_between(df[x_data_id],df[yid+"_min"],df[yid+"_max"], color=c, alpha = 0.5)
                 i+=1
     i = 0
     if cummax:
@@ -402,8 +440,6 @@ def main():
 
     yscalings = args["yscalings"] if args["yscalings"] is not None else [1.0]*len(y_data_ids)
 
-    if len(args["xoffsets"])==1:
-        args["xoffsets"] = args["xoffsets"] * len(args["csvfiles"])
 
     #fig, ax = plt.subplots(figsize=(11, 8.5))
     while not ctrl_c_received:
@@ -414,7 +450,10 @@ def main():
             if args["reorderfiles"] is not None:
                 csvfiles = [csvfiles[i] for i in args["reorderfiles"]]
                 
-            runs_num = len(csvfiles)
+            if args["avgfiles"]:
+                runs_num = len(csvfiles)
+            else:
+                runs_num = None
             commonPath = os.path.commonpath([os.path.abspath(os.path.dirname(cf)) for cf in csvfiles])
             commonRealPath = os.path.realpath(commonPath) # absolute path without links
             if args["out"] is not None:
@@ -437,8 +476,16 @@ def main():
             if title.lower() == "none":
                 title = None
             if args["pklfiles"] is not None:
-                dfs = pickle.load()
+                dfs_byfile = {f : pickle.load(open(f, "rb" )) for f in args["pklfiles"]}
+                dfs = {}
+                for file, fdfs in dfs_byfile.items():
+                    for yid, df in fdfs.items():
+                        dfs[file+"/"+yid] = df
+                # dfs = {f : pickle.load(open(f, "rb" )) for f in args["pklfiles"]}
+
             else:
+                if len(args["xoffsets"])==1:
+                    args["xoffsets"] = args["xoffsets"] * len(args["csvfiles"])
                 dfs = prepData(csvfiles=csvfiles,
                                 x_data_id=args["xdataid"],
                                 y_data_ids=y_data_ids,
@@ -455,7 +502,7 @@ def main():
                                 centeravg=not args["nocenteravg"],
                                 cutx = args["cutx"])
             if args["savedfs"]:                
-                pickle.dump(dfs,out_path+".pkl")
+                pickle.dump(dfs,open(out_path+".pkl", "wb" ))
             if not args["dontplot"]:
                 if args["legend"] is not None:
                     dfLabels = args["legend"]

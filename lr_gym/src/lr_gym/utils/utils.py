@@ -335,7 +335,7 @@ def createSymlink(src, dst):
         except:
             pass
 
-def setupLoggingForRun(file : str, currentframe = None, run_id_prefix : str = "", folderName : str = None):
+def setupLoggingForRun(file : str, currentframe = None, run_id_prefix : str = "", folderName : str = None, use_wandb = True, experiment_name = None):
     """Sets up a logging output folder for a training run.
         It creates the folder, saves the current main script file for reference
 
@@ -372,6 +372,15 @@ def setupLoggingForRun(file : str, currentframe = None, run_id_prefix : str = ""
     #     print(str(inputargs), file=input_args_file)
     with open(folderName+"/input_args.yaml", "w") as input_args_yamlfile:
         yaml.dump(values,input_args_yamlfile, default_flow_style=None)
+
+
+    
+    if use_wandb:
+        import wandb
+        if experiment_name is None:
+            experiment_name = os.path.basename(file)
+        wandb.init(project="lr_gym_"+experiment_name, config = values, name = datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
+
     return folderName
 
 

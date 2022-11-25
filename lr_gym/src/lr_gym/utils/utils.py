@@ -24,6 +24,7 @@ import yaml
 import torch as th
 
 import lr_gym.utils.dbg.ggLog as ggLog
+from stable_baselines3.common.vec_env import VecEnv
 
 name_to_dtypes = {
     "rgb8":    (np.uint8,  3),
@@ -416,6 +417,9 @@ def evaluatePolicy(env, model, episodes : int, on_ep_done_callback = None):
     totDuration=0.0
     successes = 0.0
     #frames = []
+    
+    obs = env.reset()
+
     #do an average over a bunch of episodes
     for episode in tqdm.tqdm(range(0,episodes)):
         frame = 0
@@ -424,7 +428,6 @@ def evaluatePolicy(env, model, episodes : int, on_ep_done_callback = None):
         predDurations = []
         t0 = time.monotonic()
         # ggLog.info("Env resetting...")
-        obs = env.reset()
         # ggLog.info("Env resetted")
         while not done:
             t0_pred = time.monotonic()
@@ -436,7 +439,14 @@ def evaluatePolicy(env, model, episodes : int, on_ep_done_callback = None):
             frame+=1
             episodeReward += stepReward
             # ggLog.info(f"Step reward = {stepReward}")
+        if not isinstance(env, VecEnv):
+            obs = env.reset()
         rewards[episode]=episodeReward
+        if isinstance(info, list):
+            if len(info) == 1:
+                info = info[0]
+            else:
+                raise RuntimeError(f"info is a list of length {len(info)}. Are you using a vecenv? vecenvs are not supported by evaluatePolicy")
         if "success" in info.keys():
             if info["success"]:
                 ggLog.info(f"Success {successes} ratio = {successes/(episode+1)}")

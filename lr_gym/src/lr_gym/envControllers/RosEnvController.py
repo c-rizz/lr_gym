@@ -125,6 +125,7 @@ class RosEnvController(EnvironmentController):
         if self._forced_ros_master_uri is not None:
             os.environ['ROS_MASTER_URI'] = self._forced_ros_master_uri
 
+        ggLog.info(f"RosEnvController: ROS_MASTER_URI = {os.environ['ROS_MASTER_URI']}, pid = {os.getpid()}")
         # init_node uses use_sim_time to determine which time to use, but I can't
         # find a reliable way for it to be set before init_node is being called
         # So we wait for it to be set to either true or false
@@ -140,6 +141,7 @@ class RosEnvController(EnvironmentController):
                 time.sleep(1)
 
         rospy.init_node('ros_env_controller', anonymous=True)
+        ggLog.info(f"RosEnvController: node initialized name = {rospy.get_name()}")
         lr_gym.utils.utils.setupSigintHandler()
 
         self._simTimeStart = rospy.get_time() #Will be overwritten by resetWorld

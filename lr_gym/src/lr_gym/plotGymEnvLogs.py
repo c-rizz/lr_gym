@@ -224,8 +224,12 @@ def makePlot(dfs_dict : Dict[str, pd.DataFrame],
              runs_number : int = 1,
              palette : List[Tuple[float]] = None,
              legendsize : float = 4,
-             minmax = False):
+             minmax = False,
+             cutx = [float("-inf"), float("+inf")]):
 
+    for dfk in dfs_dict.keys():
+        dfs_dict[dfk] = dfs_dict[dfk].loc[dfs_dict[dfk][x_data_id] > cutx[0]]
+        dfs_dict[dfk] = dfs_dict[dfk].loc[dfs_dict[dfk][x_data_id] < cutx[1]]
     plt.clf()
 
     print(f"{title}")
@@ -475,6 +479,7 @@ def main():
                     title = crps[-2]+"/"+crps[-1]
             if title.lower() == "none":
                 title = None
+            
             if args["pklfiles"] is not None:
                 dfs_byfile = {f : pickle.load(open(f, "rb" )) for f in args["pklfiles"]}
                 dfs = {}
@@ -531,7 +536,8 @@ def main():
                         avglen = args["avglen"],
                         runs_number=runs_num,
                         palette = args["palette"],
-                        legendsize = args["legendsize"])
+                        legendsize = args["legendsize"],
+                        cutx = args["cutx"])
                 if args["format"] == "png":
                     plt.savefig(out_path, dpi=600,bbox_inches='tight')
                 else:

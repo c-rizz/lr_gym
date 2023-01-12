@@ -29,7 +29,7 @@ import lr_gym.utils.dbg.dbg_pose as dbg_pose
 
 import geometry_msgs
 import lr_gym_utils.srv
-
+import traceback
 
 
 class MoveFailError(Exception):
@@ -91,8 +91,13 @@ class MoveitRosController(RosEnvController, CartesianPositionEnvController):
 
     def _connectRosAction(self, actionName : str, msgType):
         ac = actionlib.SimpleActionClient(actionName, msgType)
-        rospy.loginfo("Waiting for action "+ac.action_client.ns+"...")
-        ac.wait_for_server()
+        rospy.loginfo("MoveitRosController: Waiting for action "+ac.action_client.ns+"...")
+        connected = False
+        while not connected:
+            connected = ac.wait_for_server(rospy.Duration(5))
+            if not connected:
+                st = '\n'.join([sl.strip() for sl in traceback.format_stack()])
+                ggLog.warn(f"Timed out connecting to action {actionName}. Retrying. Stacktrace = \n {st}")
         rospy.loginfo(ac.action_client.ns+" connected.")
         return ac
 

@@ -56,23 +56,23 @@ There are various environments already implemented, you can find them in the `lr
 These instructions assume you are on ROS noetic and Ubuntu 20.04.
 
 To set up the project you first of all need to clone the following repositories in your
-catkin workspace src folder, be careful about using the correct branch and correct folder name (the provided commands should work):
+catkin workspace src folder, be careful about using the correct branch and correct folder name:
 
  * This current repository (if you didn't do it already):
    ```
-   git clone --branch a2110 https://gitlab.idiap.ch/learn-real/lr_gym.git
+   git clone --depth 1 --branch frontiers_2210 https://github.com/c-rizz/lr_gym
    ```
  * For using the Panda arm you will need the `lr_panda` repository:
    ```
-   git clone --branch a2110 https://gitlab.idiap.ch/learn-real/lr_panda.git
+   git clone --depth 1 --branch frontiers_2210 https://github.com/c-rizz/lr_panda
    ```
  * For using the Panda arm with moveit you will need `lr_panda_moveit_config`:
    ```
-   git clone --branch a2110 https://gitlab.idiap.ch/learn-real/lr_panda_moveit_config.git
+   git clone --depth 1 --branch frontiers_2210 https://github.com/c-rizz/lr_panda_moveit_config
    ```
  * For using the realsense camera you will need `lr_realsense`:
    ```
-   git clone --branch a2110 https://gitlab.idiap.ch/learn-real/lr_realsense.git
+   git clone --depth 1 --branch frontiers_2210 https://github.com/c-rizz/lr_realsense
    ```
 
 You will also need to install some python3 modules, preferably in a python virtual
@@ -134,32 +134,12 @@ You can then install with the following (replace the versions according to your 
 pip install --pre torch==1.10.1+cu113 torchvision==0.11.2+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 ```
 
-## Examples - Cartpole hardcoded
-
-The environment can be tested using a python script that executes a hard-coded policy
-through the python gym interface:
-
-```
-rosrun lr_gym test_cartpole_env.py
-```
-
-By default the script does not use the simulated camera, it is possible to enable
-it with:
-
-```
-rosrun lr_gym test_cartpole_env.py --render
-```
-
-The rendered frames can be saved to file by specifying the --saveframes option.
-The simulation step length can be changed using the --steplength option (the default is 0.05s)
-
-
 ### Basic Training
 
 It is also possible to train a basic DQN policy by using the following:
 
 ```
-rosrun lr_gym solve_cartpole_sb3.py
+rosrun lr_gym solve_cartpole_sb3.py --controller GazeboController
 ```
 
 To see the simulation you can launch a gazebo client using the following:
@@ -169,42 +149,6 @@ roslaunch lr_gym gazebo_client.launch id:=0
 ```
 
 It should reach the maximum episode length of 500 steps in about 400 episodes.
-
-
-### Parallel Simulations Training with A2C
-
-You can also train a SAC policy using multiple Gazebo simulations at the same time.
-
-```
-rosrun lr_gym solve_cartpole_sb3_a2c_vec.py --envsNum=4
-```
-
-This will start 4 gazebo simulations in 4 different ros masters. To view the simulations
-you can launch the following changing the id parameter:
-
-```
-roslaunch lr_gym gazebo_client.launch id:=0
-```
-
-It should reach the maximum episode length of 500 steps in about 140 episode batches (140x4 episodes)
-
-
-### Parallel Simulations Training with SAC - Only on stable_baselines 2
-
-You can also train a SAC policy using multiple Gazebo simulations at the same time.
-
-```
-rosrun lr_gym solve_cartpole_sb2_sac_vec.py --envsNum=4
-```
-
-This will start 4 gazebo simulations in 4 different ros masters. To view the simulations
-you can launch the following changing the id parameter:
-
-```
-roslaunch lr_gym gazebo_client.launch id:=0
-```
-
-It should reach the maximum episode length  of 500 steps in about 60 episode batches (60x4 episodes)
 
 
 ## Example - Hopper
@@ -235,33 +179,7 @@ A series of different environments based on the Franka-Emika Panda arm are avail
    keep the panda arm end effector in a specific pose that changes between each episode. **This environment work both in simulation and in the real.**
  * **PandaMoveitPick** features a Panda arm controlled in cartesian space via Moveit, it is also possible to control the Franka Hand gripper. The goal is to pick an object placed on the ground in front of tthe robot and lift it up. **This environment work both in simulation and in the real.**
 
-Scripts that solve or test each of these evironments in different ways are available in the examples folder. PandaEffortKeepVarPose and PandaMoveiPick currently do not have a working solve script.
-
-
-You can test the PandaMoveitPick environment with an hard-coded policy using the test_pandaMoveitPick.py example.
-* **In simulation**:
-  ```
-  rosrun lr_gym test_pandaMoveitPick.py
-  ```
-* **In the real** (substituting your robot ip):
-  ```
-  rosrun lr_gym test_pandaMoveitPick.py --real --robot_ip x.x.x.x
-  ```
-
-The `--real --robot_ip x.x.x.x` options can also be used for the PandaMoveitVarReachingEnv and PandaMoveitReachingEnv environments, no full training has been attempted.
-
-### Pretrained policies
-
-Pretrained policies are not yet available with stable_baselines3/pytorch. You can however check out the stable_baselines2 ones if you are interested.
-
- * PandaMoveitVarReachingEnv:
-   ```
-    rosrun lr_gym solve_pandaMoveitVarReaching.py --load src/lr_gym/lr_gym/trained_models/pandaMoveitPoseReachingEnv320210309-184658s200000_62400_steps.zip
-   ```
- * PandaEffortKeepPose:
-   ```
-    rosrun lr_gym solve_panda_effort_keep_pose_vec.py --load solve_panda_effort_keep_tensorboard/20201114-212527/checkpoints/sac_pandaEffortKeep_20201114-212527s15000_3000000_steps.zip
-   ```
+Some scripts that solve or test each of these evironments in different ways are available in the examples folder. 
 
 ## Plotting
 
@@ -298,16 +216,3 @@ Controlling the simulation using these services is not realistic (the real world
 can not be stopped like the step function does), but they allow to closely approximate
 the theoretical abstraction of an MDP.
 
-
-## Performance
-The repository was tested on one laptop:
-
-1. An Alienware laptop equipped with an Intel i7-6820HK CPU and an Nvidia GeForce GTX 980M GPU.
-
-Here is reported the performance of the test_cartpole_env script.
-
-| Laptop |       No Rendering        | With Rendering            |
-|--------|---------------------------|---------------------------|
-|   1    |  459fps (20.1x real time) | 188.1fps (8.86x real time) |
-
-The simulation step was kept at 0.05s for all the tests.
